@@ -27,7 +27,6 @@ TOKEN = os.environ.get("AIRGRADIENT_TOKEN", "")
 HOME_LAT = 40.72717732493724
 HOME_LON = -73.9506644567995
 NEARBY_RADIUS_KM = 15
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 
 def api_get(path, params=None):
@@ -63,7 +62,11 @@ def index():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "token_set": bool(TOKEN)})
+    return jsonify({
+        "status": "ok",
+        "airgradient_token_set": bool(TOKEN),
+        "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
+    })
 
 
 @app.route("/api/current")
@@ -113,7 +116,8 @@ def neighborhood():
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
     """Stream LLM analysis of current air quality data."""
-    if not ANTHROPIC_API_KEY:
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
         return jsonify({"error": "ANTHROPIC_API_KEY not set"}), 500
 
     data = request.json
@@ -131,7 +135,7 @@ Give 3-4 concise, actionable insights. Be specific to Greenpoint/Brooklyn contex
         resp = requests.post(
             "https://api.anthropic.com/v1/messages",
             headers={
-                "x-api-key": ANTHROPIC_API_KEY,
+                "x-api-key": api_key,
                 "anthropic-version": "2023-06-01",
                 "content-type": "application/json",
             },
