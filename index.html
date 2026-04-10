@@ -1359,7 +1359,7 @@
   </div>
 
   <div class="context-section">
-    <div class="section-label">External Context <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Public APIs (not your sensors)</strong><span><b>Weather</b> — Open-Meteo (free)</span><span><b>Pollen</b> — Google Pollen API</span><span><b>Smoke</b> — NOAA Hazard Mapping</span><span><b>BQE</b> — Predicted from time + wind</span></span></span></div>
+    <div class="section-label">Local Conditions <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Public data (not your sensors)</strong><span><b>Weather</b> — Open-Meteo (free)</span><span><b>Pollen</b> — Google Pollen API</span><span><b>Smoke</b> — NOAA Hazard Mapping</span><span><b>BQE</b> — Predicted from time + wind</span></span></span></div>
     <div class="context-grid" id="context-cards">
       <div class="card"><div class="skeleton" style="height:140px"></div></div>
       <div class="card"><div class="skeleton" style="height:140px"></div></div>
@@ -1368,7 +1368,7 @@
     </div>
   </div>
 
-  <div class="section-label">Your Monitors <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Your AirGradient Hardware</strong><span><b>Indoor</b> — AirGradient ONE (PM, CO2, VOC, NOx)</span><span><b>Outdoor</b> — Open Air (PM, CO2, temp, humidity)</span><span><b>Refresh</b> — Every 60 seconds</span></span></span></div>
+  <div class="section-label">Home Sensors <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Your AirGradient Hardware</strong><span><b>Indoor</b> — AirGradient ONE (PM, CO2, VOC, NOx)</span><span><b>Outdoor</b> — Open Air (PM, CO2, temp, humidity)</span><span><b>Updates</b> — Every 60 seconds</span></span></span></div>
   <div class="monitors" id="monitors">
     <div class="card"><div class="skeleton"></div></div>
     <div class="card"><div class="skeleton"></div></div>
@@ -2053,24 +2053,24 @@ function displayAIInsights(insight) {
         <div style="width:32px;height:32px;border-radius:8px;background:${status === 'GOOD' ? 'rgba(34,197,94,0.15)' : status === 'FAIR' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)'};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:${status === 'GOOD' ? 'var(--green)' : status === 'FAIR' ? 'var(--yellow)' : 'var(--red)'};flex-shrink:0">${statusIcon}</div>
         <div class="ai-status-line ${statusClass}">${insight.status_line || 'Analyzing...'}</div>
       </div>
-      ${insight.rank ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Rank ${insight.rank} among neighbors</div>` : ''}
+      ${insight.rank ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px">#${insight.rank.split('/')[0]} cleanest of ${insight.rank.split('/')[1]} nearby</div>` : ''}
     </div>
 
     <div class="ai-metrics-grid">${metricCards}</div>
 
     <div class="ai-insights-grid">
       <div class="ai-section">
-        <div class="ai-section-title">📋 What's Working</div>
+        <div class="ai-section-title">✓ Good News</div>
         <div class="ai-items">${workingItems}</div>
       </div>
       <div class="ai-section">
-        <div class="ai-section-title">⚡ Next Steps</div>
+        <div class="ai-section-title">💡 Recommendations</div>
         <div class="ai-items">${nextStepsItems}</div>
       </div>
     </div>
 
     ${insight.insight ? `<div style="background:var(--bg-subtle);border:1px solid var(--border);border-left:3px solid var(--purple);padding:10px 14px;border-radius:var(--radius-xs);font-size:0.78rem;line-height:1.4">
-      💡 <strong>Seasonal</strong> ${insight.insight}
+      📅 <strong>Looking Ahead</strong> ${insight.insight}
     </div>` : ''}
   `;
 
