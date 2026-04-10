@@ -34,9 +34,15 @@ def api_get(path, params=None):
     p = {"token": TOKEN}
     if params:
         p.update(params)
-    r = requests.get(f"{API_BASE}{path}", params=p, timeout=10)
-    r.raise_for_status()
-    return r.json()
+    try:
+        r = requests.get(f"{API_BASE}{path}", params=p, timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.exceptions.HTTPError as e:
+        status = e.response.status_code
+        raise RuntimeError(f"AirGradient API returned {status}: {e.response.text[:300]}") from e
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"AirGradient API unreachable: {e}") from e
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -52,12 +58,20 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 @app.route("/")
 def index():
-    return send_file("index.html")
+    return send_file(Path(__file__).parent / "index.html")
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "token_set": bool(TOKEN)})
 
 
 @app.route("/api/current")
 def current():
-    return jsonify(api_get("/locations/measures/current"))
+    try:
+        return jsonify(api_get("/locations/measures/current"))
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 502
 
 
 @app.route("/api/history/<int:location_id>")
@@ -67,14 +81,22 @@ def history(location_id):
         params["from"] = request.args["from"]
     if request.args.get("to"):
         params["to"] = request.args["to"]
-    return jsonify(api_get(f"/locations/{location_id}/measures/past", params))
+    try:
+        return jsonify(api_get(f"/locations/{location_id}/measures/past", params))
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 502
 
 
 @app.route("/api/neighborhood")
 def neighborhood():
-    data = requests.get(
-        f"{API_BASE}/world/locations/measures/current", timeout=15
-    ).json()
+    try:
+        r = requests.get(
+            f"{API_BASE}/world/locations/measures/current", timeout=15
+        )
+        r.raise_for_status()
+        data = r.json()
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Neighborhood data unavailable: {e}"}), 502
     nearby = []
     for loc in data:
         lat = loc.get("latitude")
