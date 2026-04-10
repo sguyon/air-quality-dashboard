@@ -504,6 +504,112 @@
     margin-bottom: 16px;
   }
 
+  /* ── Context Cards ────────────────────────── */
+
+  .context-section {
+    margin-bottom: 16px;
+  }
+
+  .context-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .context-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .context-card-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .context-card-icon {
+    font-size: 1.2rem;
+  }
+
+  .context-card-hero {
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .context-card-sub {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .context-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+  }
+
+  .context-metric-label {
+    color: var(--text-muted);
+  }
+
+  .context-metric-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pollen-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 0.78rem;
+  }
+
+  .pollen-name {
+    color: var(--text-secondary);
+  }
+
+  .pollen-level {
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+
+  .pollen-none { color: var(--text-muted); background: var(--bg-subtle); }
+  .pollen-low { color: var(--green); background: var(--green-soft); }
+  .pollen-moderate { color: var(--yellow); background: var(--yellow-soft); }
+  .pollen-high { color: var(--orange); background: var(--orange-soft); }
+  .pollen-very-high, .pollen-extremely-high { color: var(--red); background: var(--red-soft); }
+
+  .smoke-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .smoke-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .smoke-dot.clear { background: var(--green); }
+  .smoke-dot.detected { background: var(--red); animation: pulse-dot 2s ease-in-out infinite; }
+
   /* ── Monitor Grid ────────────────────────── */
 
   .monitors {
@@ -979,6 +1085,10 @@
       grid-template-columns: 1fr;
     }
 
+    .context-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
     .ai-insights-grid {
       grid-template-columns: 1fr;
     }
@@ -1059,6 +1169,17 @@
     </div>
   </div>
 
+  <div class="context-section">
+    <div class="section-label">External Context</div>
+    <div class="context-grid" id="context-cards">
+      <div class="card"><div class="skeleton" style="height:140px"></div></div>
+      <div class="card"><div class="skeleton" style="height:140px"></div></div>
+      <div class="card"><div class="skeleton" style="height:140px"></div></div>
+      <div class="card"><div class="skeleton" style="height:140px"></div></div>
+    </div>
+  </div>
+
+  <div class="section-label">Your Monitors</div>
   <div class="monitors" id="monitors">
     <div class="card"><div class="skeleton"></div></div>
     <div class="card"><div class="skeleton"></div></div>
@@ -1746,6 +1867,160 @@ function updateLLMContext(indoor, outdoor, neighbors) {
   };
 }
 
+// ── Context Cards (External Data) ────────────────────
+
+function uvColor(uv) {
+  if (uv <= 2) return 'var(--green)';
+  if (uv <= 5) return 'var(--yellow)';
+  if (uv <= 7) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function uvLabel(uv) {
+  if (uv <= 2) return 'Low';
+  if (uv <= 5) return 'Moderate';
+  if (uv <= 7) return 'High';
+  if (uv <= 10) return 'Very High';
+  return 'Extreme';
+}
+
+function pollenLevelClass(level) {
+  const l = level.toLowerCase().replace(/\s+/g, '-');
+  if (l === 'none') return 'pollen-none';
+  if (l === 'low') return 'pollen-low';
+  if (l === 'moderate') return 'pollen-moderate';
+  if (l === 'high') return 'pollen-high';
+  return 'pollen-very-high';
+}
+
+function bqeColor(pressure) {
+  if (pressure <= 0.8) return 'var(--green)';
+  if (pressure <= 1.2) return 'var(--yellow)';
+  if (pressure <= 1.6) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function renderContextCards(ctx) {
+  const w = ctx.weather;
+  const b = ctx.bqe;
+  const s = ctx.smoke;
+  const p = ctx.pollen;
+
+  // Dew point color
+  const dpColor = w.dew_point != null && w.dew_point < 5 ? 'var(--red)' :
+                  w.dew_point != null && w.dew_point < 10 ? 'var(--yellow)' : 'var(--green)';
+
+  // Visibility in km
+  const visKm = w.visibility != null ? (w.visibility / 1000).toFixed(1) : '—';
+
+  // Weather card
+  const weatherCard = `
+    <div class="card" style="border-top:2px solid var(--cyan)">
+      <div class="context-card-header">
+        <div class="context-card-label">Weather</div>
+        <div class="context-card-icon">🌍</div>
+      </div>
+      <div class="context-card-hero">${w.wind_cardinal || '—'} ${w.wind_speed != null ? w.wind_speed + ' km/h' : ''}</div>
+      <div class="context-card-sub">Wind direction & speed</div>
+      <div class="context-metric">
+        <span class="context-metric-label">Dew Point</span>
+        <span class="context-metric-value" style="color:${dpColor}">${w.dew_point != null ? w.dew_point.toFixed(1) + '°C' : '—'}</span>
+      </div>
+      <div class="context-metric">
+        <span class="context-metric-label">Sinus Risk</span>
+        <span class="context-metric-value" style="color:${dpColor}">${w.dew_point_risk || '—'}</span>
+      </div>
+      <div class="context-metric">
+        <span class="context-metric-label">Visibility</span>
+        <span class="context-metric-value">${visKm} km</span>
+      </div>
+      <div class="context-metric">
+        <span class="context-metric-label">UV Index</span>
+        <span class="context-metric-value" style="color:${w.uv_index != null ? uvColor(w.uv_index) : ''}">${w.uv_index != null ? w.uv_index + ' · ' + uvLabel(w.uv_index) : '—'}</span>
+      </div>
+    </div>`;
+
+  // Pollen card
+  const pollenRows = (p || []).slice(0, 5).map(item => `
+    <div class="pollen-row">
+      <span class="pollen-name">${item.name}</span>
+      <span class="pollen-level ${pollenLevelClass(item.level)}">${item.level}</span>
+    </div>
+  `).join('');
+
+  const topPollen = (p || []).filter(x => x.index >= 2);
+  const pollenHero = topPollen.length > 0
+    ? topPollen.map(x => x.name).join(', ')
+    : 'Low';
+  const pollenColor = topPollen.some(x => x.index >= 4) ? 'var(--red)' :
+                      topPollen.some(x => x.index >= 3) ? 'var(--orange)' :
+                      topPollen.some(x => x.index >= 2) ? 'var(--yellow)' : 'var(--green)';
+
+  const pollenCard = `
+    <div class="card" style="border-top:2px solid ${pollenColor}">
+      <div class="context-card-header">
+        <div class="context-card-label">Pollen</div>
+        <div class="context-card-icon">🌳</div>
+      </div>
+      <div class="context-card-hero" style="color:${pollenColor};font-size:1.1rem">${pollenHero}</div>
+      <div class="context-card-sub">${topPollen.length > 0 ? 'Active allergens today' : 'All allergens low'}</div>
+      ${pollenRows || '<div style="color:var(--text-muted);font-size:0.78rem">Data unavailable</div>'}
+    </div>`;
+
+  // BQE card
+  const bqePressure = b.pollution_pressure;
+  const bqeCol = bqeColor(bqePressure);
+  const trafficLabel = b.traffic.split('(')[0].trim();
+  const trafficDetail = b.traffic.includes('(') ? b.traffic.split('(')[1].replace(')', '') : '';
+
+  const bqeCard = `
+    <div class="card" style="border-top:2px solid ${bqeCol}">
+      <div class="context-card-header">
+        <div class="context-card-label">BQE Traffic</div>
+        <div class="context-card-icon">🚗</div>
+      </div>
+      <div class="context-card-hero" style="color:${bqeCol}">${trafficLabel}</div>
+      <div class="context-card-sub">${trafficDetail || 'Traffic intensity'}</div>
+      <div class="context-metric">
+        <span class="context-metric-label">Pollution Pressure</span>
+        <span class="context-metric-value" style="color:${bqeCol}">${bqePressure}x</span>
+      </div>
+      <div class="context-metric">
+        <span class="context-metric-label">Wind Impact</span>
+        <span class="context-metric-value">${b.wind_impact}</span>
+      </div>
+      <div class="context-metric">
+        <span class="context-metric-label">Morning Rush</span>
+        <span class="context-metric-value">7–9 AM</span>
+      </div>
+      <div class="context-metric">
+        <span class="context-metric-label">Evening Rush</span>
+        <span class="context-metric-value">4–7 PM</span>
+      </div>
+    </div>`;
+
+  // Smoke card
+  const smokeCol = s.detected ? 'var(--red)' : 'var(--green)';
+  const smokeCard = `
+    <div class="card" style="border-top:2px solid ${smokeCol}">
+      <div class="context-card-header">
+        <div class="context-card-label">Wildfire Smoke</div>
+        <div class="context-card-icon">🔥</div>
+      </div>
+      <div class="smoke-status">
+        <div class="smoke-dot ${s.detected ? 'detected' : 'clear'}"></div>
+        <span style="color:${smokeCol}">${s.detected ? 'Detected' : 'Not Detected'}</span>
+      </div>
+      <div class="context-card-sub" style="margin-top:8px">${s.detected ? 'Smoke in Northeast — extra PM2.5 risk' : 'No smoke in Northeast region'}</div>
+      <div class="context-metric" style="margin-top:auto">
+        <span class="context-metric-label">Source</span>
+        <span class="context-metric-value">NOAA HMS</span>
+      </div>
+    </div>`;
+
+  document.getElementById('context-cards').innerHTML = weatherCard + pollenCard + bqeCard + smokeCard;
+}
+
 // ── Fetch & Refresh ──────────────────────────────────
 
 async function fetchJSON(url) {
@@ -1756,9 +2031,10 @@ async function fetchJSON(url) {
 
 async function refresh() {
   try {
-    const [current, neighbors] = await Promise.all([
+    const [current, neighbors, ctx] = await Promise.all([
       fetchJSON('/api/current'),
-      fetchJSON('/api/neighborhood')
+      fetchJSON('/api/neighborhood'),
+      fetchJSON('/api/context')
     ]);
 
     const indoor = current.find(m => m.locationType === 'indoor');
@@ -1769,6 +2045,8 @@ async function refresh() {
       (outdoor ? renderMonitor(outdoor) : '');
 
     document.getElementById('neighborhood').innerHTML = renderNeighborhood(neighbors);
+
+    renderContextCards(ctx);
 
     updateLLMContext(indoor, outdoor, neighbors);
     autoAnalyzeAir(); // Auto-analyze on data refresh

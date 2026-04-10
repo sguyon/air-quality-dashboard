@@ -240,6 +240,88 @@ def neighborhood():
     return jsonify(nearby)
 
 
+def get_wind_cardinal(degrees):
+    """Convert wind direction degrees to cardinal direction."""
+    if degrees is None:
+        return "variable"
+    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    return dirs[round(degrees / 22.5) % 16]
+
+
+@app.route("/api/context")
+def context():
+    """Return external data sources (weather, pollen, BQE, smoke) as structured JSON."""
+    # Weather
+    weather = get_open_meteo_data(HOME_LAT, HOME_LON)
+    cur = weather.get("current", {})
+    wind_speed = cur.get("wind_speed_10m")
+    wind_direction = cur.get("wind_direction_10m")
+    visibility = cur.get("visibility")
+    uv_index = cur.get("uv_index")
+    dew_point = cur.get("dew_point_2m")
+    temperature = cur.get("temperature_2m")
+    humidity = cur.get("relative_humidity_2m")
+
+    wind_dir = get_wind_cardinal(wind_direction)
+
+    # Dew point sinus risk
+    if dew_point is not None and dew_point < 5:
+        dew_point_risk = "Severe dryness"
+    elif dew_point is not None and dew_point < 10:
+        dew_point_risk = "Moderate dryness"
+    else:
+        dew_point_risk = "Comfortable"
+
+    # Visibility interpretation
+    if visibility is not None:
+        if visibility < 2000:
+            visibility_status = "Very low — high particulate"
+        elif visibility < 5000:
+            visibility_status = "Reduced"
+        elif visibility < 10000:
+            visibility_status = "Moderate"
+        else:
+            visibility_status = "Clear"
+    else:
+        visibility_status = "Unknown"
+
+    # BQE traffic
+    current_hour = datetime.now().hour
+    bqe = predict_bqe_traffic(current_hour, wind_direction)
+
+    # Smoke
+    smoke = get_smoke_data()
+
+    # Pollen
+    pollen = get_pollen_data(HOME_LAT, HOME_LON)
+
+    return jsonify({
+        "weather": {
+            "wind_speed": wind_speed,
+            "wind_direction": wind_direction,
+            "wind_cardinal": wind_dir,
+            "dew_point": dew_point,
+            "dew_point_risk": dew_point_risk,
+            "visibility": visibility,
+            "visibility_status": visibility_status,
+            "uv_index": uv_index,
+            "temperature": temperature,
+            "humidity": humidity
+        },
+        "bqe": {
+            "traffic": bqe["traffic"],
+            "wind_impact": bqe["wind_impact"],
+            "pollution_pressure": bqe["pollution_pressure"],
+            "current_hour": current_hour
+        },
+        "smoke": {
+            "detected": smoke
+        },
+        "pollen": pollen
+    })
+
+
 def predict_bqe_traffic(hour, wind_direction):
     """Predict BQE pollution impact based on time of day and wind direction.
 
@@ -365,16 +447,9 @@ def analyze():
     uv_index = current.get("uv_index")
     dew_point = current.get("dew_point_2m")
 
-    # Map wind direction to cardinal
-    def get_wind_cardinal(degrees):
-        if degrees is None: return "variable"
-        dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
-        return dirs[round(degrees / 22.5) % 16]
-
     wind_dir = get_wind_cardinal(wind_direction)
 
     # BQE traffic prediction based on time and wind
-    from datetime import datetime
     current_hour = datetime.now().hour
     bqe_prediction = predict_bqe_traffic(current_hour, wind_direction)
 
