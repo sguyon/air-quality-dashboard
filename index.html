@@ -128,6 +128,138 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* ── AI Insights Section ────────────────────── */
+
+  .ai-insights-section {
+    margin-bottom: 24px;
+  }
+
+  .ai-insights-card {
+    background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(168,85,247,0.1));
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-insights-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, var(--cyan), transparent);
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
+  .ai-insights-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .ai-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .ai-refresh-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    transition: color 0.15s;
+  }
+
+  .ai-refresh-btn:hover {
+    color: var(--text);
+  }
+
+  .ai-refresh-btn.loading {
+    animation: spin 0.6s ease infinite;
+  }
+
+  .ai-status-line {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .ai-status-good { color: var(--green); }
+  .ai-status-fair { color: var(--yellow); }
+  .ai-status-poor { color: var(--red); }
+
+  .ai-insights-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .ai-section {
+    margin-bottom: 16px;
+  }
+
+  .ai-section-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ai-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ai-item {
+    padding: 10px 12px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .ai-learn {
+    grid-column: 1 / -1;
+    padding: 12px 16px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .ai-timestamp {
+    grid-column: 1 / -1;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: right;
+    margin-top: 4px;
+  }
+
   /* ── Time Controller ─────────────────────── */
 
   .time-controls {
@@ -787,6 +919,14 @@
       justify-content: flex-start;
     }
 
+    .ai-insights-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .ai-section {
+      margin-bottom: 12px;
+    }
+
     .monitors, .charts, .insights-grid { grid-template-columns: 1fr; }
     .metrics { grid-template-columns: 1fr 1fr; }
     .neighbor-row {
@@ -820,6 +960,18 @@
       <div id="last-updated" style="margin-left:8px">Connecting...</div>
     </div>
   </header>
+
+  <div class="ai-insights-section" id="ai-insights-section">
+    <div class="card ai-insights-card">
+      <div class="ai-insights-header">
+        <div class="ai-label">✨ AI Insights</div>
+        <button class="ai-refresh-btn" onclick="autoAnalyzeAir(true)" title="Refresh analysis">↻</button>
+      </div>
+      <div id="ai-insights-content">
+        <div style="color:var(--text-muted);font-size:0.8rem">Loading insights...</div>
+      </div>
+    </div>
+  </div>
 
   <div class="monitors" id="monitors">
     <div class="card"><div class="skeleton"></div></div>
@@ -1330,13 +1482,35 @@ function renderCharts(indoorHistory, outdoorHistory) {
 // ── LLM Analysis ─────────────────────────────────────
 
 let lastData = {};
+let lastDataHash = '';
+let insightCache = {};
+let nextAutoAnalysisTime = 0;
 
-async function requestLLMAnalysis() {
-  const btn = document.querySelector('.llm-refresh-btn');
-  const content = document.getElementById('llm-content');
-  btn.disabled = true;
-  btn.innerHTML = '&#x2728; Analyzing...';
-  content.innerHTML = '<div style="display:flex;align-items:center;gap:10px"><span class="llm-streaming"></span><span style="color:var(--text-muted);font-size:0.8rem">Thinking...</span></div>';
+function hashData(data) {
+  const str = JSON.stringify(data);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return hash.toString();
+}
+
+async function autoAnalyzeAir(forceRefresh = false) {
+  const btn = document.querySelector('.ai-refresh-btn');
+  const content = document.getElementById('ai-insights-content');
+
+  if (!forceRefresh && nextAutoAnalysisTime > Date.now()) return;
+
+  const currentHash = hashData(lastData);
+  if (currentHash === lastDataHash && insightCache[currentHash] && !forceRefresh) {
+    displayAIInsights(insightCache[currentHash]);
+    return;
+  }
+
+  btn.classList.add('loading');
+  content.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Analyzing...</div>';
 
   try {
     const resp = await fetch('/api/analyze', {
@@ -1358,11 +1532,9 @@ async function requestLLMAnalysis() {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
-
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const payload = line.slice(6);
@@ -1375,42 +1547,53 @@ async function requestLLMAnalysis() {
       }
     }
 
-    // Render formatted output once complete
-    content.innerHTML = formatLLMOutput(fullText);
-
-  } catch (err) {
-    content.innerHTML = `<span class="llm-error">${err.message}</span>`;
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = '&#x2728; Analyze with AI';
-}
-
-function formatLLMText(text) {
-  return text.replace(/\n/g, '<br>');
-}
-
-function formatLLMOutput(text) {
-  // Try to parse JSON array from the response
-  try {
-    // Strip markdown code fences if present
-    const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    if (match) {
-      const insights = JSON.parse(match[0]);
-      return `<div class="insights-grid">${insights.map(i => `
-        <div class="insight">
-          <div class="insight-icon" style="background:rgba(168,85,247,0.1);color:var(--purple);font-size:1rem">${i.icon}</div>
-          <div class="insight-body">
-            <div class="insight-title">${i.title}</div>
-            <div class="insight-desc">${i.desc}</div>
-          </div>
-        </div>
-      `).join('')}</div>`;
+    const insight = parseAIInsight(fullText);
+    if (insight) {
+      lastDataHash = currentHash;
+      insightCache[currentHash] = insight;
+      displayAIInsights(insight);
+      nextAutoAnalysisTime = Date.now() + (5 * 60 * 1000);
+    } else {
+      throw new Error('Could not parse AI response');
     }
+  } catch (err) {
+    content.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;">${err.message}</div>`;
+  }
+  btn.classList.remove('loading');
+}
+
+function parseAIInsight(text) {
+  try {
+    const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
   } catch {}
-  // Fallback to plain text
-  return `<div style="white-space:pre-wrap">${text}</div>`;
+  return null;
+}
+
+function displayAIInsights(insight) {
+  const content = document.getElementById('ai-insights-content');
+  const status = (insight.status || 'GOOD').toUpperCase();
+  const statusClass = status === 'GOOD' ? 'ai-status-good' : status === 'FAIR' ? 'ai-status-fair' : 'ai-status-poor';
+  const statusEmoji = status === 'GOOD' ? '🟢' : status === 'FAIR' ? '🟡' : '🔴';
+  const whyItems = (insight.why || []).map(w => `<div class="ai-item">• ${w}</div>`).join('');
+  const doItems = (insight.do || []).map(d => `<div class="ai-item">• ${d}</div>`).join('');
+
+  content.innerHTML = `
+    <div class="ai-status-line ${statusClass}">${statusEmoji} ${insight.status_line || 'Analyzing...'}</div>
+    <div class="ai-insights-grid">
+      <div class="ai-section">
+        <div class="ai-section-title">📍 Why</div>
+        <div class="ai-items">${whyItems}</div>
+      </div>
+      <div class="ai-section">
+        <div class="ai-section-title">💡 You Can Do</div>
+        <div class="ai-items">${doItems}</div>
+      </div>
+      <div class="ai-learn">🧠 ${insight.learn || ''}</div>
+      <div class="ai-timestamp">Last analyzed ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+    </div>
+  `;
 }
 
 // Store data for LLM context
@@ -1465,6 +1648,7 @@ async function refresh() {
     document.getElementById('neighborhood').innerHTML = renderNeighborhood(neighbors);
 
     updateLLMContext(indoor, outdoor, neighbors);
+    autoAnalyzeAir(); // Auto-analyze on data refresh
 
     const ts = indoor?.timestamp || outdoor?.timestamp;
     document.getElementById('last-updated').textContent = ts

@@ -122,14 +122,43 @@ def analyze():
 
     data = request.json
 
-    prompt = f"""You are an air quality analyst for a home in Greenpoint, Brooklyn (near the BQE and Newtown Creek industrial area). Analyze the current sensor readings and provide practical, specific insights.
+    indoor_pm25 = float(data.get('indoor_pm25', 0))
+    outdoor_pm25 = float(data.get('outdoor_pm25', 0))
+    indoor_co2 = float(data.get('indoor_co2', 0))
+
+    # Determine status
+    if indoor_pm25 <= 12 and indoor_co2 <= 600:
+        status = "GOOD"
+    elif indoor_pm25 <= 35 and indoor_co2 <= 800:
+        status = "FAIR"
+    else:
+        status = "POOR"
+
+    prompt = f"""You are an air quality analyst for a home in Greenpoint, Brooklyn (near the BQE and Newtown Creek industrial area).
 
 Current readings:
-- INDOOR: PM2.5={data.get('indoor_pm25')} µg/m³, PM1={data.get('indoor_pm01')} µg/m³, PM10={data.get('indoor_pm10')} µg/m³, CO2={data.get('indoor_co2')} ppm, Temp={data.get('indoor_temp_f')}°F, Humidity={data.get('indoor_humidity')}%, VOC Index={data.get('indoor_voc')}, NOx Index={data.get('indoor_nox')}
-- OUTDOOR: PM2.5={data.get('outdoor_pm25')} µg/m³, PM1={data.get('outdoor_pm01')} µg/m³, PM10={data.get('outdoor_pm10')} µg/m³, CO2={data.get('outdoor_co2')} ppm, Temp={data.get('outdoor_temp_f')}°F, Humidity={data.get('outdoor_humidity')}%, VOC Index={data.get('outdoor_voc')}, NOx Index={data.get('outdoor_nox')}
-- NEIGHBORHOOD: {data.get('neighbor_count')} monitors within 15km, average PM2.5={data.get('neighbor_avg_pm25')} µg/m³, your rank={data.get('neighbor_rank')}/{data.get('neighbor_count')}
+- INDOOR: PM2.5={indoor_pm25} µg/m³, CO2={indoor_co2} ppm, Temp={data.get('indoor_temp_f')}°F, Humidity={data.get('indoor_humidity')}%
+- OUTDOOR: PM2.5={outdoor_pm25} µg/m³, CO2={data.get('outdoor_co2')} ppm
+- NEIGHBORHOOD: Rank {data.get('neighbor_rank')}/{data.get('neighbor_count')}, avg PM2.5={data.get('neighbor_avg_pm25')} µg/m³
 
-Give 3-4 concise, actionable insights. Be specific to Greenpoint/Brooklyn context (BQE traffic, industrial area, waterfront). Use plain language, no jargon. Each insight should be 1-2 sentences max. Format as a JSON array of objects with "icon" (single emoji), "title" (short), and "desc" (detail) fields."""
+Respond ONLY with valid JSON (no markdown, no extra text):
+{{
+  "status": "{status}",
+  "status_line": "[One line summary: 'Your air is GOOD', 'Air quality is FAIR', or 'Your air is POOR']",
+  "why": [
+    "[2-3 word driver]",
+    "[2-3 word driver]",
+    "[2-3 word driver]"
+  ],
+  "do": [
+    "[Action + timing if relevant]",
+    "[Action + timing if relevant]",
+    "[Action + timing if relevant]"
+  ],
+  "learn": "[One interesting fact about Greenpoint air, your trend, or seasonal pattern]"
+}}
+
+Be specific to Greenpoint (BQE, Newtown Creek, waterfront). Use plain language. Actions should be ranked by impact. Facts should be personal/timely."""
 
     def stream():
         resp = requests.post(
