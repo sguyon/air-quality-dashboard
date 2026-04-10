@@ -425,6 +425,112 @@ def calculate_composite_scores(indoor_pm25, outdoor_pm25, indoor_co2, humidity, 
     }
 
 
+def determine_health_status(indoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index,
+                            visibility, smoke_detected, pollen_data, bqe_prediction, scores):
+    """Extensible health status from ALL data sources.
+
+    Each signal returns a severity: 0=GOOD, 1=FAIR, 2=POOR.
+    Overall status = worst signal. Add new signals by appending to the list.
+    """
+    signals = []
+
+    # ── AirGradient sensors ──
+    if indoor_pm25 <= 12:
+        signals.append(0)
+    elif indoor_pm25 <= 35:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    if indoor_co2 <= 600:
+        signals.append(0)
+    elif indoor_co2 <= 1000:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    # ── Humidity ──
+    if 30 <= indoor_humidity <= 50:
+        signals.append(0)
+    elif 25 <= indoor_humidity <= 60:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    # ── Dew point (sinus dryness) ──
+    # Outdoor dew point matters less when indoor humidity is ideal (30-50%)
+    if dew_point is not None:
+        if dew_point >= 10:
+            signals.append(0)
+        elif dew_point >= 5:
+            signals.append(1)
+        elif 30 <= indoor_humidity <= 50:
+            # Indoor air is well-humidified — cap at FAIR, not POOR
+            signals.append(1)
+        else:
+            signals.append(2)
+
+    # ── UV index ──
+    if uv_index is not None:
+        if uv_index <= 5:
+            signals.append(0)
+        elif uv_index <= 7:
+            signals.append(1)
+        else:
+            signals.append(2)
+
+    # ── Visibility (particulate proxy) ──
+    if visibility is not None:
+        if visibility >= 10000:
+            signals.append(0)
+        elif visibility >= 5000:
+            signals.append(1)
+        else:
+            signals.append(2)
+
+    # ── Wildfire smoke ──
+    if smoke_detected:
+        signals.append(2)  # Smoke = always POOR
+
+    # ── Pollen (worst allergen drives status) ──
+    if pollen_data:
+        max_pollen = max((p.get("index", 0) for p in pollen_data), default=0)
+        if max_pollen <= 1:
+            signals.append(0)
+        elif max_pollen <= 3:
+            signals.append(1)
+        else:
+            signals.append(2)
+
+    # ── BQE pollution pressure ──
+    pressure = bqe_prediction.get("pollution_pressure", 0)
+    if pressure <= 0.9:
+        signals.append(0)
+    elif pressure <= 1.5:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    # ── Composite health scores ──
+    if scores.get("allergy_risk", 0) <= 3:
+        signals.append(0)
+    elif scores.get("allergy_risk", 0) <= 6:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    if scores.get("respiratory_load", 0) <= 3:
+        signals.append(0)
+    elif scores.get("respiratory_load", 0) <= 6:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    # Overall = worst signal
+    worst = max(signals) if signals else 0
+    return ["GOOD", "FAIR", "POOR"][worst]
+
+
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
     """Stream LLM analysis of current air quality data with weather context."""
@@ -440,14 +546,6 @@ def analyze():
     indoor_humidity = float(data.get('indoor_humidity', 50))
     neighbor_rank = int(data.get('neighbor_rank', 1))
     neighbor_count = int(data.get('neighbor_count', 1))
-
-    # Determine status
-    if indoor_pm25 <= 12 and indoor_co2 <= 600:
-        status = "GOOD"
-    elif indoor_pm25 <= 35 and indoor_co2 <= 800:
-        status = "FAIR"
-    else:
-        status = "POOR"
 
     # Fetch weather context from Open-Meteo (free API, no key needed)
     weather = get_open_meteo_data(HOME_LAT, HOME_LON)
@@ -491,6 +589,12 @@ def analyze():
     else:
         allergen_season = "Low pollen, mold dormancy period"
 
+    # Determine overall health status from ALL data sources
+    status = determine_health_status(
+        indoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index,
+        visibility, smoke_detected, pollen_data, bqe_prediction, scores
+    )
+
     # Health context
     humidity_status = "ideal" if 30 <= indoor_humidity <= 50 else "dry" if indoor_humidity < 30 else "humid"
     humidity_risk = "Sinus dryness risk" if indoor_humidity < 30 else "Mold growth risk" if indoor_humidity > 60 else "Clear nasal passages"
@@ -498,10 +602,12 @@ def analyze():
     # Dew point sinus impact
     dew_point_status = ""
     if dew_point is not None:
-        if dew_point < 5:
-            dew_point_status = "Very dry — severe sinus dryness risk"
+        if dew_point < 5 and not (30 <= indoor_humidity <= 50):
+            dew_point_status = "Very dry — sinus dryness risk (indoor humidity not ideal)"
+        elif dew_point < 5:
+            dew_point_status = "Outdoor air dry, but indoor humidity ideal — sinuses protected"
         elif dew_point < 10:
-            dew_point_status = "Dry — moderate sinus dryness"
+            dew_point_status = "Mildly dry — monitor if you go outside"
         else:
             dew_point_status = "Comfortable for sinuses"
 
@@ -546,39 +652,51 @@ HEALTH SCORES:
   • Respiratory Load: {scores['respiratory_load']}/10
   • Sinus Risk: {scores['sinus_dryness_risk']} sinus dryness
 
-═══ YOUR INSTRUCTIONS ═══
-1. **PERSONALIZE**: Speak to both household members with same data but acknowledge different sensitivities
-2. **SYMPTOM-FIRST**: Lead with what they'll FEEL ("Clear nasal passages", "Reduced headache risk", "Better sleep tonight")
-3. **ACTIVITY TIMING**: Recommend specific windows for outdoor activity, exercise, window-opening
-4. **FILTER ALERTS**: When to swap HEPA, when to run at high speed, expected lifespan
-5. **DRYNESS WARNING**: If dew point <10°C, mention humidifier urgently
-6. **MOLD WARNING**: If humidity >60%, mention dehumidifier or ventilation
-7. **BQE PREDICTION**: Warn if wind is from west (pollution incoming) or traffic peaks soon
-8. **WILDFIRE ALERT**: If smoke detected, recommend staying indoors, extra filtration
-9. **POLLEN ALERTS**: Rank allergens by today's levels — identify top trigger for each household member
-10. **7-DAY MINDSET**: Mention seasonal relief coming (e.g., "September ragweed relief in 3 weeks")
+═══ STRICT BREVITY RULES ═══
+• status_line: MAX 12 words. Health outcome, not data.
+• metric benefit: MAX 10 words. What the user FEELS, not the number.
+• working items: MAX 15 words each. Start with verb. Exactly 3 items.
+• next_steps: MAX 20 words each. Start with timing or action verb. Exactly 3 items.
+• insight: MAX 20 words. Seasonal context + when relief comes.
+• NEVER add text outside the JSON object. Output ONLY the JSON.
+• Write like a fitness app notification, not a medical report.
 
-═══ JSON OUTPUT (NO MARKDOWN) ═══
+═══ TONE RULES ═══
+• Use the status value "{status}" exactly — do NOT override it.
+• GOOD = reassuring, positive ("Sinuses clear, great day to be outside")
+• FAIR = balanced, watchful ("Conditions decent, keep an eye on X")
+• POOR = urgent, actionable ("Take action now: X is affecting your health")
+• If indoor humidity is 30-50% (ideal), do NOT call dew point "critically dry" — indoor air is compensating.
+
+═══ CONTENT PRIORITIES ═══
+1. Symptom-first language ("Clear sinuses" not "PM2.5 is 10")
+2. Activity timing for runner + toddler outdoor time
+3. Dryness/humidity warnings (sinus-critical)
+4. BQE traffic + wind pollution timing
+5. Pollen alerts if any type is Moderate+
+6. Seasonal context (relief date)
+
+═══ JSON OUTPUT (ONLY JSON, NO MARKDOWN, NO EXTRA TEXT) ═══
 {{
   "status": "{status}",
-  "status_line": "[One sentence health headline: 'Your sinuses are clear, but check humidity']",
+  "status_line": "Sinuses clear today — humidity perfect, pollen moderate",
   "rank": "{neighbor_rank}/{neighbor_count}",
   "metrics": [
-    {{"icon": "🫁", "category": "Particulates", "status": "Excellent/Fair/Poor", "value": "{indoor_pm25} µg/m³", "benefit": "Blocking {{X}}% of street dust — fewer infections"}},
-    {{"icon": "💧", "category": "Humidity", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "{humidity_risk} — {{specific symptom prevention}}"}},
-    {{"icon": "🌬️", "category": "Ventilation", "status": "Healthy/Watch/Act", "value": "{indoor_co2} ppm", "benefit": "Sharp focus vs afternoon brain fog"}}
+    {{"icon": "🫁", "category": "Air Quality (Indoor)", "status": "Excellent", "value": "{indoor_pm25} µg/m³ indoor · {outdoor_pm25} outdoor", "benefit": "Filtering 70% of street dust"}},
+    {{"icon": "💧", "category": "Humidity (Indoor)", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "Nasal passages clear, no dryness"}},
+    {{"icon": "🌬️", "category": "Ventilation (Indoor)", "status": "Healthy", "value": "{indoor_co2} ppm CO2", "benefit": "Sharp focus, no brain fog"}}
   ],
   "working": [
-    "✓ Your filter is blocking {{X}}% more PM2.5 than Greenpoint average",
-    "✓ {{Humidity/Dew point}} is preventing sinus inflammation",
-    "✓ {{CO2/Window strategy}} keeping you sharp through afternoon"
+    "Filter blocking 70% more PM2.5 than neighbors",
+    "Humidity keeping sinuses moist and clear",
+    "CO2 low — fresh air exchange working"
   ],
   "next_steps": [
-    "1. {best_window} safe for outdoor activity (BQE traffic predictable)",
-    "2. {{SPECIFIC filter/humidifier action with timing and reason}}",
-    "3. {{Window timing based on BQE rush + {{dew point/humidity issues if any}}}}"
+    "Run outdoors 10am–2pm (lowest pollen + BQE traffic)",
+    "Turn humidifier on by 8pm if dew point drops",
+    "Close windows 4–7pm during BQE evening rush"
   ],
-  "insight": "{{Seasonal context}} — Next {{relief period}} comes {{date/week}}"
+  "insight": "Tree pollen peaks through May — relief comes late May"
 }}"""
 
     def stream():
@@ -591,7 +709,7 @@ HEALTH SCORES:
             },
             json={
                 "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 2048,
+                "max_tokens": 800,
                 "stream": True,
                 "messages": [{"role": "user", "content": prompt}],
             },

@@ -149,21 +149,16 @@
   .live-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    background: var(--green-soft);
-    border: 1px solid rgba(34,197,94,0.2);
-    border-radius: 20px;
-    font-size: 0.8rem;
+    gap: 4px;
+    font-size: 0.65rem;
     font-weight: 500;
-    color: var(--green);
-    text-transform: uppercase;
+    color: var(--text-muted);
     letter-spacing: 0.05em;
   }
 
   .live-dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     background: var(--green);
     border-radius: 50%;
     animation: pulse-dot 2s ease-in-out infinite;
@@ -190,7 +185,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 28px;
+    padding: 20px;
     position: relative;
   }
 
@@ -210,79 +205,161 @@
     font-weight: 700;
   }
 
-  .ai-refresh-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 1.1rem;
-    padding: 6px;
-    transition: color 0.2s, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  .ai-refresh-area {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 10px;
+  }
+
+  .ai-refresh-btn {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-family: inherit;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: var(--radius-xs);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
   }
 
   .ai-refresh-btn:hover {
     color: var(--cyan);
+    border-color: var(--cyan);
   }
 
-  .ai-refresh-btn.loading {
+  .ai-refresh-btn .refresh-icon {
+    font-size: 0.85rem;
+    display: inline-block;
+    transition: transform 0.3s;
+  }
+
+  .ai-refresh-btn.loading .refresh-icon {
     animation: spin 0.8s ease-in-out infinite;
   }
 
-  .health-profile {
+  /* ── User Profile (compact inline) ────────── */
+
+  .user-strip {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 16px;
+  }
+
+  .user-strip-left {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
+    gap: 10px;
+    flex-shrink: 0;
   }
 
-  .health-profile-tags {
+  .user-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--blue);
   }
 
-  .health-tag {
+  .user-strip-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .user-strip-location {
     font-size: 0.68rem;
-    padding: 3px 8px;
-    border-radius: 12px;
+    color: var(--text-muted);
+  }
+
+  .user-strip-tags {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .user-tag-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .user-tag-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    font-weight: 600;
+    width: 62px;
+    flex-shrink: 0;
+  }
+
+  .user-tag {
+    font-size: 0.65rem;
+    padding: 1px 7px;
+    border-radius: 8px;
     background: var(--bg-subtle);
     border: 1px solid var(--border);
     color: var(--text-secondary);
     white-space: nowrap;
-    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
 
-  .health-profile-edit {
-    font-size: 0.68rem;
-    padding: 3px 10px;
-    border-radius: 12px;
-    background: none;
-    border: 1px dashed var(--border);
+  .source-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.4;
+    flex-shrink: 0;
+  }
+
+  .source-dot.ok { background: var(--green); opacity: 1; }
+  .source-dot.err { background: var(--red); opacity: 1; }
+
+  .user-edit-link {
+    font-size: 0.65rem;
     color: var(--text-muted);
-    font-family: inherit;
+    opacity: 0.4;
     cursor: not-allowed;
     white-space: nowrap;
-    opacity: 0.5;
-    transition: opacity 0.2s;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--border);
+    align-self: flex-start;
+    margin-top: 2px;
   }
 
   .ai-status-section {
-    margin-bottom: 28px;
-    padding-bottom: 28px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
     border-bottom: 1px solid var(--border);
   }
 
   .ai-status-line {
-    font-size: 1.6rem;
-    font-weight: 700;
+    font-size: 1.15rem;
+    font-weight: 600;
     line-height: 1.3;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
   .ai-status-good { color: var(--green); }
@@ -293,65 +370,68 @@
   .ai-metrics-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: 10px;
+    margin-bottom: 14px;
   }
 
   .ai-metric-card {
     background: var(--bg-subtle);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 16px;
+    padding: 12px;
     text-align: center;
     transition: border-color 0.2s;
   }
 
   .ai-metric-card:hover {
-    border-color: var(--cyan);
+    border-color: var(--border-light);
   }
 
   .ai-metric-icon {
-    font-size: 2.2rem;
-    margin-bottom: 8px;
+    font-size: 1.4rem;
+    margin-bottom: 4px;
   }
 
   .ai-metric-category {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-muted);
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
   }
 
   .ai-metric-status {
-    font-size: 1.1rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--cyan);
-    margin-bottom: 6px;
+    margin-bottom: 3px;
   }
 
   .ai-metric-value {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--text);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .ai-metric-benefit {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
-    line-height: 1.4;
-    font-weight: 500;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   /* Working & Actions Sections */
   .ai-insights-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 12px;
   }
 
   .ai-section {
@@ -375,13 +455,13 @@
   }
 
   .ai-item {
-    padding: 12px 14px;
+    padding: 8px 12px;
     background: var(--bg-subtle);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     border-left: 3px solid var(--cyan);
-    font-size: 0.82rem;
-    line-height: 1.6;
+    font-size: 0.78rem;
+    line-height: 1.4;
     color: var(--text);
     transition: all 0.2s ease;
   }
@@ -502,6 +582,87 @@
     color: var(--text-muted);
     font-weight: 600;
     margin-bottom: 16px;
+  }
+
+  /* ── Info Tooltips ────────────────────────── */
+
+  .info-tip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: help;
+    vertical-align: middle;
+    margin-left: 6px;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .info-tip:hover,
+  .info-tip:focus {
+    color: var(--cyan);
+    border-color: var(--cyan);
+  }
+
+  .info-tip .info-bubble {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xs);
+    padding: 12px 14px;
+    font-size: 0.72rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    white-space: normal;
+    width: 260px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 100;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .info-bubble strong {
+    display: block;
+    color: var(--text);
+    font-size: 0.74rem;
+    margin-bottom: 6px;
+  }
+
+  .info-bubble span {
+    display: block;
+    margin-top: 4px;
+    padding-left: 2px;
+  }
+
+  .info-bubble b {
+    color: var(--text);
+  }
+
+  .info-tip .info-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--border-light);
+  }
+
+  .info-tip:hover .info-bubble,
+  .info-tip:focus .info-bubble {
+    display: block;
   }
 
   /* ── Context Cards ────────────────────────── */
@@ -1081,6 +1242,15 @@
       justify-content: flex-start;
     }
 
+    .user-strip {
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .user-tag-label {
+      width: auto;
+    }
+
     .ai-metrics-grid {
       grid-template-columns: 1fr;
     }
@@ -1146,22 +1316,41 @@
     </div>
   </header>
 
+  <div class="user-strip">
+    <div class="user-strip-left">
+      <div class="user-avatar">SG</div>
+      <div>
+        <div class="user-strip-name">Sacha</div>
+        <div class="user-strip-location">Greenpoint, Brooklyn</div>
+      </div>
+    </div>
+    <div class="user-strip-tags">
+      <div class="user-tag-row">
+        <span class="user-tag-label">Health</span>
+        <span class="user-tag">👶 Toddler</span>
+        <span class="user-tag">🫁 Sinus & Allergy</span>
+        <span class="user-tag">🏃 Runner</span>
+      </div>
+      <div class="user-tag-row">
+        <span class="user-tag-label">Sources</span>
+        <span class="user-tag"><span class="source-dot" id="src-pollen"></span>🌳 Pollen</span>
+        <span class="user-tag"><span class="source-dot" id="src-weather"></span>💧 Weather</span>
+        <span class="user-tag"><span class="source-dot" id="src-bqe"></span>🚗 BQE</span>
+        <span class="user-tag"><span class="source-dot" id="src-smoke"></span>🔥 Smoke</span>
+        <span class="user-tag"><span class="source-dot" id="src-airgradient"></span>📡 AirGradient</span>
+      </div>
+    </div>
+    <a class="user-edit-link" title="Coming soon">Edit</a>
+  </div>
+
   <div class="ai-insights-section" id="ai-insights-section">
     <div class="card ai-insights-card">
       <div class="ai-insights-header">
-        <div class="ai-label">✨ Your Health Status</div>
-        <button class="ai-refresh-btn" onclick="autoAnalyzeAir(true)" title="Refresh analysis">↻</button>
-      </div>
-      <div class="health-profile">
-        <div class="health-profile-tags">
-          <span class="health-tag">🫁 Sinus & Allergy</span>
-          <span class="health-tag">🌳 Pollen</span>
-          <span class="health-tag">💧 Humidity / Dew Point</span>
-          <span class="health-tag">🚗 BQE Traffic</span>
-          <span class="health-tag">🔥 Wildfire Smoke</span>
-          <span class="health-tag">☀️ UV</span>
+        <div class="ai-label">✨ Your Health Status <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>AI Health Coach</strong><span><b>Inputs:</b> AirGradient sensors + weather + pollen + traffic</span><span><b>Personalized</b> for sinus &amp; allergy sensitivities</span><span><b>Refreshes</b> when sensor data changes significantly</span></span></span></div>
+        <div class="ai-refresh-area">
+          <span class="ai-timestamp" id="ai-timestamp"></span>
+          <button class="ai-refresh-btn" onclick="autoAnalyzeAir(true)" title="Refresh analysis"><span class="refresh-icon">↻</span> Refresh</button>
         </div>
-        <button class="health-profile-edit" disabled title="Coming soon">Customize</button>
       </div>
       <div id="ai-insights-content">
         <div style="color:var(--text-muted);font-size:0.8rem">Loading health analysis...</div>
@@ -1170,7 +1359,7 @@
   </div>
 
   <div class="context-section">
-    <div class="section-label">External Context</div>
+    <div class="section-label">Local Conditions <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Public data (not your sensors)</strong><span><b>Weather</b> — Open-Meteo (free)</span><span><b>Pollen</b> — Google Pollen API</span><span><b>Smoke</b> — NOAA Hazard Mapping</span><span><b>BQE</b> — Predicted from time + wind</span></span></span></div>
     <div class="context-grid" id="context-cards">
       <div class="card"><div class="skeleton" style="height:140px"></div></div>
       <div class="card"><div class="skeleton" style="height:140px"></div></div>
@@ -1179,7 +1368,7 @@
     </div>
   </div>
 
-  <div class="section-label">Your Monitors</div>
+  <div class="section-label">Home Sensors <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Your AirGradient Hardware</strong><span><b>Indoor</b> — AirGradient ONE (PM, CO2, VOC, NOx)</span><span><b>Outdoor</b> — Open Air (PM, CO2, temp, humidity)</span><span><b>Updates</b> — Every 60 seconds</span></span></span></div>
   <div class="monitors" id="monitors">
     <div class="card"><div class="skeleton"></div></div>
     <div class="card"><div class="skeleton"></div></div>
@@ -1651,38 +1840,83 @@ function renderCharts(indoorHistory, outdoorHistory) {
   });
 }
 
-// ── LLM Analysis ─────────────────────────────────────
+// ── LLM Analysis (localStorage cached) ───────────────
 
 let lastData = {};
-let lastDataHash = '';
-let insightCache = {};
-let nextAutoAnalysisTime = 0;
+const CACHE_KEY = 'aq-insight-cache';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-function hashData(data) {
-  const str = JSON.stringify(data);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return hash.toString();
+function loadCachedInsight() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached.insight || !cached.timestamp) return null;
+    return cached;
+  } catch { return null; }
+}
+
+function saveCachedInsight(insight) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      insight,
+      timestamp: Date.now()
+    }));
+  } catch {}
+}
+
+function isCacheStale() {
+  const cached = loadCachedInsight();
+  if (!cached) return true;
+  return (Date.now() - cached.timestamp) > CACHE_TTL;
+}
+
+const HEALTH_TIPS = [
+  { icon: '🫁', tip: 'Indoor PM2.5 below 12 µg/m³ reduces respiratory infections by 40%' },
+  { icon: '💧', tip: 'Humidity between 30-50% keeps nasal passages moist and prevents sinus irritation' },
+  { icon: '🌳', tip: 'Tree pollen peaks 5am-10am — mornings are roughest for allergy sufferers' },
+  { icon: '🚗', tip: 'BQE rush hours (7-9am, 4-7pm) increase local PM2.5 by up to 50%' },
+  { icon: '🌡️', tip: 'Dew point below 5°C dries sinuses significantly — use a humidifier before bed' },
+  { icon: '🏃', tip: 'Best outdoor exercise window: 10am-2pm when pollen and traffic are both lowest' },
+  { icon: '👶', tip: 'Children breathe 50% more air per body weight — indoor air quality matters more for them' },
+  { icon: '🔥', tip: 'Wildfire smoke can elevate PM2.5 100+ miles from the fire source' },
+  { icon: '🌬️', tip: 'CO2 above 1000 ppm impairs cognitive function — open a window for 15 minutes' },
+  { icon: '☀️', tip: 'UV index above 6 means sunburn in under 20 minutes for fair skin' },
+];
+
+function showLoadingTip() {
+  const tip = HEALTH_TIPS[Math.floor(Math.random() * HEALTH_TIPS.length)];
+  return `
+    <div style="display:flex;align-items:center;gap:14px;padding:12px 0">
+      <div style="font-size:1.6rem;flex-shrink:0;animation:pulse-dot 1.5s ease-in-out infinite">${tip.icon}</div>
+      <div>
+        <div style="font-size:0.72rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">Analyzing your environment...</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.4"><b>Did you know?</b> ${tip.tip}</div>
+      </div>
+    </div>`;
 }
 
 async function autoAnalyzeAir(forceRefresh = false) {
   const btn = document.querySelector('.ai-refresh-btn');
   const content = document.getElementById('ai-insights-content');
 
-  if (!forceRefresh && nextAutoAnalysisTime > Date.now()) return;
-
-  const currentHash = hashData(lastData);
-  if (currentHash === lastDataHash && insightCache[currentHash] && !forceRefresh) {
-    displayAIInsights(insightCache[currentHash]);
-    return;
+  // On page load: show cached immediately if available
+  const cached = loadCachedInsight();
+  if (cached && !forceRefresh) {
+    displayAIInsights(cached.insight);
+    // If cache is fresh, stop here
+    if (!isCacheStale()) return;
+    // If stale, continue to background refresh (but don't show "Analyzing...")
   }
 
+  // Skip if no sensor data yet
+  if (!lastData.indoor_pm25 && !forceRefresh) return;
+
   btn.classList.add('loading');
-  content.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Analyzing...</div>';
+  // Only show "Analyzing..." if we have no cached content to display
+  if (!cached) {
+    content.innerHTML = showLoadingTip();
+  }
 
   try {
     const resp = await fetch('/api/analyze', {
@@ -1721,15 +1955,17 @@ async function autoAnalyzeAir(forceRefresh = false) {
 
     const insight = parseAIInsight(fullText);
     if (insight) {
-      lastDataHash = currentHash;
-      insightCache[currentHash] = insight;
+      saveCachedInsight(insight);
       displayAIInsights(insight);
-      nextAutoAnalysisTime = Date.now() + (5 * 60 * 1000);
-    } else {
+    } else if (!cached) {
+      // Only show error if we had nothing cached to fall back on
       throw new Error('Could not parse AI response');
     }
   } catch (err) {
-    content.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;">${err.message}</div>`;
+    if (!cached) {
+      content.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;">${err.message}</div>`;
+    }
+    // If we have cached content, silently fail — user still sees last analysis
   }
   btn.classList.remove('loading');
 }
@@ -1739,8 +1975,8 @@ function parseAIInsight(text) {
     // Strip markdown fences
     let cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
-    // Extract JSON object - be greedy to capture full response
-    const match = cleaned.match(/\{[\s\S]*\}(?:\s*$)/);
+    // Extract JSON object - find first { to last } (LLM may add extra text after)
+    const match = cleaned.match(/\{[\s\S]*\}/);
     if (!match) {
       console.error('No JSON found in response:', cleaned.substring(0, 200));
       return null;
@@ -1777,18 +2013,30 @@ function displayAIInsights(insight) {
   const content = document.getElementById('ai-insights-content');
   const status = (insight.status || 'GOOD').toUpperCase();
   const statusClass = status === 'GOOD' ? 'ai-status-good' : status === 'FAIR' ? 'ai-status-fair' : 'ai-status-poor';
-  const statusIcon = status === 'GOOD' ? '✓' : status === 'FAIR' ? '—' : '!';
+  const statusIcon = status === 'GOOD' ? '✓' : status === 'FAIR' ? '⚠' : '!';
+
+  // Map metric status to semantic color
+  function metricStatusColor(s) {
+    const t = (s || '').toLowerCase();
+    if (['excellent', 'good', 'ideal', 'healthy', 'safe', 'clear'].some(k => t.includes(k))) return 'var(--green)';
+    if (['fair', 'moderate', 'watch', 'borderline'].some(k => t.includes(k))) return 'var(--yellow)';
+    if (['caution', 'elevated', 'high', 'warning'].some(k => t.includes(k))) return 'var(--orange)';
+    if (['poor', 'bad', 'critical', 'danger', 'act', 'severe', 'unhealthy'].some(k => t.includes(k))) return 'var(--red)';
+    return 'var(--cyan)';
+  }
 
   // Render metric cards
-  const metricCards = (insight.metrics || []).map(m => `
-    <div class="ai-metric-card">
+  const metricCards = (insight.metrics || []).map(m => {
+    const col = metricStatusColor(m.status);
+    return `
+    <div class="ai-metric-card" style="border-top:2px solid ${col}">
       <div class="ai-metric-icon">${m.icon}</div>
       <div class="ai-metric-category">${m.category}</div>
-      <div class="ai-metric-status">${m.status}</div>
+      <div class="ai-metric-status" style="color:${col}">${m.status}</div>
       <div class="ai-metric-value">${m.value}</div>
       <div class="ai-metric-benefit">${m.benefit}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   const workingItems = (insight.working || []).map(w => `
     <div class="ai-item">
@@ -1814,31 +2062,33 @@ function displayAIInsights(insight) {
   content.innerHTML = `
     <div class="ai-status-section">
       <div style="display:flex;gap:12px;align-items:baseline">
-        <div style="width:44px;height:44px;border-radius:12px;background:${status === 'GOOD' ? 'rgba(34,197,94,0.15)' : status === 'FAIR' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)'};display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:${status === 'GOOD' ? 'var(--green)' : status === 'FAIR' ? 'var(--yellow)' : 'var(--red)'}">${statusIcon}</div>
+        <div style="width:32px;height:32px;border-radius:8px;background:${status === 'GOOD' ? 'rgba(34,197,94,0.15)' : status === 'FAIR' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)'};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:${status === 'GOOD' ? 'var(--green)' : status === 'FAIR' ? 'var(--yellow)' : 'var(--red)'};flex-shrink:0">${statusIcon}</div>
         <div class="ai-status-line ${statusClass}">${insight.status_line || 'Analyzing...'}</div>
       </div>
-      ${insight.rank ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Rank ${insight.rank} among neighbors</div>` : ''}
+      ${insight.rank ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px">#${insight.rank.split('/')[0]} cleanest of ${insight.rank.split('/')[1]} nearby</div>` : ''}
     </div>
 
     <div class="ai-metrics-grid">${metricCards}</div>
 
     <div class="ai-insights-grid">
       <div class="ai-section">
-        <div class="ai-section-title">📋 What's Working</div>
+        <div class="ai-section-title">✓ Good News</div>
         <div class="ai-items">${workingItems}</div>
       </div>
       <div class="ai-section">
-        <div class="ai-section-title">⚡ Next Steps</div>
+        <div class="ai-section-title">💡 Recommendations</div>
         <div class="ai-items">${nextStepsItems}</div>
       </div>
     </div>
 
-    ${insight.insight ? `<div style="background:var(--bg-subtle);border:1px solid var(--border);border-left:3px solid var(--purple);padding:14px;border-radius:var(--radius-xs);margin-bottom:16px;font-size:0.85rem;line-height:1.5">
-      💡 <strong>Seasonal Context</strong> ${insight.insight}
+    ${insight.insight ? `<div style="background:var(--bg-subtle);border:1px solid var(--border);border-left:3px solid var(--purple);padding:10px 14px;border-radius:var(--radius-xs);font-size:0.78rem;line-height:1.4">
+      📅 <strong>Looking Ahead</strong> ${insight.insight}
     </div>` : ''}
-
-    <div class="ai-timestamp">refreshed ${timeStr}</div>
   `;
+
+  // Update timestamp in header
+  const tsEl = document.getElementById('ai-timestamp');
+  if (tsEl) tsEl.textContent = timeStr;
 }
 
 // Store data for LLM context
@@ -1917,7 +2167,7 @@ function renderContextCards(ctx) {
   const weatherCard = `
     <div class="card" style="border-top:2px solid var(--cyan)">
       <div class="context-card-header">
-        <div class="context-card-label">Weather</div>
+        <div class="context-card-label">Weather <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Open-Meteo (free API)</strong><span><b>Wind</b> — Direction affects BQE pollution drift</span><span><b>Dew point</b> — Below 10°C dries sinuses</span><span><b>Visibility</b> — Low = high particulate</span><span><b>UV</b> — Outdoor exposure risk</span></span></span></div>
         <div class="context-card-icon">🌍</div>
       </div>
       <div class="context-card-hero">${w.wind_cardinal || '—'} ${w.wind_speed != null ? w.wind_speed + ' km/h' : ''}</div>
@@ -1959,7 +2209,7 @@ function renderContextCards(ctx) {
   const pollenCard = `
     <div class="card" style="border-top:2px solid ${pollenColor}">
       <div class="context-card-header">
-        <div class="context-card-label">Pollen</div>
+        <div class="context-card-label">Pollen <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Google Pollen API</strong><span><b>Types</b> — Tree, grass, weed (species-level)</span><span><b>Scale</b> — 0 (None) to 5 (Extremely High)</span><span><b>Season</b> — Tree peaks Apr–May in Brooklyn</span></span></span></div>
         <div class="context-card-icon">🌳</div>
       </div>
       <div class="context-card-hero" style="color:${pollenColor};font-size:1.1rem">${pollenHero}</div>
@@ -1976,7 +2226,7 @@ function renderContextCards(ctx) {
   const bqeCard = `
     <div class="card" style="border-top:2px solid ${bqeCol}">
       <div class="context-card-header">
-        <div class="context-card-label">BQE Traffic</div>
+        <div class="context-card-label">BQE Traffic <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Predicted (not live data)</strong><span><b>Model</b> — Time of day × wind direction</span><span><b>Rush hours</b> — 7-9am (+50%), 4-7pm (+40%)</span><span><b>Wind</b> — West winds push exhaust toward home</span></span></span></div>
         <div class="context-card-icon">🚗</div>
       </div>
       <div class="context-card-hero" style="color:${bqeCol}">${trafficLabel}</div>
@@ -2004,7 +2254,7 @@ function renderContextCards(ctx) {
   const smokeCard = `
     <div class="card" style="border-top:2px solid ${smokeCol}">
       <div class="context-card-header">
-        <div class="context-card-label">Wildfire Smoke</div>
+        <div class="context-card-label">Wildfire Smoke <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>NOAA Hazard Mapping System</strong><span><b>Coverage</b> — Northeast US region</span><span><b>When detected</b> — Outdoor PM2.5 spikes</span><span><b>Action</b> — Stay indoors, HEPA on high</span></span></span></div>
         <div class="context-card-icon">🔥</div>
       </div>
       <div class="smoke-status">
@@ -2019,6 +2269,17 @@ function renderContextCards(ctx) {
     </div>`;
 
   document.getElementById('context-cards').innerHTML = weatherCard + pollenCard + bqeCard + smokeCard;
+
+  // Update source status dots
+  setDot('src-weather', w.wind_speed != null);
+  setDot('src-pollen', p && p.length > 0);
+  setDot('src-bqe', true); // Always ok (calculated, no API)
+  setDot('src-smoke', true); // NOAA responded (smoke data was fetched)
+}
+
+function setDot(id, ok) {
+  const el = document.getElementById(id);
+  if (el) { el.className = 'source-dot ' + (ok ? 'ok' : 'err'); }
 }
 
 // ── Fetch & Refresh ──────────────────────────────────
@@ -2047,6 +2308,9 @@ async function refresh() {
     document.getElementById('neighborhood').innerHTML = renderNeighborhood(neighbors);
 
     renderContextCards(ctx);
+
+    // AirGradient source dot
+    setDot('src-airgradient', !!(indoor || outdoor));
 
     updateLLMContext(indoor, outdoor, neighbors);
     autoAnalyzeAir(); // Auto-analyze on data refresh
@@ -2081,12 +2345,17 @@ async function refresh() {
 refresh();
 setInterval(refresh, 60000);
 
-// ── Service Worker Registration ──────────────────
-if ('serviceWorker' in navigator) {
+// ── Service Worker Registration (skip + cleanup on localhost) ──
+if ('serviceWorker' in navigator && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  // Unregister any stale SW from previous sessions on localhost
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.unregister());
+  });
+}
+if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
   navigator.serviceWorker.register('/sw.js')
     .then((reg) => {
       console.log('Service Worker registered:', reg.scope);
-      // Check for updates periodically
       setInterval(() => reg.update(), 60000);
     })
     .catch((err) => console.error('Service Worker registration failed:', err));

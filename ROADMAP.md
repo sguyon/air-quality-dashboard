@@ -49,10 +49,15 @@ Instead of just showing metrics, the dashboard:
 | **v1** | Core monitoring + basic AI | Greenpoint-specific | ✅ Done | Apr 10 (main) |
 | **v1.5+** | Weather + smoke + BQE + health scores | Greenpoint + household aware | ✅ Done | Apr 10 (v2 staging) |
 | **v2** | Google Pollen API + personalized for household | Sacha + Janet specific recommendations | ✅ Done | Apr 10 (v2 staging) |
-| **v2.5** | External data card layout | Visual cards for weather, pollen, BQE, smoke | ⏳ Next | TBD |
-| **v3** | Trending, alerts, notifications | Push when thresholds hit | ⏳ Backlog | TBD |
-| **v4** | Generalize for others | Location picker, user profiles, multi-household | ⏳ Future | TBD |
-| **v5** | Mobile UX, PWA, offline | Optimize for mobile + installable | ⏳ Future | TBD |
+| **v2.5** | External data card layout | Visual cards for weather, pollen, BQE, smoke | ✅ Done | Apr 10 (v2 staging) |
+| **v2.6** | Dev workflow: gstack + compound engineering | Install globally, adopt Plan→Build→Review→Compound loop | ⏳ **Priority** | TBD |
+| **v2.75** | Session learnings capture | Compound step: auto-capture project knowledge | ⏳ Next | TBD |
+| **v2.8** | Server-side caching | Cache weather/pollen/smoke API calls | ⏳ Next | TBD |
+| **v3** | Visual design overhaul | Color bars, health score, icon recs, pollen bars | ⏳ Next | TBD |
+| **v3.5** | Symptom tracking | Log symptoms → correlate with environment | ⏳ Next | TBD |
+| **v4** | Trending & alerts | Historical comparisons, threshold notifications | ⏳ Backlog | TBD |
+| **v5** | Generalize for others | Location picker, user profiles, multi-household | ⏳ Future | TBD |
+| **v6** | Mobile UX, PWA, offline | Optimize for mobile + installable | ⏳ Future | TBD |
 
 ---
 
@@ -124,7 +129,42 @@ Instead of just showing metrics, the dashboard:
 
 ---
 
-### Phase 2.75: Server-Side Caching (High Priority)
+### Phase 2.75: Session Learnings Capture (Process — Ongoing)
+
+**Goal:** Each coding session compounds the AI's knowledge of the project. Next session starts smarter.
+
+**Inspired by:** Every.to's Compound Engineering (`/workflows:compound`), Teresa Torres's "Claude, what did you learn today?"
+
+**Two modes:**
+
+**A. Automatic (end of session):**
+- On session end / context limit, Claude auto-generates a "learnings" summary
+- Updates AGENTS.md with new patterns, conventions, or gotchas discovered
+- Adds new memory entries for non-obvious preferences or decisions
+- Captures failed approaches so they're not retried
+- Could hook into build-log skill to also capture content-worthy moments
+
+**B. Manual (user-triggered):**
+- `/compound` or `/session-end` slash command
+- Asks: "What did we learn this session that would help next time?"
+- Proposes specific updates to AGENTS.md, CLAUDE.md, or memory files
+- User approves/edits before saving
+
+**What gets captured:**
+- New project conventions ("test locally before pushing to Railway")
+- API quirks ("Google Pollen API uses GET not POST")
+- Design decisions ("dew point severity capped at FAIR when indoor humidity is ideal")
+- LLM prompt patterns that work/don't work
+- User preferences not yet documented
+
+**Why ongoing (not a phase):**
+- This is a process, not a feature. Starts now, improves every session.
+- Compound Engineering proved: 80% planning + review, 20% execution
+- Each captured learning prevents a future 10-minute debugging loop
+
+---
+
+### Phase 2.8: Server-Side Caching (High Priority)
 
 **Goal:** Reduce redundant API calls, improve response time, lower cost
 
@@ -146,24 +186,107 @@ Instead of just showing metrics, the dashboard:
 
 ---
 
-### Phase 3: Trending & Alerts (Medium Priority)
+### Phase 3: Symptom Tracking + Trigger Correlation (High Priority)
+
+**Goal:** Let users log how they feel → correlate with environmental data over time → discover personal triggers
+
+**Add:**
+- Quick symptom input (tap-based, <5 sec): congested, dry sinuses, headache, tired, itchy eyes, clear
+- Log stored in localStorage (later: server-side for persistence)
+- Timestamp each entry → match against sensor + pollen + weather data at that moment
+- After 2+ weeks of data: surface correlations ("You report congestion 3x more when tree pollen is Moderate+ AND humidity drops below 35%")
+- Feed symptom history into LLM prompt for hyper-personalized recommendations
+- Weekly digest: "This week: 4 congested days, all correlated with dew point <6°C"
+
+**Why this is the moat:**
+- <1% of 300M asthma sufferers use AQ apps — gap is personalization, not data
+- AirRater (Australia) proved trigger detection drives retention
+- Market analysis: "the compounding data layer is the defensible piece"
+- Nobody else has personal sensor data + symptom logs + LLM coaching in one product
+
+**UX pattern (from design research):**
+- Floating action button or inline card: "How are you feeling?" 
+- Quick emoji/tag selector: 😤 Congested · 🤧 Sneezy · 😫 Headache · 😴 Tired · ✓ Clear
+- Optional: severity 1-3 tap
+- Auto-dismiss after selection, no friction
+
+---
+
+### Phase 3.5: Trending & Alerts (Medium Priority)
 
 **Goal:** Explain patterns, help predict problems before they happen
 
 **Add:**
 - Historical comparison ("Air improved 8% this week vs last week")
 - Time-of-day patterns ("BQE traffic peaks at 7-9am + 4-7pm, pollen peaks 10am-4pm")
-- Week-of-week comparison ("Mondays usually cleaner than Fridays")
+- Symptom trend overlay on environmental charts (see congestion spikes vs pollen/humidity)
 - Seasonal insights ("Tree pollen season ends May 15 — 2 weeks remaining")
 - Peer context ("You're in top 10% cleanest neighborhoods")
 - Threshold alerts (PM2.5 > 35, CO2 > 800, humidity extremes)
 
-**Why after v2.5:**
-- Needs 1-2 weeks of data history to show trends (collect while v2.5 lives)
-- Threshold alerts make sense once users understand baseline
-- Cards provide visual baseline to detect changes
+**Why after symptom tracking:**
+- Symptom data makes trends actionable ("you're congested on high-pollen mornings")
+- Without symptoms, trending is just data visualization (commodity)
+- 2+ weeks of symptom logs = enough for first correlation report
 
-**Estimate:** 4 hours for trending + 2 hours for alerts (Slack/email/browser push)
+---
+
+### Phase 3.75: Visual Design Overhaul (High Priority — Next)
+
+**Goal:** Apply competitive best practices to match IQAir/Apple Health polish level
+
+**Based on:** Competitive design analysis of IQAir, Plume, Apple Health, AirScope, DailyBreath
+
+**A. Metric Cards — Color bars + visual hierarchy**
+- Add color bar under metric value (like AQI bars): ████████░░ Excellent
+- Status label next to bar, colored by severity (green/yellow/orange/red)
+- Consistent card height (100-120px)
+- Value font: 1.2rem bold, colored by status
+- Pattern source: IQAir mobile AQI card
+
+**B. Health Score — Single compound number**
+- Combine Allergy Risk + Respiratory Load into one "Health Score" (1-100)
+- Like DailyBreath's Perry Score but powered by personal sensors + LLM
+- Display as gauge/ring visual (Apple Health style)
+- This is the number that compounds with symptom tracking over time
+- Pattern source: DailyBreath Perry Score, Apple Health rings
+
+**C. Recommendations — Icon-prefix single lines**
+- Remove numbered list in boxes
+- Switch to: 🏃 single line per recommendation, icon prefix
+- Max 3 items, no boxes/cards around each one
+- No numbering (implies sequence that doesn't exist)
+- Pattern source: Plume morning report notifications
+
+**D. Pollen — Horizontal bar chart**
+- Replace text pills with: Tree ████████░░ Moderate (in season)
+- Color bars proportional to index (0-5), colored by severity
+- "(in season)" tag for active allergens
+- Pattern source: IQAir 3-day pollen forecast
+
+**E. Activity Timing — Dedicated safety rows**
+- Tie to Health profile tags (Runner, Toddler):
+  🏃 Outdoor run: ✓ Safe now (10am-2pm)
+  👶 Park time: ⚠ Check pollen after 2pm
+- Pattern source: Plume activity safety icons
+
+**F. Status Section — Compact single-line**
+- Status word (GOOD/FAIR/POOR) in large colored text, same line as icon
+- Rank right-aligned on same line
+- Status description below, normal weight
+- Pattern source: IQAir hero card
+
+**G. Info Panel — Bottom sheet for detail**
+- "Learn more" links on cards open bottom sheet overlay
+- Contains: scoring thresholds table, data sources, methodology
+- Works on mobile (slide up) and desktop (slide from right or modal)
+- Pattern source: Apple Health detail sheets, Oura 3-tier progressive disclosure
+
+**Why now:**
+- Current UI works functionally but looks unpolished vs competitors
+- These are CSS + HTML changes, no backend work needed
+- Polish drives trust — especially for health products
+- IQAir/Apple Health patterns are proven by millions of users
 
 ---
 
