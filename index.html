@@ -76,6 +76,53 @@
     padding: 32px 24px;
   }
 
+  /* ── Debug Block (non-production only) ──────────── */
+
+  .debug-block {
+    display: none;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.03em;
+  }
+
+  .debug-block.visible {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .debug-block-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .debug-clear-cache-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .debug-clear-cache-btn:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: var(--surface);
+  }
+
   /* ── Header ──────────────────────────────── */
 
   header {
@@ -854,6 +901,13 @@
 <body>
 
 <div class="container">
+  <div class="debug-block" id="debug-block">
+    <div class="debug-block-info">
+      <span id="debug-info">—</span>
+    </div>
+    <button class="debug-clear-cache-btn" onclick="clearCacheAndReload()">Clear Cache</button>
+  </div>
+
   <header>
     <div class="header-left">
       <div>
@@ -973,6 +1027,42 @@
     buildEl.textContent = buildInfo;
   }
 })();
+
+// ── Debug Block (non-production only) ──────────────
+(function() {
+  var isProduction = window.location.hostname === 'air-quality-dashboard.up.railway.app';
+  var debugBlock = document.getElementById('debug-block');
+  var debugInfo = document.getElementById('debug-info');
+  var buildInfo = document.documentElement.getAttribute('data-build');
+
+  if (!isProduction && debugBlock && buildInfo) {
+    debugBlock.classList.add('visible');
+    debugInfo.textContent = buildInfo;
+  }
+})();
+
+// ── Clear Cache Function ───────────────────────────
+function clearCacheAndReload() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for (let registration of registrations) {
+        registration.unregister();
+      }
+    });
+  }
+  // Clear all caches
+  if ('caches' in window) {
+    caches.keys().then(function(cacheNames) {
+      return Promise.all(cacheNames.map(function(cacheName) {
+        return caches.delete(cacheName);
+      }));
+    });
+  }
+  // Reload after a short delay to ensure cleanup
+  setTimeout(function() {
+    location.reload();
+  }, 500);
+}
 
 // ── Time Range ───────────────────────────────────────
 
