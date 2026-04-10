@@ -50,7 +50,9 @@ Instead of just showing metrics, the dashboard:
 | **v1.5+** | Weather + smoke + BQE + health scores | Greenpoint + household aware | ✅ Done | Apr 10 (v2 staging) |
 | **v2** | Google Pollen API + personalized for household | Sacha + Janet specific recommendations | ✅ Done | Apr 10 (v2 staging) |
 | **v2.5** | External data card layout | Visual cards for weather, pollen, BQE, smoke | ✅ Done | Apr 10 (v2 staging) |
-| **v2.75** | Server-side caching | Cache weather/pollen/smoke API calls | ⏳ Next | TBD |
+| **v2.6** | Dev workflow: gstack + compound engineering | Install globally, adopt Plan→Build→Review→Compound loop | ⏳ **Priority** | TBD |
+| **v2.75** | Session learnings capture | Compound step: auto-capture project knowledge | ⏳ Next | TBD |
+| **v2.8** | Server-side caching | Cache weather/pollen/smoke API calls | ⏳ Next | TBD |
 | **v3** | Visual design overhaul | Color bars, health score, icon recs, pollen bars | ⏳ Next | TBD |
 | **v3.5** | Symptom tracking | Log symptoms → correlate with environment | ⏳ Next | TBD |
 | **v4** | Trending & alerts | Historical comparisons, threshold notifications | ⏳ Backlog | TBD |
