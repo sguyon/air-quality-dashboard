@@ -2015,16 +2015,28 @@ function displayAIInsights(insight) {
   const statusClass = status === 'GOOD' ? 'ai-status-good' : status === 'FAIR' ? 'ai-status-fair' : 'ai-status-poor';
   const statusIcon = status === 'GOOD' ? '✓' : status === 'FAIR' ? '⚠' : '!';
 
+  // Map metric status to semantic color
+  function metricStatusColor(s) {
+    const t = (s || '').toLowerCase();
+    if (['excellent', 'good', 'ideal', 'healthy', 'safe', 'clear'].some(k => t.includes(k))) return 'var(--green)';
+    if (['fair', 'moderate', 'watch', 'borderline'].some(k => t.includes(k))) return 'var(--yellow)';
+    if (['caution', 'elevated', 'high', 'warning'].some(k => t.includes(k))) return 'var(--orange)';
+    if (['poor', 'bad', 'critical', 'danger', 'act', 'severe', 'unhealthy'].some(k => t.includes(k))) return 'var(--red)';
+    return 'var(--cyan)';
+  }
+
   // Render metric cards
-  const metricCards = (insight.metrics || []).map(m => `
-    <div class="ai-metric-card">
+  const metricCards = (insight.metrics || []).map(m => {
+    const col = metricStatusColor(m.status);
+    return `
+    <div class="ai-metric-card" style="border-top:2px solid ${col}">
       <div class="ai-metric-icon">${m.icon}</div>
       <div class="ai-metric-category">${m.category}</div>
-      <div class="ai-metric-status">${m.status}</div>
+      <div class="ai-metric-status" style="color:${col}">${m.status}</div>
       <div class="ai-metric-value">${m.value}</div>
       <div class="ai-metric-benefit">${m.benefit}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   const workingItems = (insight.working || []).map(w => `
     <div class="ai-item">
