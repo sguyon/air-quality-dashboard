@@ -590,17 +590,34 @@
     background: var(--surface);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-xs);
-    padding: 10px 12px;
+    padding: 12px 14px;
     font-size: 0.72rem;
     font-weight: 400;
     line-height: 1.5;
     color: var(--text-secondary);
     white-space: normal;
-    width: 240px;
+    width: 260px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     z-index: 100;
     text-transform: none;
     letter-spacing: normal;
+  }
+
+  .info-bubble strong {
+    display: block;
+    color: var(--text);
+    font-size: 0.74rem;
+    margin-bottom: 6px;
+  }
+
+  .info-bubble span {
+    display: block;
+    margin-top: 4px;
+    padding-left: 2px;
+  }
+
+  .info-bubble b {
+    color: var(--text);
   }
 
   .info-tip .info-bubble::after {
@@ -1299,7 +1316,7 @@
   <div class="ai-insights-section" id="ai-insights-section">
     <div class="card ai-insights-card">
       <div class="ai-insights-header">
-        <div class="ai-label">✨ Your Health Status <span class="info-tip" tabindex="0">?<span class="info-bubble">AI-powered analysis combining your AirGradient sensors, weather, pollen, and traffic data. Personalized for your household's sinus and allergy sensitivities. Refreshes when sensor data changes.</span></span></div>
+        <div class="ai-label">✨ Your Health Status <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>AI Health Coach</strong><span><b>Inputs:</b> AirGradient sensors + weather + pollen + traffic</span><span><b>Personalized</b> for sinus &amp; allergy sensitivities</span><span><b>Refreshes</b> when sensor data changes significantly</span></span></span></div>
         <button class="ai-refresh-btn" onclick="autoAnalyzeAir(true)" title="Refresh analysis">↻</button>
       </div>
       <div id="ai-insights-content">
@@ -1309,7 +1326,7 @@
   </div>
 
   <div class="context-section">
-    <div class="section-label">External Context <span class="info-tip" tabindex="0">?<span class="info-bubble">Real-time data from free public APIs — not from your AirGradient sensors. Weather from Open-Meteo, pollen from Google, smoke from NOAA, BQE traffic is predicted from time + wind direction.</span></span></div>
+    <div class="section-label">External Context <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Public APIs (not your sensors)</strong><span><b>Weather</b> — Open-Meteo (free)</span><span><b>Pollen</b> — Google Pollen API</span><span><b>Smoke</b> — NOAA Hazard Mapping</span><span><b>BQE</b> — Predicted from time + wind</span></span></span></div>
     <div class="context-grid" id="context-cards">
       <div class="card"><div class="skeleton" style="height:140px"></div></div>
       <div class="card"><div class="skeleton" style="height:140px"></div></div>
@@ -1318,7 +1335,7 @@
     </div>
   </div>
 
-  <div class="section-label">Your Monitors <span class="info-tip" tabindex="0">?<span class="info-bubble">Live data from your AirGradient ONE (indoor) and Open Air (outdoor) sensors at home. PM2.5, CO2, temperature, humidity, VOC, and NOx — measured every 60 seconds.</span></span></div>
+  <div class="section-label">Your Monitors <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Your AirGradient Hardware</strong><span><b>Indoor</b> — AirGradient ONE (PM, CO2, VOC, NOx)</span><span><b>Outdoor</b> — Open Air (PM, CO2, temp, humidity)</span><span><b>Refresh</b> — Every 60 seconds</span></span></span></div>
   <div class="monitors" id="monitors">
     <div class="card"><div class="skeleton"></div></div>
     <div class="card"><div class="skeleton"></div></div>
@@ -2056,7 +2073,7 @@ function renderContextCards(ctx) {
   const weatherCard = `
     <div class="card" style="border-top:2px solid var(--cyan)">
       <div class="context-card-header">
-        <div class="context-card-label">Weather <span class="info-tip" tabindex="0">?<span class="info-bubble">From Open-Meteo (free API). Wind direction affects how BQE pollution drifts. Dew point below 10°C dries your sinuses. Low visibility = high particulate concentration.</span></span></div>
+        <div class="context-card-label">Weather <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Open-Meteo (free API)</strong><span><b>Wind</b> — Direction affects BQE pollution drift</span><span><b>Dew point</b> — Below 10°C dries sinuses</span><span><b>Visibility</b> — Low = high particulate</span><span><b>UV</b> — Outdoor exposure risk</span></span></span></div>
         <div class="context-card-icon">🌍</div>
       </div>
       <div class="context-card-hero">${w.wind_cardinal || '—'} ${w.wind_speed != null ? w.wind_speed + ' km/h' : ''}</div>
@@ -2098,7 +2115,7 @@ function renderContextCards(ctx) {
   const pollenCard = `
     <div class="card" style="border-top:2px solid ${pollenColor}">
       <div class="context-card-header">
-        <div class="context-card-label">Pollen <span class="info-tip" tabindex="0">?<span class="info-bubble">From Google Pollen API. Shows real-time allergen levels by type (tree, grass, weed). Tree pollen peaks April–May in Brooklyn. Index: 0=None, 5=Extremely High.</span></span></div>
+        <div class="context-card-label">Pollen <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Google Pollen API</strong><span><b>Types</b> — Tree, grass, weed (species-level)</span><span><b>Scale</b> — 0 (None) to 5 (Extremely High)</span><span><b>Season</b> — Tree peaks Apr–May in Brooklyn</span></span></span></div>
         <div class="context-card-icon">🌳</div>
       </div>
       <div class="context-card-hero" style="color:${pollenColor};font-size:1.1rem">${pollenHero}</div>
@@ -2115,7 +2132,7 @@ function renderContextCards(ctx) {
   const bqeCard = `
     <div class="card" style="border-top:2px solid ${bqeCol}">
       <div class="context-card-header">
-        <div class="context-card-label">BQE Traffic <span class="info-tip" tabindex="0">?<span class="info-bubble">Predicted from time of day + wind direction. BQE runs through Greenpoint — rush hours (7-9am, 4-7pm) increase PM2.5. West winds push exhaust toward your home.</span></span></div>
+        <div class="context-card-label">BQE Traffic <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>Predicted (not live data)</strong><span><b>Model</b> — Time of day × wind direction</span><span><b>Rush hours</b> — 7-9am (+50%), 4-7pm (+40%)</span><span><b>Wind</b> — West winds push exhaust toward home</span></span></span></div>
         <div class="context-card-icon">🚗</div>
       </div>
       <div class="context-card-hero" style="color:${bqeCol}">${trafficLabel}</div>
@@ -2143,7 +2160,7 @@ function renderContextCards(ctx) {
   const smokeCard = `
     <div class="card" style="border-top:2px solid ${smokeCol}">
       <div class="context-card-header">
-        <div class="context-card-label">Wildfire Smoke <span class="info-tip" tabindex="0">?<span class="info-bubble">From NOAA Hazard Mapping System. Detects active wildfire smoke in the Northeast US. When detected, outdoor PM2.5 spikes — stay indoors with windows closed and HEPA running.</span></span></div>
+        <div class="context-card-label">Wildfire Smoke <span class="info-tip" tabindex="0">?<span class="info-bubble"><strong>NOAA Hazard Mapping System</strong><span><b>Coverage</b> — Northeast US region</span><span><b>When detected</b> — Outdoor PM2.5 spikes</span><span><b>Action</b> — Stay indoors, HEPA on high</span></span></span></div>
         <div class="context-card-icon">🔥</div>
       </div>
       <div class="smoke-status">
