@@ -231,45 +231,103 @@
     animation: spin 0.8s ease-in-out infinite;
   }
 
-  .health-profile {
+  /* ── User Profile Section ─────────────────── */
+
+  .user-profile {
+    margin-bottom: 16px;
+  }
+
+  .user-profile-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .user-avatars {
+    display: flex;
+    gap: 0;
+    flex-shrink: 0;
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #fff;
+    border: 2px solid var(--surface);
   }
 
-  .health-profile-tags {
+  .user-avatar:nth-child(2) {
+    margin-left: -10px;
+  }
+
+  .user-avatar-sg { background: var(--blue); }
+  .user-avatar-jc { background: var(--purple); }
+
+  .user-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .user-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .user-location {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .user-monitoring-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .user-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 5px;
   }
 
-  .health-tag {
+  .user-tag {
     font-size: 0.68rem;
-    padding: 3px 8px;
-    border-radius: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
     background: var(--bg-subtle);
     border: 1px solid var(--border);
     color: var(--text-secondary);
     white-space: nowrap;
-    letter-spacing: 0.01em;
   }
 
-  .health-profile-edit {
-    font-size: 0.68rem;
-    padding: 3px 10px;
-    border-radius: 12px;
+  .user-edit-btn {
+    font-size: 0.72rem;
+    padding: 6px 14px;
+    border-radius: var(--radius-xs);
     background: none;
-    border: 1px dashed var(--border);
+    border: 1px solid var(--border);
     color: var(--text-muted);
     font-family: inherit;
     cursor: not-allowed;
     white-space: nowrap;
-    opacity: 0.5;
-    transition: opacity 0.2s;
+    opacity: 0.4;
+    align-self: flex-start;
+    margin-top: 2px;
   }
 
   .ai-status-section {
@@ -502,6 +560,70 @@
     color: var(--text-muted);
     font-weight: 600;
     margin-bottom: 16px;
+  }
+
+  /* ── Info Tooltips ────────────────────────── */
+
+  .info-tip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: help;
+    vertical-align: middle;
+    margin-left: 6px;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .info-tip:hover,
+  .info-tip:focus {
+    color: var(--cyan);
+    border-color: var(--cyan);
+  }
+
+  .info-tip .info-bubble {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xs);
+    padding: 10px 12px;
+    font-size: 0.72rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    white-space: normal;
+    width: 240px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 100;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .info-tip .info-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--border-light);
+  }
+
+  .info-tip:hover .info-bubble,
+  .info-tip:focus .info-bubble {
+    display: block;
   }
 
   /* ── Context Cards ────────────────────────── */
@@ -1081,6 +1203,15 @@
       justify-content: flex-start;
     }
 
+    .user-profile-card {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .user-edit-btn {
+      align-self: flex-start;
+    }
+
     .ai-metrics-grid {
       grid-template-columns: 1fr;
     }
@@ -1146,22 +1277,34 @@
     </div>
   </header>
 
+  <div class="user-profile">
+    <div class="user-profile-card">
+      <div class="user-avatars">
+        <div class="user-avatar user-avatar-sg">SG</div>
+        <div class="user-avatar user-avatar-jc">JC</div>
+      </div>
+      <div class="user-info">
+        <div class="user-name">Sacha & Janet</div>
+        <div class="user-location">📍 Eckford & Meserole, Greenpoint, Brooklyn</div>
+        <div class="user-monitoring-label">Monitoring</div>
+        <div class="user-tags">
+          <span class="user-tag">🫁 Sinus & Allergy</span>
+          <span class="user-tag">🌳 Pollen</span>
+          <span class="user-tag">💧 Humidity / Dew Point</span>
+          <span class="user-tag">🚗 BQE Traffic</span>
+          <span class="user-tag">🔥 Wildfire Smoke</span>
+          <span class="user-tag">☀️ UV</span>
+        </div>
+      </div>
+      <button class="user-edit-btn" disabled title="Coming soon">Edit Profile</button>
+    </div>
+  </div>
+
   <div class="ai-insights-section" id="ai-insights-section">
     <div class="card ai-insights-card">
       <div class="ai-insights-header">
-        <div class="ai-label">✨ Your Health Status</div>
+        <div class="ai-label">✨ Your Health Status <span class="info-tip" tabindex="0">?<span class="info-bubble">AI-powered analysis combining your AirGradient sensors, weather, pollen, and traffic data. Personalized for your household's sinus and allergy sensitivities. Refreshes when sensor data changes.</span></span></div>
         <button class="ai-refresh-btn" onclick="autoAnalyzeAir(true)" title="Refresh analysis">↻</button>
-      </div>
-      <div class="health-profile">
-        <div class="health-profile-tags">
-          <span class="health-tag">🫁 Sinus & Allergy</span>
-          <span class="health-tag">🌳 Pollen</span>
-          <span class="health-tag">💧 Humidity / Dew Point</span>
-          <span class="health-tag">🚗 BQE Traffic</span>
-          <span class="health-tag">🔥 Wildfire Smoke</span>
-          <span class="health-tag">☀️ UV</span>
-        </div>
-        <button class="health-profile-edit" disabled title="Coming soon">Customize</button>
       </div>
       <div id="ai-insights-content">
         <div style="color:var(--text-muted);font-size:0.8rem">Loading health analysis...</div>
@@ -1170,7 +1313,7 @@
   </div>
 
   <div class="context-section">
-    <div class="section-label">External Context</div>
+    <div class="section-label">External Context <span class="info-tip" tabindex="0">?<span class="info-bubble">Real-time data from free public APIs — not from your AirGradient sensors. Weather from Open-Meteo, pollen from Google, smoke from NOAA, BQE traffic is predicted from time + wind direction.</span></span></div>
     <div class="context-grid" id="context-cards">
       <div class="card"><div class="skeleton" style="height:140px"></div></div>
       <div class="card"><div class="skeleton" style="height:140px"></div></div>
@@ -1179,7 +1322,7 @@
     </div>
   </div>
 
-  <div class="section-label">Your Monitors</div>
+  <div class="section-label">Your Monitors <span class="info-tip" tabindex="0">?<span class="info-bubble">Live data from your AirGradient ONE (indoor) and Open Air (outdoor) sensors at home. PM2.5, CO2, temperature, humidity, VOC, and NOx — measured every 60 seconds.</span></span></div>
   <div class="monitors" id="monitors">
     <div class="card"><div class="skeleton"></div></div>
     <div class="card"><div class="skeleton"></div></div>
@@ -1917,7 +2060,7 @@ function renderContextCards(ctx) {
   const weatherCard = `
     <div class="card" style="border-top:2px solid var(--cyan)">
       <div class="context-card-header">
-        <div class="context-card-label">Weather</div>
+        <div class="context-card-label">Weather <span class="info-tip" tabindex="0">?<span class="info-bubble">From Open-Meteo (free API). Wind direction affects how BQE pollution drifts. Dew point below 10°C dries your sinuses. Low visibility = high particulate concentration.</span></span></div>
         <div class="context-card-icon">🌍</div>
       </div>
       <div class="context-card-hero">${w.wind_cardinal || '—'} ${w.wind_speed != null ? w.wind_speed + ' km/h' : ''}</div>
@@ -1959,7 +2102,7 @@ function renderContextCards(ctx) {
   const pollenCard = `
     <div class="card" style="border-top:2px solid ${pollenColor}">
       <div class="context-card-header">
-        <div class="context-card-label">Pollen</div>
+        <div class="context-card-label">Pollen <span class="info-tip" tabindex="0">?<span class="info-bubble">From Google Pollen API. Shows real-time allergen levels by type (tree, grass, weed). Tree pollen peaks April–May in Brooklyn. Index: 0=None, 5=Extremely High.</span></span></div>
         <div class="context-card-icon">🌳</div>
       </div>
       <div class="context-card-hero" style="color:${pollenColor};font-size:1.1rem">${pollenHero}</div>
@@ -1976,7 +2119,7 @@ function renderContextCards(ctx) {
   const bqeCard = `
     <div class="card" style="border-top:2px solid ${bqeCol}">
       <div class="context-card-header">
-        <div class="context-card-label">BQE Traffic</div>
+        <div class="context-card-label">BQE Traffic <span class="info-tip" tabindex="0">?<span class="info-bubble">Predicted from time of day + wind direction. BQE runs through Greenpoint — rush hours (7-9am, 4-7pm) increase PM2.5. West winds push exhaust toward your home.</span></span></div>
         <div class="context-card-icon">🚗</div>
       </div>
       <div class="context-card-hero" style="color:${bqeCol}">${trafficLabel}</div>
@@ -2004,7 +2147,7 @@ function renderContextCards(ctx) {
   const smokeCard = `
     <div class="card" style="border-top:2px solid ${smokeCol}">
       <div class="context-card-header">
-        <div class="context-card-label">Wildfire Smoke</div>
+        <div class="context-card-label">Wildfire Smoke <span class="info-tip" tabindex="0">?<span class="info-bubble">From NOAA Hazard Mapping System. Detects active wildfire smoke in the Northeast US. When detected, outdoor PM2.5 spikes — stay indoors with windows closed and HEPA running.</span></span></div>
         <div class="context-card-icon">🔥</div>
       </div>
       <div class="smoke-status">
