@@ -1033,7 +1033,7 @@
   var isProduction = window.location.hostname === 'air-quality-dashboard.up.railway.app';
   var debugBlock = document.getElementById('debug-block');
   var debugInfo = document.getElementById('debug-info');
-  var buildInfo = document.documentElement.getAttribute('data-build') || 'unknown';
+  var buildInfo = document.body.getAttribute('data-build') || 'unknown';
 
   if (!isProduction && debugBlock) {
     debugBlock.classList.add('visible');
