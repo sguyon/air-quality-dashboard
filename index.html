@@ -135,31 +135,19 @@
   }
 
   .ai-insights-card {
-    background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(168,85,247,0.1));
-    border: 1px solid var(--border-light);
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 24px;
     position: relative;
     overflow: hidden;
   }
 
-  .ai-insights-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, var(--cyan), transparent);
-    opacity: 0.05;
-    pointer-events: none;
-  }
-
   .ai-insights-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 20px;
+    align-items: center;
+    margin-bottom: 16px;
     position: relative;
     z-index: 1;
   }
@@ -177,13 +165,17 @@
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 1rem;
     padding: 4px 8px;
-    transition: color 0.15s;
+    transition: color 0.15s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .ai-refresh-btn:hover {
     color: var(--text);
+    transform: rotate(10deg);
   }
 
   .ai-refresh-btn.loading {
@@ -191,11 +183,10 @@
   }
 
   .ai-status-line {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     font-weight: 600;
-    margin-bottom: 20px;
-    position: relative;
-    z-index: 1;
+    margin-bottom: 18px;
+    line-height: 1.4;
   }
 
   .ai-status-good { color: var(--green); }
@@ -205,25 +196,25 @@
   .ai-insights-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 20px;
     position: relative;
     z-index: 1;
+    margin-bottom: 12px;
   }
 
   .ai-section {
-    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .ai-section-title {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--text-muted);
     font-weight: 600;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    margin-bottom: 4px;
   }
 
   .ai-items {
@@ -233,28 +224,33 @@
   }
 
   .ai-item {
-    padding: 10px 12px;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 0.8rem;
-    line-height: 1.4;
+    padding: 8px 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .ai-item::before {
+    content: '→ ';
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-right: 4px;
   }
 
   .ai-learn {
     grid-column: 1 / -1;
-    padding: 12px 16px;
-    background: var(--surface-hover);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    background: var(--bg-subtle);
+    border-left: 3px solid var(--cyan);
+    border-radius: var(--radius-xs);
     font-size: 0.8rem;
     line-height: 1.5;
-    font-style: italic;
+    color: var(--text-secondary);
   }
 
   .ai-timestamp {
     grid-column: 1 / -1;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     text-align: right;
     margin-top: 4px;
@@ -1576,22 +1572,24 @@ function displayAIInsights(insight) {
   const status = (insight.status || 'GOOD').toUpperCase();
   const statusClass = status === 'GOOD' ? 'ai-status-good' : status === 'FAIR' ? 'ai-status-fair' : 'ai-status-poor';
   const statusEmoji = status === 'GOOD' ? '🟢' : status === 'FAIR' ? '🟡' : '🔴';
-  const whyItems = (insight.why || []).map(w => `<div class="ai-item">• ${w}</div>`).join('');
-  const doItems = (insight.do || []).map(d => `<div class="ai-item">• ${d}</div>`).join('');
+  const whyItems = (insight.why || []).map(w => `<div class="ai-item">${w}</div>`).join('');
+  const doItems = (insight.do || []).map(d => `<div class="ai-item">${d}</div>`).join('');
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   content.innerHTML = `
     <div class="ai-status-line ${statusClass}">${statusEmoji} ${insight.status_line || 'Analyzing...'}</div>
     <div class="ai-insights-grid">
       <div class="ai-section">
-        <div class="ai-section-title">📍 Why</div>
+        <div class="ai-section-title">Why Now</div>
         <div class="ai-items">${whyItems}</div>
       </div>
       <div class="ai-section">
-        <div class="ai-section-title">💡 You Can Do</div>
+        <div class="ai-section-title">What To Do</div>
         <div class="ai-items">${doItems}</div>
       </div>
-      <div class="ai-learn">🧠 ${insight.learn || ''}</div>
-      <div class="ai-timestamp">Last analyzed ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+      <div class="ai-learn">💡 ${insight.learn || ''}</div>
+      <div class="ai-timestamp">refreshed ${timeStr}</div>
     </div>
   `;
 }

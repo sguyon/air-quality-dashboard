@@ -134,31 +134,43 @@ def analyze():
     else:
         status = "POOR"
 
-    prompt = f"""You are an air quality analyst for a home in Greenpoint, Brooklyn (near the BQE and Newtown Creek industrial area).
+    prompt = f"""You are an air quality analyst for a home in Greenpoint, Brooklyn. Give SPECIFIC, ACTIONABLE advice tied to health outcomes.
 
 Current readings:
-- INDOOR: PM2.5={indoor_pm25} µg/m³, CO2={indoor_co2} ppm, Temp={data.get('indoor_temp_f')}°F, Humidity={data.get('indoor_humidity')}%
+- INDOOR: PM2.5={indoor_pm25} µg/m³, CO2={indoor_co2} ppm, Humidity={data.get('indoor_humidity')}%
 - OUTDOOR: PM2.5={outdoor_pm25} µg/m³, CO2={data.get('outdoor_co2')} ppm
-- NEIGHBORHOOD: Rank {data.get('neighbor_rank')}/{data.get('neighbor_count')}, avg PM2.5={data.get('neighbor_avg_pm25')} µg/m³
+- NEIGHBORHOOD: Your rank {data.get('neighbor_rank')}/{data.get('neighbor_count')}, avg PM2.5={data.get('neighbor_avg_pm25')} µg/m³
+
+TONE RULES:
+- Sound like a friend giving practical advice, not a robot
+- Include NUMBERS: times, percentages, health outcomes
+- Say WHY the action matters (not just "do this")
+- Be specific to Greenpoint (BQE traffic patterns, waterfront, industrial area)
+- Give health context: "reduce headache risk", "better sleep quality", "less respiratory strain"
+
+EXAMPLES OF GOOD VS BAD:
+❌ BAD: "Maintain ventilation"
+✅ GOOD: "Open windows for 15 min at a time (before 7am or after 10pm) — this cuts CO2 by ~40%, reducing afternoon headaches and improving sleep quality"
+
+❌ BAD: "Your filter is working"
+✅ GOOD: "Your HEPA filter is crushing it — keeping indoor PM2.5 75% lower than street level right now. Keep it running."
 
 Respond ONLY with valid JSON (no markdown, no extra text):
 {{
   "status": "{status}",
-  "status_line": "[One line summary: 'Your air is GOOD', 'Air quality is FAIR', or 'Your air is POOR']",
+  "status_line": "[One sentence: 'Your air is GOOD today' or 'Air quality is fair — take these steps']",
   "why": [
-    "[2-3 word driver]",
-    "[2-3 word driver]",
-    "[2-3 word driver]"
+    "[Specific driver + context. Include time of day, weather, traffic, or location factor]",
+    "[Another driver]",
+    "[Third driver if relevant]"
   ],
   "do": [
-    "[Action + timing if relevant]",
-    "[Action + timing if relevant]",
-    "[Action + timing if relevant]"
+    "[SPECIFIC action (window open time, filter change, etc) + WHY it matters + expected outcome]",
+    "[Next action if needed]",
+    "[Optional third action]"
   ],
-  "learn": "[One interesting fact about Greenpoint air, your trend, or seasonal pattern]"
-}}
-
-Be specific to Greenpoint (BQE, Newtown Creek, waterfront). Use plain language. Actions should be ranked by impact. Facts should be personal/timely."""
+  "learn": "[Surprising fact or personal win related to their air quality or Greenpoint]"
+}}"""
 
     def stream():
         resp = requests.post(
