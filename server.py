@@ -1,4 +1,7 @@
-"""AirGradient Dashboard — Local proxy server."""
+"""AirGradient Dashboard — Local proxy server.
+
+Deployed on Railway with Anthropic API integration for AI analysis.
+"""
 
 import json
 import math
