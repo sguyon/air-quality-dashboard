@@ -1569,11 +1569,30 @@ async function autoAnalyzeAir(forceRefresh = false) {
 
 function parseAIInsight(text) {
   try {
-    const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-  } catch {}
-  return null;
+    // Strip markdown fences
+    let cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+    // Extract JSON object - be greedy to capture full response
+    const match = cleaned.match(/\{[\s\S]*\}(?:\s*$)/);
+    if (!match) {
+      console.error('No JSON found in response:', cleaned.substring(0, 200));
+      return null;
+    }
+
+    const jsonStr = match[0].trim();
+    const parsed = JSON.parse(jsonStr);
+
+    // Validate required fields
+    if (!parsed.status || !parsed.status_line || !parsed.why || !parsed.do) {
+      console.error('Missing required fields in response:', parsed);
+      return null;
+    }
+
+    return parsed;
+  } catch (err) {
+    console.error('Parse error:', err.message);
+    return null;
+  }
 }
 
 function displayAIInsights(insight) {
