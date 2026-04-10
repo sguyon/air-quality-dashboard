@@ -239,6 +239,64 @@
   .ai-status-fair { color: var(--yellow); }
   .ai-status-poor { color: var(--red); }
 
+  /* Health Metrics Grid */
+  .ai-metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .ai-metric-card {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+
+  .ai-metric-card:hover {
+    border-color: var(--cyan);
+  }
+
+  .ai-metric-icon {
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+  }
+
+  .ai-metric-category {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .ai-metric-status {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--cyan);
+    margin-bottom: 6px;
+  }
+
+  .ai-metric-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .ai-metric-benefit {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    font-weight: 500;
+  }
+
+  /* Working & Actions Sections */
   .ai-insights-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -867,6 +925,10 @@
       justify-content: flex-start;
     }
 
+    .ai-metrics-grid {
+      grid-template-columns: 1fr;
+    }
+
     .ai-insights-grid {
       grid-template-columns: 1fr;
     }
@@ -877,6 +939,10 @@
 
     .ai-status-line {
       font-size: 1.4rem;
+    }
+
+    .ai-metric-icon {
+      font-size: 1.8rem;
     }
 
     .monitors, .charts { grid-template-columns: 1fr; }
@@ -923,11 +989,11 @@
   <div class="ai-insights-section" id="ai-insights-section">
     <div class="card ai-insights-card">
       <div class="ai-insights-header">
-        <div class="ai-label">✨ AI Insights</div>
+        <div class="ai-label">✨ Your Health Status</div>
         <button class="ai-refresh-btn" onclick="autoAnalyzeAir(true)" title="Refresh analysis">↻</button>
       </div>
       <div id="ai-insights-content">
-        <div style="color:var(--text-muted);font-size:0.8rem">Loading insights...</div>
+        <div style="color:var(--text-muted);font-size:0.8rem">Loading health analysis...</div>
       </div>
     </div>
   </div>
@@ -1501,10 +1567,21 @@ function parseAIInsight(text) {
     const jsonStr = match[0].trim();
     const parsed = JSON.parse(jsonStr);
 
-    // Validate required fields
-    if (!parsed.status || !parsed.status_line || !parsed.why || !parsed.do) {
+    // Validate required fields (new structure)
+    if (!parsed.status || !parsed.status_line) {
       console.error('Missing required fields in response:', parsed);
       return null;
+    }
+
+    // Support both old and new formats
+    // New format: metrics, working, next_steps, insight
+    // Old format: why, do, learn (for backwards compatibility)
+    if (!parsed.metrics && (!parsed.working || !parsed.next_steps)) {
+      // Try to parse old format
+      if (!parsed.why || !parsed.do) {
+        console.error('Missing required fields:', parsed);
+        return null;
+      }
     }
 
     return parsed;
@@ -1519,15 +1596,28 @@ function displayAIInsights(insight) {
   const status = (insight.status || 'GOOD').toUpperCase();
   const statusClass = status === 'GOOD' ? 'ai-status-good' : status === 'FAIR' ? 'ai-status-fair' : 'ai-status-poor';
   const statusIcon = status === 'GOOD' ? '✓' : status === 'FAIR' ? '—' : '!';
-  const whyItems = (insight.why || []).map(w => `
+
+  // Render metric cards
+  const metricCards = (insight.metrics || []).map(m => `
+    <div class="ai-metric-card">
+      <div class="ai-metric-icon">${m.icon}</div>
+      <div class="ai-metric-category">${m.category}</div>
+      <div class="ai-metric-status">${m.status}</div>
+      <div class="ai-metric-value">${m.value}</div>
+      <div class="ai-metric-benefit">${m.benefit}</div>
+    </div>
+  `).join('');
+
+  const workingItems = (insight.working || []).map(w => `
     <div class="ai-item">
       <div style="display:flex;gap:10px;align-items:flex-start">
-        <span style="color:var(--text-secondary);font-weight:600;flex-shrink:0">→</span>
+        <span style="color:var(--green);font-weight:700;flex-shrink:0">✓</span>
         <span>${w}</span>
       </div>
     </div>
   `).join('');
-  const doItems = (insight.do || []).map((d, i) => `
+
+  const nextStepsItems = (insight.next_steps || []).map((d, i) => `
     <div class="ai-item">
       <div style="display:flex;gap:10px;align-items:flex-start">
         <span style="background:var(--cyan);color:var(--bg);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0">${i + 1}</span>
@@ -1535,6 +1625,7 @@ function displayAIInsights(insight) {
       </div>
     </div>
   `).join('');
+
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
@@ -1544,18 +1635,26 @@ function displayAIInsights(insight) {
         <div style="width:44px;height:44px;border-radius:12px;background:${status === 'GOOD' ? 'rgba(34,197,94,0.15)' : status === 'FAIR' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)'};display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:${status === 'GOOD' ? 'var(--green)' : status === 'FAIR' ? 'var(--yellow)' : 'var(--red)'}">${statusIcon}</div>
         <div class="ai-status-line ${statusClass}">${insight.status_line || 'Analyzing...'}</div>
       </div>
+      ${insight.rank ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Rank ${insight.rank} among neighbors</div>` : ''}
     </div>
+
+    <div class="ai-metrics-grid">${metricCards}</div>
+
     <div class="ai-insights-grid">
       <div class="ai-section">
-        <div class="ai-section-title">📍 Current Conditions</div>
-        <div class="ai-items">${whyItems}</div>
+        <div class="ai-section-title">📋 What's Working</div>
+        <div class="ai-items">${workingItems}</div>
       </div>
       <div class="ai-section">
-        <div class="ai-section-title">✓ Recommended Actions</div>
-        <div class="ai-items">${doItems}</div>
+        <div class="ai-section-title">⚡ Next Steps</div>
+        <div class="ai-items">${nextStepsItems}</div>
       </div>
-      <div class="ai-learn">💡 <strong>Did you know?</strong> ${insight.learn || ''}</div>
     </div>
+
+    ${insight.insight ? `<div style="background:var(--bg-subtle);border:1px solid var(--border);border-left:3px solid var(--purple);padding:14px;border-radius:var(--radius-xs);margin-bottom:16px;font-size:0.85rem;line-height:1.5">
+      💡 <strong>Seasonal Context</strong> ${insight.insight}
+    </div>` : ''}
+
     <div class="ai-timestamp">refreshed ${timeStr}</div>
   `;
 }

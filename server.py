@@ -64,6 +64,33 @@ def api_get(path, params=None):
         raise RuntimeError(f"AirGradient API unreachable: {e}") from e
 
 
+def get_open_meteo_data(lat, lon):
+    """Fetch weather + allergen data from Open-Meteo (free, no API key)."""
+    try:
+        r = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "current": "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,visibility,uv_index",
+                "timezone": "America/New_York"
+            },
+            timeout=10
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        # Gracefully degrade if Open-Meteo fails
+        return {
+            "current": {
+                "wind_speed_10m": None,
+                "wind_direction_10m": None,
+                "visibility": None,
+                "uv_index": None
+            }
+        }
+
+
 def haversine_km(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -170,7 +197,7 @@ def neighborhood():
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    """Stream LLM analysis of current air quality data."""
+    """Stream LLM analysis of current air quality data with weather context."""
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         return jsonify({"error": "ANTHROPIC_API_KEY not set"}), 500
@@ -180,6 +207,9 @@ def analyze():
     indoor_pm25 = float(data.get('indoor_pm25', 0))
     outdoor_pm25 = float(data.get('outdoor_pm25', 0))
     indoor_co2 = float(data.get('indoor_co2', 0))
+    indoor_humidity = float(data.get('indoor_humidity', 50))
+    neighbor_rank = int(data.get('neighbor_rank', 1))
+    neighbor_count = int(data.get('neighbor_count', 1))
 
     # Determine status
     if indoor_pm25 <= 12 and indoor_co2 <= 600:
@@ -189,42 +219,76 @@ def analyze():
     else:
         status = "POOR"
 
-    prompt = f"""You are an air quality analyst for a home in Greenpoint, Brooklyn. Give SPECIFIC, ACTIONABLE advice tied to health outcomes.
+    # Fetch weather context from Open-Meteo (free API, no key needed)
+    weather = get_open_meteo_data(HOME_LAT, HOME_LON)
+    current = weather.get("current", {})
+    wind_speed = current.get("wind_speed_10m")
+    wind_direction = current.get("wind_direction_10m")
+    visibility = current.get("visibility")
+    uv_index = current.get("uv_index")
 
-Current readings:
-- INDOOR: PM2.5={indoor_pm25} µg/m³, CO2={indoor_co2} ppm, Humidity={data.get('indoor_humidity')}%
-- OUTDOOR: PM2.5={outdoor_pm25} µg/m³, CO2={data.get('outdoor_co2')} ppm
-- NEIGHBORHOOD: Your rank {data.get('neighbor_rank')}/{data.get('neighbor_count')}, avg PM2.5={data.get('neighbor_avg_pm25')} µg/m³
+    # Map wind direction to cardinal
+    def get_wind_cardinal(degrees):
+        if degrees is None: return "variable"
+        dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+        return dirs[round(degrees / 22.5) % 16]
 
-TONE RULES:
-- Sound like a friend giving practical advice, not a robot
-- Include NUMBERS: times, percentages, health outcomes
-- Say WHY the action matters (not just "do this")
-- Be specific to Greenpoint (BQE traffic patterns, waterfront, industrial area)
-- Give health context: "reduce headache risk", "better sleep quality", "less respiratory strain"
+    wind_dir = get_wind_cardinal(wind_direction)
 
-EXAMPLES OF GOOD VS BAD:
-❌ BAD: "Maintain ventilation"
-✅ GOOD: "Open windows for 15 min at a time (before 7am or after 10pm) — this cuts CO2 by ~40%, reducing afternoon headaches and improving sleep quality"
+    # Seasonal allergen triggers (Greenpoint, New York)
+    from datetime import datetime
+    month = datetime.now().month
+    if month in [4, 5]:
+        allergen_season = "TREE (birch, maple) pollen season - high respiratory risk"
+    elif month in [6, 7, 8]:
+        allergen_season = "GRASS + MOLD SPORE season - sinus/bronchial inflammation risk"
+    elif month in [8, 9, 10]:
+        allergen_season = "RAGWEED + MOLD SPORE peak - severe allergy season"
+    else:
+        allergen_season = "Low pollen season - mold spores still present indoors"
 
-❌ BAD: "Your filter is working"
-✅ GOOD: "Your HEPA filter is crushing it — keeping indoor PM2.5 75% lower than street level right now. Keep it running."
+    # Health context
+    humidity_status = "ideal" if 30 <= indoor_humidity <= 50 else "dry" if indoor_humidity < 30 else "humid"
+    humidity_risk = "Sinus dryness risk" if indoor_humidity < 30 else "Mold growth risk" if indoor_humidity > 60 else "Clear nasal passages"
+
+    prompt = f"""You are a HEALTH-FOCUSED air quality coach for someone with allergies/sinus sensitivity in Greenpoint, Brooklyn.
+
+CURRENT CONDITIONS:
+- INDOOR: PM2.5={indoor_pm25} µg/m³, CO2={indoor_co2} ppm, Humidity={indoor_humidity}% ({humidity_status})
+- OUTDOOR: PM2.5={outdoor_pm25} µg/m³
+- WEATHER: Wind {wind_speed} km/h from {wind_dir}, Visibility {visibility}m, UV Index {uv_index}
+- GREENPOINT RANK: {neighbor_rank}/{neighbor_count} cleanest
+- SEASONAL: {allergen_season}
+
+HEALTH-FIRST INSTRUCTIONS:
+1. Lead with sinus/allergy outcomes ("sinuses happy", "congestion prevented", "breathing easier")
+2. Explain humidity connection to symptoms: 40%=clear nasal passages, <30%=sinus dryness risk, >60%=mold risk
+3. Tie wind direction to BQE traffic impact: West wind = BQE pollution incoming
+4. Reference allergen types being blocked (dust mites, mold spores, tree/grass/ragweed pollen)
+5. Use health metrics: "30-40% fewer infections", "reduce sinus headache risk", "better sleep quality"
+6. Include seasonal context (April=birch, Aug=ragweed, winter=mold dormancy = relief window)
 
 Respond ONLY with valid JSON (no markdown, no extra text):
 {{
   "status": "{status}",
-  "status_line": "[One sentence: 'Your air is GOOD today' or 'Air quality is fair — take these steps']",
-  "why": [
-    "[Specific driver + context. Include time of day, weather, traffic, or location factor]",
-    "[Another driver]",
-    "[Third driver if relevant]"
+  "status_line": "[Health outcome in one sentence, e.g. 'Your sinuses are happy right now']",
+  "rank": "{neighbor_rank}/{neighbor_count}",
+  "metrics": [
+    {{"icon": "🫁", "category": "Particulates", "status": "Excellent/Fair/Poor", "value": "{indoor_pm25} µg/m³", "benefit": "[Health impact, e.g. 'Blocking X% of street dust']"}},
+    {{"icon": "💧", "category": "Humidity", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "{humidity_risk}"}},
+    {{"icon": "🌬️", "category": "Ventilation", "status": "Healthy/Watch/Act", "value": "{indoor_co2} ppm", "benefit": "[Mental clarity, breathing outcome]"}}
   ],
-  "do": [
-    "[SPECIFIC action (window open time, filter change, etc) + WHY it matters + expected outcome]",
-    "[Next action if needed]",
-    "[Optional third action]"
+  "working": [
+    "[Bullet point about what's protecting their health right now]",
+    "[Another protection working]",
+    "[Third protection if relevant]"
   ],
-  "learn": "[Surprising fact or personal win related to their air quality or Greenpoint]"
+  "next_steps": [
+    "[SPECIFIC action (time, method, why it matters, expected outcome)]",
+    "[Action 2]",
+    "[Action 3 if urgent]"
+  ],
+  "insight": "[Seasonal or Greenpoint-specific insight, e.g. 'April is high birch pollen — watch outdoor readings']"
 }}"""
 
     def stream():
