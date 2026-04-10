@@ -1810,38 +1810,58 @@ function renderCharts(indoorHistory, outdoorHistory) {
   });
 }
 
-// ── LLM Analysis ─────────────────────────────────────
+// ── LLM Analysis (localStorage cached) ───────────────
 
 let lastData = {};
-let lastDataHash = '';
-let insightCache = {};
-let nextAutoAnalysisTime = 0;
+const CACHE_KEY = 'aq-insight-cache';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-function hashData(data) {
-  const str = JSON.stringify(data);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return hash.toString();
+function loadCachedInsight() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached.insight || !cached.timestamp) return null;
+    return cached;
+  } catch { return null; }
+}
+
+function saveCachedInsight(insight) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      insight,
+      timestamp: Date.now()
+    }));
+  } catch {}
+}
+
+function isCacheStale() {
+  const cached = loadCachedInsight();
+  if (!cached) return true;
+  return (Date.now() - cached.timestamp) > CACHE_TTL;
 }
 
 async function autoAnalyzeAir(forceRefresh = false) {
   const btn = document.querySelector('.ai-refresh-btn');
   const content = document.getElementById('ai-insights-content');
 
-  if (!forceRefresh && nextAutoAnalysisTime > Date.now()) return;
-
-  const currentHash = hashData(lastData);
-  if (currentHash === lastDataHash && insightCache[currentHash] && !forceRefresh) {
-    displayAIInsights(insightCache[currentHash]);
-    return;
+  // On page load: show cached immediately if available
+  const cached = loadCachedInsight();
+  if (cached && !forceRefresh) {
+    displayAIInsights(cached.insight);
+    // If cache is fresh, stop here
+    if (!isCacheStale()) return;
+    // If stale, continue to background refresh (but don't show "Analyzing...")
   }
 
+  // Skip if no sensor data yet
+  if (!lastData.indoor_pm25 && !forceRefresh) return;
+
   btn.classList.add('loading');
-  content.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Analyzing...</div>';
+  // Only show "Analyzing..." if we have no cached content to display
+  if (!cached) {
+    content.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Analyzing...</div>';
+  }
 
   try {
     const resp = await fetch('/api/analyze', {
@@ -1880,15 +1900,17 @@ async function autoAnalyzeAir(forceRefresh = false) {
 
     const insight = parseAIInsight(fullText);
     if (insight) {
-      lastDataHash = currentHash;
-      insightCache[currentHash] = insight;
+      saveCachedInsight(insight);
       displayAIInsights(insight);
-      nextAutoAnalysisTime = Date.now() + (5 * 60 * 1000);
-    } else {
+    } else if (!cached) {
+      // Only show error if we had nothing cached to fall back on
       throw new Error('Could not parse AI response');
     }
   } catch (err) {
-    content.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;">${err.message}</div>`;
+    if (!cached) {
+      content.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;">${err.message}</div>`;
+    }
+    // If we have cached content, silently fail — user still sees last analysis
   }
   btn.classList.remove('loading');
 }
