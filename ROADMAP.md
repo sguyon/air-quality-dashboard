@@ -146,24 +146,48 @@ Instead of just showing metrics, the dashboard:
 
 ---
 
-### Phase 3: Trending & Alerts (Medium Priority)
+### Phase 3: Symptom Tracking + Trigger Correlation (High Priority)
+
+**Goal:** Let users log how they feel → correlate with environmental data over time → discover personal triggers
+
+**Add:**
+- Quick symptom input (tap-based, <5 sec): congested, dry sinuses, headache, tired, itchy eyes, clear
+- Log stored in localStorage (later: server-side for persistence)
+- Timestamp each entry → match against sensor + pollen + weather data at that moment
+- After 2+ weeks of data: surface correlations ("You report congestion 3x more when tree pollen is Moderate+ AND humidity drops below 35%")
+- Feed symptom history into LLM prompt for hyper-personalized recommendations
+- Weekly digest: "This week: 4 congested days, all correlated with dew point <6°C"
+
+**Why this is the moat:**
+- <1% of 300M asthma sufferers use AQ apps — gap is personalization, not data
+- AirRater (Australia) proved trigger detection drives retention
+- Market analysis: "the compounding data layer is the defensible piece"
+- Nobody else has personal sensor data + symptom logs + LLM coaching in one product
+
+**UX pattern (from design research):**
+- Floating action button or inline card: "How are you feeling?" 
+- Quick emoji/tag selector: 😤 Congested · 🤧 Sneezy · 😫 Headache · 😴 Tired · ✓ Clear
+- Optional: severity 1-3 tap
+- Auto-dismiss after selection, no friction
+
+---
+
+### Phase 3.5: Trending & Alerts (Medium Priority)
 
 **Goal:** Explain patterns, help predict problems before they happen
 
 **Add:**
 - Historical comparison ("Air improved 8% this week vs last week")
 - Time-of-day patterns ("BQE traffic peaks at 7-9am + 4-7pm, pollen peaks 10am-4pm")
-- Week-of-week comparison ("Mondays usually cleaner than Fridays")
+- Symptom trend overlay on environmental charts (see congestion spikes vs pollen/humidity)
 - Seasonal insights ("Tree pollen season ends May 15 — 2 weeks remaining")
 - Peer context ("You're in top 10% cleanest neighborhoods")
 - Threshold alerts (PM2.5 > 35, CO2 > 800, humidity extremes)
 
-**Why after v2.5:**
-- Needs 1-2 weeks of data history to show trends (collect while v2.5 lives)
-- Threshold alerts make sense once users understand baseline
-- Cards provide visual baseline to detect changes
-
-**Estimate:** 4 hours for trending + 2 hours for alerts (Slack/email/browser push)
+**Why after symptom tracking:**
+- Symptom data makes trends actionable ("you're congested on high-pollen mornings")
+- Without symptoms, trending is just data visualization (commodity)
+- 2+ weeks of symptom logs = enough for first correlation report
 
 ---
 
