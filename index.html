@@ -1882,8 +1882,8 @@ function parseAIInsight(text) {
     // Strip markdown fences
     let cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
-    // Extract JSON object - be greedy to capture full response
-    const match = cleaned.match(/\{[\s\S]*\}(?:\s*$)/);
+    // Extract JSON object - find first { to last } (LLM may add extra text after)
+    const match = cleaned.match(/\{[\s\S]*\}/);
     if (!match) {
       console.error('No JSON found in response:', cleaned.substring(0, 200));
       return null;
