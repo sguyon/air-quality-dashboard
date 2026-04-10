@@ -587,131 +587,6 @@
     font-weight: 400;
   }
 
-  /* ── Analysis ────────────────────────────── */
-
-  .analysis {
-    margin-bottom: 16px;
-  }
-
-  .insights-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  /* ── LLM Analysis ───────────────────────── */
-
-  .llm-section {
-    margin-bottom: 16px;
-  }
-
-  .llm-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .llm-refresh-btn {
-    background: linear-gradient(135deg, #a855f7, #6366f1, #06b6d4);
-    border: none;
-    color: #fff;
-    padding: 10px 24px;
-    border-radius: 24px;
-    font-size: 0.85rem;
-    font-family: inherit;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.25s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 16px rgba(168,85,247,0.3), 0 0 0 1px rgba(168,85,247,0.1);
-    letter-spacing: 0.01em;
-  }
-
-  .llm-refresh-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(168,85,247,0.4), 0 0 0 1px rgba(168,85,247,0.2);
-    filter: brightness(1.1);
-  }
-
-  .llm-refresh-btn:active {
-    transform: translateY(0);
-  }
-
-  .llm-refresh-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: 0 2px 8px rgba(168,85,247,0.2);
-  }
-
-  .llm-content {
-    min-height: 60px;
-    font-size: 0.8rem;
-    line-height: 1.6;
-    color: var(--text-secondary);
-  }
-
-  .llm-streaming {
-    display: inline-block;
-    width: 6px;
-    height: 14px;
-    background: var(--purple);
-    margin-left: 2px;
-    animation: blink 0.8s step-end infinite;
-    vertical-align: text-bottom;
-  }
-
-  @keyframes blink { 50% { opacity: 0; } }
-
-  .llm-error {
-    color: var(--text-muted);
-    font-style: italic;
-    font-size: 0.8rem;
-  }
-
-  .insight {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
-    background: var(--bg);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    transition: border-color 0.2s;
-  }
-
-  .insight:hover { border-color: var(--border-light); }
-
-  .insight-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    flex-shrink: 0;
-    font-weight: 600;
-  }
-
-  .insight-body { flex: 1; min-width: 0; }
-
-  .insight-title {
-    font-size: 0.82rem;
-    font-weight: 600;
-    line-height: 1.3;
-    margin-bottom: 2px;
-  }
-
-  .insight-desc {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    line-height: 1.4;
-  }
-
   /* ── Charts ──────────────────────────────── */
 
   .charts {
@@ -966,7 +841,7 @@
       font-size: 1.4rem;
     }
 
-    .monitors, .charts, .insights-grid { grid-template-columns: 1fr; }
+    .monitors, .charts { grid-template-columns: 1fr; }
     .metrics { grid-template-columns: 1fr 1fr; }
     .neighbor-row {
       grid-template-columns: 20px 44px 1fr 64px 80px;
@@ -1015,20 +890,6 @@
   <div class="monitors" id="monitors">
     <div class="card"><div class="skeleton"></div></div>
     <div class="card"><div class="skeleton"></div></div>
-  </div>
-
-  <div class="analysis" id="analysis"></div>
-
-  <div class="llm-section" id="llm-section">
-    <div class="card">
-      <div class="llm-header">
-        <div class="section-label" style="margin:0">AI Analysis</div>
-        <button class="llm-refresh-btn" onclick="requestLLMAnalysis()">&#x2728; Analyze with AI</button>
-      </div>
-      <div class="llm-content" id="llm-content">
-        <span class="llm-error">Click "Analyze" to get AI-powered insights about your air quality.</span>
-      </div>
-    </div>
   </div>
 
   <div class="charts" id="charts-section">
@@ -1296,70 +1157,6 @@ function renderMonitor(m) {
           <div class="pm-detail-label">0.3µm count</div>
           <div class="pm-detail-value">${m.pm003Count != null ? Math.round(m.pm003Count) : '—'}<span class="pm-detail-unit"> /dL</span></div>
         </div>
-      </div>
-    </div>
-  `;
-}
-
-// ── Analysis ─────────────────────────────────────────
-
-function renderAnalysis(indoor, outdoor) {
-  const insights = [];
-  const ipm = indoor?.pm02_corrected ?? indoor?.pm02;
-  const opm = outdoor?.pm02_corrected ?? outdoor?.pm02;
-  const ico2 = indoor?.rco2_corrected ?? indoor?.rco2;
-  const oco2 = outdoor?.rco2_corrected ?? outdoor?.rco2;
-
-  if (ipm != null) {
-    if (ipm <= 12)
-      insights.push({ icon: '✓', bg: 'var(--green-soft)', color: 'var(--green)', title: 'Indoor air is excellent', desc: `PM2.5 at ${num(ipm)} µg/m³ — well within EPA "Good" range` });
-    else if (ipm <= 35)
-      insights.push({ icon: '!', bg: 'var(--yellow-soft)', color: 'var(--yellow)', title: 'Indoor PM2.5 is moderate', desc: `${num(ipm)} µg/m³ — consider running an air purifier` });
-    else
-      insights.push({ icon: '✗', bg: 'var(--red-soft)', color: 'var(--red)', title: 'Indoor air is unhealthy', desc: `${num(ipm)} µg/m³ — run air purifier, identify source` });
-  }
-
-  if (opm != null) {
-    if (opm <= 12)
-      insights.push({ icon: '↗', bg: 'var(--green-soft)', color: 'var(--green)', title: 'Great day to open windows', desc: 'Outdoor air is clean — let fresh air in' });
-    else if (opm <= 35)
-      insights.push({ icon: '⚠', bg: 'var(--yellow-soft)', color: 'var(--yellow)', title: 'Outdoor PM elevated', desc: `${num(opm)} µg/m³ — typical for North Brooklyn / BQE corridor` });
-    else
-      insights.push({ icon: '✗', bg: 'var(--red-soft)', color: 'var(--red)', title: 'Keep windows closed', desc: `Outdoor PM2.5 at ${num(opm)} µg/m³ — unhealthy level` });
-  }
-
-  if (ipm != null && opm != null && opm > 0) {
-    const ratio = opm / Math.max(ipm, 0.1);
-    if (ratio > 2)
-      insights.push({ icon: '◉', bg: 'var(--cyan-soft)', color: 'var(--cyan)', title: `Outdoor ${ratio.toFixed(1)}x dirtier`, desc: 'Your apartment is filtering well — walls and windows are effective' });
-    else if (ratio < 0.8)
-      insights.push({ icon: '!', bg: 'var(--orange-soft)', color: 'var(--orange)', title: 'Indoor worse than outdoor', desc: 'Check for cooking, cleaning products, or other internal source' });
-  }
-
-  if (ico2 != null) {
-    if (ico2 > 1200)
-      insights.push({ icon: '↗', bg: 'var(--orange-soft)', color: 'var(--orange)', title: `CO2 high — ${Math.round(ico2)} ppm`, desc: 'Open windows for 10 minutes to improve cognitive performance' });
-    else if (ico2 > 800 && oco2 != null && ico2 > oco2)
-      insights.push({ icon: 'ℹ', bg: 'var(--cyan-soft)', color: 'var(--cyan)', title: 'Windows likely closed', desc: `Indoor CO2 (${Math.round(ico2)}) exceeds outdoor (${Math.round(oco2)})` });
-    else if (ico2 <= 600)
-      insights.push({ icon: '✓', bg: 'var(--green-soft)', color: 'var(--green)', title: 'Ventilation is great', desc: `CO2 at ${Math.round(ico2)} ppm — excellent air exchange` });
-  }
-
-  if (!insights.length) return '';
-
-  return `
-    <div class="card analysis">
-      <div class="section-label">Analysis</div>
-      <div class="insights-grid">
-        ${insights.map(i => `
-          <div class="insight">
-            <div class="insight-icon" style="background: ${i.bg}; color: ${i.color}">${i.icon}</div>
-            <div class="insight-body">
-              <div class="insight-title">${i.title}</div>
-              <div class="insight-desc">${i.desc}</div>
-            </div>
-          </div>
-        `).join('')}
       </div>
     </div>
   `;
@@ -1734,7 +1531,6 @@ async function refresh() {
       (indoor ? renderMonitor(indoor) : '') +
       (outdoor ? renderMonitor(outdoor) : '');
 
-    document.getElementById('analysis').innerHTML = renderAnalysis(indoor, outdoor);
     document.getElementById('neighborhood').innerHTML = renderNeighborhood(neighbors);
 
     updateLLMContext(indoor, outdoor, neighbors);
