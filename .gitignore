@@ -6,6 +6,7 @@ __pycache__/
 
 # Agent session scratchpads (ephemeral, not for contributors)
 PROGRESS.md
+COMPETITIVE-LANDSCAPE.md
 SCRATCHPAD.md
 TASKS.md
 TODO.md
