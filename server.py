@@ -602,10 +602,12 @@ def analyze():
     # Dew point sinus impact
     dew_point_status = ""
     if dew_point is not None:
-        if dew_point < 5:
-            dew_point_status = "Very dry — severe sinus dryness risk"
+        if dew_point < 5 and not (30 <= indoor_humidity <= 50):
+            dew_point_status = "Very dry — sinus dryness risk (indoor humidity not ideal)"
+        elif dew_point < 5:
+            dew_point_status = "Outdoor air dry, but indoor humidity ideal — sinuses protected"
         elif dew_point < 10:
-            dew_point_status = "Dry — moderate sinus dryness"
+            dew_point_status = "Mildly dry — monitor if you go outside"
         else:
             dew_point_status = "Comfortable for sinuses"
 
@@ -658,6 +660,13 @@ HEALTH SCORES:
 • insight: MAX 20 words. Seasonal context + when relief comes.
 • NEVER add text outside the JSON object. Output ONLY the JSON.
 • Write like a fitness app notification, not a medical report.
+
+═══ TONE RULES ═══
+• Use the status value "{status}" exactly — do NOT override it.
+• GOOD = reassuring, positive ("Sinuses clear, great day to be outside")
+• FAIR = balanced, watchful ("Conditions decent, keep an eye on X")
+• POOR = urgent, actionable ("Take action now: X is affecting your health")
+• If indoor humidity is 30-50% (ideal), do NOT call dew point "critically dry" — indoor air is compensating.
 
 ═══ CONTENT PRIORITIES ═══
 1. Symptom-first language ("Clear sinuses" not "PM2.5 is 10")
