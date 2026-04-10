@@ -32,19 +32,31 @@ NEARBY_RADIUS_KM = 15
 
 
 def get_build_info():
-    """Get git commit hash and deployment time."""
+    """Get git commit hash and deployment time in ET timezone."""
     try:
         # Get latest commit hash (short 7 chars)
         commit = subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"],
             cwd=Path(__file__).parent,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            timeout=5
         ).decode().strip()
     except Exception:
-        commit = "unknown"
+        commit = "no-git"
 
-    # Current deploy time
-    time_str = datetime.now().strftime("%H:%M:%S UTC")
+    # Current deploy time in ET (NYC timezone) using simple offset calculation
+    # ET is UTC-4 (EDT) or UTC-5 (EST)
+    import time
+    if time.daylight:
+        # During daylight saving time (EDT): UTC-4
+        offset_hours = -4
+    else:
+        # During standard time (EST): UTC-5
+        offset_hours = -5
+
+    from datetime import timezone, timedelta
+    et_tz = timezone(timedelta(hours=offset_hours))
+    time_str = datetime.now(et_tz).strftime("%H:%M:%S ET")
 
     return f"v2 · {commit} · {time_str}"
 
