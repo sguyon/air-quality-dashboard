@@ -6,6 +6,8 @@ Deployed on Railway with Anthropic API integration for AI analysis.
 import json
 import math
 import os
+import subprocess
+from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_file
@@ -27,6 +29,24 @@ TOKEN = os.environ.get("AIRGRADIENT_TOKEN", "")
 HOME_LAT = 40.72717732493724
 HOME_LON = -73.9506644567995
 NEARBY_RADIUS_KM = 15
+
+
+def get_build_info():
+    """Get git commit hash and deployment time."""
+    try:
+        # Get latest commit hash (short 7 chars)
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=Path(__file__).parent,
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        commit = "unknown"
+
+    # Current deploy time
+    time_str = datetime.now().strftime("%H:%M:%S UTC")
+
+    return f"v2 · {commit} · {time_str}"
 
 
 def api_get(path, params=None):
@@ -57,7 +77,17 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 @app.route("/")
 def index():
-    return send_file(Path(__file__).parent / "index.html")
+    html_path = Path(__file__).parent / "index.html"
+    html = html_path.read_text()
+
+    # Inject build info into a data attribute on the body
+    build_info = get_build_info()
+    html = html.replace(
+        '<body>',
+        f'<body data-build="{build_info}">'
+    )
+
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 @app.route("/manifest.json")
