@@ -425,6 +425,108 @@ def calculate_composite_scores(indoor_pm25, outdoor_pm25, indoor_co2, humidity, 
     }
 
 
+def determine_health_status(indoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index,
+                            visibility, smoke_detected, pollen_data, bqe_prediction, scores):
+    """Extensible health status from ALL data sources.
+
+    Each signal returns a severity: 0=GOOD, 1=FAIR, 2=POOR.
+    Overall status = worst signal. Add new signals by appending to the list.
+    """
+    signals = []
+
+    # ── AirGradient sensors ──
+    if indoor_pm25 <= 12:
+        signals.append(0)
+    elif indoor_pm25 <= 35:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    if indoor_co2 <= 600:
+        signals.append(0)
+    elif indoor_co2 <= 1000:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    # ── Humidity ──
+    if 30 <= indoor_humidity <= 50:
+        signals.append(0)
+    elif 25 <= indoor_humidity <= 60:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    # ── Dew point (sinus dryness) ──
+    if dew_point is not None:
+        if dew_point >= 10:
+            signals.append(0)
+        elif dew_point >= 5:
+            signals.append(1)
+        else:
+            signals.append(2)
+
+    # ── UV index ──
+    if uv_index is not None:
+        if uv_index <= 5:
+            signals.append(0)
+        elif uv_index <= 7:
+            signals.append(1)
+        else:
+            signals.append(2)
+
+    # ── Visibility (particulate proxy) ──
+    if visibility is not None:
+        if visibility >= 10000:
+            signals.append(0)
+        elif visibility >= 5000:
+            signals.append(1)
+        else:
+            signals.append(2)
+
+    # ── Wildfire smoke ──
+    if smoke_detected:
+        signals.append(2)  # Smoke = always POOR
+
+    # ── Pollen (worst allergen drives status) ──
+    if pollen_data:
+        max_pollen = max((p.get("index", 0) for p in pollen_data), default=0)
+        if max_pollen <= 1:
+            signals.append(0)
+        elif max_pollen <= 3:
+            signals.append(1)
+        else:
+            signals.append(2)
+
+    # ── BQE pollution pressure ──
+    pressure = bqe_prediction.get("pollution_pressure", 0)
+    if pressure <= 0.9:
+        signals.append(0)
+    elif pressure <= 1.5:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    # ── Composite health scores ──
+    if scores.get("allergy_risk", 0) <= 3:
+        signals.append(0)
+    elif scores.get("allergy_risk", 0) <= 6:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    if scores.get("respiratory_load", 0) <= 3:
+        signals.append(0)
+    elif scores.get("respiratory_load", 0) <= 6:
+        signals.append(1)
+    else:
+        signals.append(2)
+
+    # Overall = worst signal
+    worst = max(signals) if signals else 0
+    return ["GOOD", "FAIR", "POOR"][worst]
+
+
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
     """Stream LLM analysis of current air quality data with weather context."""
@@ -440,14 +542,6 @@ def analyze():
     indoor_humidity = float(data.get('indoor_humidity', 50))
     neighbor_rank = int(data.get('neighbor_rank', 1))
     neighbor_count = int(data.get('neighbor_count', 1))
-
-    # Determine status
-    if indoor_pm25 <= 12 and indoor_co2 <= 600:
-        status = "GOOD"
-    elif indoor_pm25 <= 35 and indoor_co2 <= 800:
-        status = "FAIR"
-    else:
-        status = "POOR"
 
     # Fetch weather context from Open-Meteo (free API, no key needed)
     weather = get_open_meteo_data(HOME_LAT, HOME_LON)
@@ -490,6 +584,12 @@ def analyze():
         allergen_season = "RAGWEED + MOLD SPORE peak"
     else:
         allergen_season = "Low pollen, mold dormancy period"
+
+    # Determine overall health status from ALL data sources
+    status = determine_health_status(
+        indoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index,
+        visibility, smoke_detected, pollen_data, bqe_prediction, scores
+    )
 
     # Health context
     humidity_status = "ideal" if 30 <= indoor_humidity <= 50 else "dry" if indoor_humidity < 30 else "humid"

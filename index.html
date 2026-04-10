@@ -1958,7 +1958,7 @@ function displayAIInsights(insight) {
   const content = document.getElementById('ai-insights-content');
   const status = (insight.status || 'GOOD').toUpperCase();
   const statusClass = status === 'GOOD' ? 'ai-status-good' : status === 'FAIR' ? 'ai-status-fair' : 'ai-status-poor';
-  const statusIcon = status === 'GOOD' ? '✓' : status === 'FAIR' ? '—' : '!';
+  const statusIcon = status === 'GOOD' ? '✓' : status === 'FAIR' ? '⚠' : '!';
 
   // Render metric cards
   const metricCards = (insight.metrics || []).map(m => `
