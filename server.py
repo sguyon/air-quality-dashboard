@@ -90,6 +90,21 @@ def index():
     return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
+@app.route("/test")
+def test():
+    html_path = Path(__file__).parent / "index2.html"
+    html = html_path.read_text()
+
+    # Inject build info into a data attribute on the body
+    build_info = get_build_info()
+    html = html.replace(
+        '<body>',
+        f'<body data-build="{build_info}">'
+    )
+
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
 @app.route("/manifest.json")
 def manifest():
     return send_file(Path(__file__).parent / "manifest.json", mimetype="application/manifest+json")
