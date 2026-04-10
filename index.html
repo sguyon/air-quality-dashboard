@@ -76,10 +76,13 @@
     padding: 32px 24px;
   }
 
-  /* ── Debug Block (non-production only) ──────────── */
+  /* ── Debug Block ──────────────────────────────── */
 
   .debug-block {
-    display: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     margin-bottom: 12px;
     padding: 8px 12px;
     background: var(--bg-subtle);
@@ -89,13 +92,6 @@
     color: var(--text-muted);
     font-family: 'Courier New', monospace;
     letter-spacing: 0.03em;
-  }
-
-  .debug-block.visible {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
   }
 
   .debug-block-info {
@@ -1028,15 +1024,11 @@
   }
 })();
 
-// ── Debug Block (non-production only) ──────────────
+// ── Debug Block (always visible) ──────────────────
 (function() {
-  var isProduction = window.location.hostname === 'air-quality-dashboard.up.railway.app';
-  var debugBlock = document.getElementById('debug-block');
   var debugInfo = document.getElementById('debug-info');
   var buildInfo = document.body.getAttribute('data-build') || 'unknown';
-
-  if (!isProduction && debugBlock) {
-    debugBlock.classList.add('visible');
+  if (debugInfo) {
     debugInfo.textContent = buildInfo;
   }
 })();
