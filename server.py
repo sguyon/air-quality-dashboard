@@ -107,6 +107,38 @@ def get_smoke_data():
         return False  # Assume no smoke if API fails
 
 
+def get_pollen_data(lat, lon):
+    """Fetch pollen forecast from Google Pollen API."""
+    api_key = os.environ.get("GOOGLE_POLLEN_API_KEY", "")
+    if not api_key:
+        return []
+
+    try:
+        r = requests.post(
+            "https://pollen.googleapis.com/v1/forecast:lookup",
+            params={"key": api_key},
+            json={
+                "location": {"latitude": lat, "longitude": lon},
+                "days": 1  # Just today's forecast
+            },
+            timeout=10
+        )
+        r.raise_for_status()
+        data = r.json()
+
+        # Extract pollen info (plant descriptions + risk index)
+        pollen_list = []
+        for plant in data.get("dailyInfo", [{}])[0].get("plantInfo", []):
+            name = plant.get("displayName", "Unknown")
+            risk = plant.get("indexValue", 0)  # 0-5 scale
+            risk_level = ["None", "Low", "Moderate", "High", "Very High", "Extremely High"][min(risk, 5)]
+            pollen_list.append({"name": name, "level": risk_level, "index": risk})
+
+        return pollen_list
+    except Exception as e:
+        return []  # Gracefully degrade if Google Pollen API fails
+
+
 def haversine_km(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -353,6 +385,15 @@ def analyze():
     smoke_detected = get_smoke_data()
     smoke_note = " ⚠️ Wildfire smoke in Northeast region — extra PM2.5 risk" if smoke_detected else ""
 
+    # Fetch pollen data (Google Pollen API)
+    pollen_data = get_pollen_data(HOME_LAT, HOME_LON)
+    pollen_summary = ""
+    if pollen_data:
+        pollen_str = ", ".join([f"{p['name']} ({p['level']})" for p in pollen_data])
+        pollen_summary = f"POLLEN TODAY: {pollen_str}"
+    else:
+        pollen_summary = "POLLEN: Data unavailable"
+
     # Calculate composite health scores
     scores = calculate_composite_scores(indoor_pm25, outdoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index, visibility, wind_speed)
 
@@ -408,6 +449,9 @@ OUTDOOR CONDITIONS:
   • UV Index: {uv_index}
   {smoke_note}
 
+POLLEN DATA (Real-time from Google):
+  • {pollen_summary}
+
 LOCAL CONTEXT:
   • Greenpoint Rank: {neighbor_rank}/{neighbor_count} cleanest (lower is better)
   • Seasonal: {allergen_season}
@@ -428,7 +472,8 @@ HEALTH SCORES:
 6. **MOLD WARNING**: If humidity >60%, mention dehumidifier or ventilation
 7. **BQE PREDICTION**: Warn if wind is from west (pollution incoming) or traffic peaks soon
 8. **WILDFIRE ALERT**: If smoke detected, recommend staying indoors, extra filtration
-9. **7-DAY MINDSET**: Mention seasonal relief coming (e.g., "September ragweed relief in 3 weeks")
+9. **POLLEN ALERTS**: Rank allergens by today's levels — identify top trigger for each household member
+10. **7-DAY MINDSET**: Mention seasonal relief coming (e.g., "September ragweed relief in 3 weeks")
 
 ═══ JSON OUTPUT (NO MARKDOWN) ═══
 {{
