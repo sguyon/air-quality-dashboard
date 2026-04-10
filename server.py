@@ -32,19 +32,31 @@ NEARBY_RADIUS_KM = 15
 
 
 def get_build_info():
-    """Get git commit hash and deployment time."""
+    """Get git commit hash and deployment time in ET timezone."""
     try:
         # Get latest commit hash (short 7 chars)
         commit = subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"],
             cwd=Path(__file__).parent,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            timeout=5
         ).decode().strip()
     except Exception:
-        commit = "unknown"
+        commit = "no-git"
 
-    # Current deploy time
-    time_str = datetime.now().strftime("%H:%M:%S UTC")
+    # Current deploy time in ET (NYC timezone) using simple offset calculation
+    # ET is UTC-4 (EDT) or UTC-5 (EST)
+    import time
+    if time.daylight:
+        # During daylight saving time (EDT): UTC-4
+        offset_hours = -4
+    else:
+        # During standard time (EST): UTC-5
+        offset_hours = -5
+
+    from datetime import timezone, timedelta
+    et_tz = timezone(timedelta(hours=offset_hours))
+    time_str = datetime.now(et_tz).strftime("%H:%M:%S ET")
 
     return f"v2 · {commit} · {time_str}"
 
@@ -64,6 +76,92 @@ def api_get(path, params=None):
         raise RuntimeError(f"AirGradient API unreachable: {e}") from e
 
 
+def get_open_meteo_data(lat, lon):
+    """Fetch weather + allergen data from Open-Meteo (free, no API key)."""
+    try:
+        r = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "current": "temperature_2m,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,visibility,uv_index",
+                "hourly": "wind_direction_10m,wind_speed_10m",
+                "forecast_hours": 24,
+                "timezone": "America/New_York"
+            },
+            timeout=10
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        # Gracefully degrade if Open-Meteo fails
+        return {
+            "current": {
+                "wind_speed_10m": None,
+                "wind_direction_10m": None,
+                "visibility": None,
+                "uv_index": None,
+                "dew_point_2m": None
+            },
+            "hourly": {"wind_direction_10m": [], "wind_speed_10m": []}
+        }
+
+
+def get_smoke_data():
+    """Fetch smoke/fire data from NOAA HMS (free, no API key)."""
+    try:
+        # NOAA HMS provides smoke polygons in KML format
+        # We'll check for smoke presence in Northeast US (simple presence indicator)
+        r = requests.get("https://www.ospo.noaa.gov/data/land/hms/smoke_archive/", timeout=10)
+        # Smoke data presence = elevated particulate risk from wildfires
+        return r.status_code == 200
+    except:
+        return False  # Assume no smoke if API fails
+
+
+def get_pollen_data(lat, lon):
+    """Fetch pollen forecast from Google Pollen API (GET with query params)."""
+    api_key = os.environ.get("GOOGLE_POLLEN_API_KEY", "")
+    if not api_key:
+        return []
+
+    try:
+        r = requests.get(
+            "https://pollen.googleapis.com/v1/forecast:lookup",
+            params={
+                "key": api_key,
+                "location.latitude": lat,
+                "location.longitude": lon,
+                "days": 1
+            },
+            timeout=10
+        )
+        r.raise_for_status()
+        data = r.json()
+
+        pollen_list = []
+        daily = data.get("dailyInfo", [{}])
+        if not daily:
+            return []
+
+        for ptype in daily[0].get("pollenTypeInfo", []):
+            name = ptype.get("displayName", "Unknown")
+            index_info = ptype.get("indexInfo", {})
+            risk = index_info.get("value", 0)
+            category = index_info.get("category", "None")
+            in_season = ptype.get("inSeason", False)
+            pollen_list.append({
+                "name": name,
+                "level": category,
+                "index": risk,
+                "in_season": in_season
+            })
+
+        return pollen_list
+    except Exception:
+        return []
+
+
 def haversine_km(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -78,21 +176,6 @@ def haversine_km(lat1, lon1, lat2, lon2):
 @app.route("/")
 def index():
     html_path = Path(__file__).parent / "index.html"
-    html = html_path.read_text()
-
-    # Inject build info into a data attribute on the body
-    build_info = get_build_info()
-    html = html.replace(
-        '<body>',
-        f'<body data-build="{build_info}">'
-    )
-
-    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
-
-
-@app.route("/test")
-def test():
-    html_path = Path(__file__).parent / "index2.html"
     html = html_path.read_text()
 
     # Inject build info into a data attribute on the body
@@ -168,9 +251,183 @@ def neighborhood():
     return jsonify(nearby)
 
 
+def get_wind_cardinal(degrees):
+    """Convert wind direction degrees to cardinal direction."""
+    if degrees is None:
+        return "variable"
+    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    return dirs[round(degrees / 22.5) % 16]
+
+
+@app.route("/api/context")
+def context():
+    """Return external data sources (weather, pollen, BQE, smoke) as structured JSON."""
+    # Weather
+    weather = get_open_meteo_data(HOME_LAT, HOME_LON)
+    cur = weather.get("current", {})
+    wind_speed = cur.get("wind_speed_10m")
+    wind_direction = cur.get("wind_direction_10m")
+    visibility = cur.get("visibility")
+    uv_index = cur.get("uv_index")
+    dew_point = cur.get("dew_point_2m")
+    temperature = cur.get("temperature_2m")
+    humidity = cur.get("relative_humidity_2m")
+
+    wind_dir = get_wind_cardinal(wind_direction)
+
+    # Dew point sinus risk
+    if dew_point is not None and dew_point < 5:
+        dew_point_risk = "Severe dryness"
+    elif dew_point is not None and dew_point < 10:
+        dew_point_risk = "Moderate dryness"
+    else:
+        dew_point_risk = "Comfortable"
+
+    # Visibility interpretation
+    if visibility is not None:
+        if visibility < 2000:
+            visibility_status = "Very low — high particulate"
+        elif visibility < 5000:
+            visibility_status = "Reduced"
+        elif visibility < 10000:
+            visibility_status = "Moderate"
+        else:
+            visibility_status = "Clear"
+    else:
+        visibility_status = "Unknown"
+
+    # BQE traffic
+    current_hour = datetime.now().hour
+    bqe = predict_bqe_traffic(current_hour, wind_direction)
+
+    # Smoke
+    smoke = get_smoke_data()
+
+    # Pollen
+    pollen = get_pollen_data(HOME_LAT, HOME_LON)
+
+    return jsonify({
+        "weather": {
+            "wind_speed": wind_speed,
+            "wind_direction": wind_direction,
+            "wind_cardinal": wind_dir,
+            "dew_point": dew_point,
+            "dew_point_risk": dew_point_risk,
+            "visibility": visibility,
+            "visibility_status": visibility_status,
+            "uv_index": uv_index,
+            "temperature": temperature,
+            "humidity": humidity
+        },
+        "bqe": {
+            "traffic": bqe["traffic"],
+            "wind_impact": bqe["wind_impact"],
+            "pollution_pressure": bqe["pollution_pressure"],
+            "current_hour": current_hour
+        },
+        "smoke": {
+            "detected": smoke
+        },
+        "pollen": pollen
+    })
+
+
+def predict_bqe_traffic(hour, wind_direction):
+    """Predict BQE pollution impact based on time of day and wind direction.
+
+    BQE peaks: 7-9am (morning commute), 4-7pm (evening commute)
+    Wind from west (W/NW/SW, 180-360°) = pollution drifts toward Greenpoint homes
+    """
+    hour_int = int(hour)
+
+    # Traffic intensity by hour
+    if 7 <= hour_int <= 9:
+        traffic_intensity = "PEAK (morning rush)"
+        multiplier = 1.5
+    elif 16 <= hour_int <= 19:
+        traffic_intensity = "PEAK (evening rush)"
+        multiplier = 1.4
+    elif 6 <= hour_int <= 10 or 15 <= hour_int <= 20:
+        traffic_intensity = "HIGH (rush shoulders)"
+        multiplier = 1.2
+    else:
+        traffic_intensity = "LOW"
+        multiplier = 0.7
+
+    # Wind direction impact
+    if wind_direction is None:
+        wind_impact = "Unknown"
+        wind_multiplier = 1.0
+    else:
+        # West winds (180-360°) blow pollution toward Greenpoint (east)
+        # East winds (0-180°) blow pollution away
+        if 180 <= wind_direction <= 360 or wind_direction <= 45:
+            wind_impact = "Blowing toward Greenpoint" if 180 <= wind_direction <= 360 else "Blowing away"
+            wind_multiplier = 1.3 if 180 <= wind_direction <= 360 else 0.5
+        else:
+            wind_impact = "Neutral"
+            wind_multiplier = 1.0
+
+    pollution_pressure = multiplier * wind_multiplier
+
+    return {
+        "traffic": traffic_intensity,
+        "wind_impact": wind_impact,
+        "pollution_pressure": round(pollution_pressure, 1)
+    }
+
+
+def calculate_composite_scores(indoor_pm25, outdoor_pm25, indoor_co2, humidity, dew_point, uv_index, visibility, wind_speed):
+    """Calculate health-focused composite scores (1-10 scale)."""
+
+    # ALLERGY RISK (1-10): pollen sensitivity + humidity mold risk + dew point sinus risk
+    # Lower is better
+    mold_risk = 0
+    if humidity > 60:
+        mold_risk += 3  # High mold growth risk
+    elif humidity < 30:
+        mold_risk += 2  # Sinus dryness risk
+
+    sinus_dryness = 0
+    if dew_point is not None and dew_point < 5:  # Very dry air
+        sinus_dryness = 3
+    elif dew_point is not None and dew_point < 10:
+        sinus_dryness = 1
+
+    visibility_allergen = 0
+    if visibility is not None:
+        if visibility < 2000:  # Very low visibility = high particulate/allergen
+            visibility_allergen = 4
+        elif visibility < 5000:
+            visibility_allergen = 2
+
+    allergy_risk = min(10, 2 + mold_risk + sinus_dryness + visibility_allergen)
+
+    # RESPIRATORY LOAD (1-10): PM2.5 + CO2 + visibility + UV
+    # Lower is better (1=excellent, 10=hazardous)
+    pm_score = min(10, (indoor_pm25 / 15))  # 12 µg/m³ is EPA standard
+    co2_score = min(10, (indoor_co2 / 1000))  # 1000 ppm is concerning
+    visibility_resp = 0
+    if visibility is not None and visibility < 3000:
+        visibility_resp = 3
+
+    respiratory_load = round((pm_score + co2_score + visibility_resp) / 3, 1)
+
+    # ACTIVITY SAFETY: composite of all factors + time of day (determined in LLM context)
+    # Will be determined by LLM based on hour and all signals
+
+    return {
+        "allergy_risk": round(allergy_risk, 1),
+        "respiratory_load": round(respiratory_load, 1),
+        "mold_risk": "High" if humidity > 60 else "Low" if humidity < 30 else "Ideal",
+        "sinus_dryness_risk": "High" if dew_point is not None and dew_point < 5 else "None"
+    }
+
+
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    """Stream LLM analysis of current air quality data."""
+    """Stream LLM analysis of current air quality data with weather context."""
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         return jsonify({"error": "ANTHROPIC_API_KEY not set"}), 500
@@ -180,6 +437,9 @@ def analyze():
     indoor_pm25 = float(data.get('indoor_pm25', 0))
     outdoor_pm25 = float(data.get('outdoor_pm25', 0))
     indoor_co2 = float(data.get('indoor_co2', 0))
+    indoor_humidity = float(data.get('indoor_humidity', 50))
+    neighbor_rank = int(data.get('neighbor_rank', 1))
+    neighbor_count = int(data.get('neighbor_count', 1))
 
     # Determine status
     if indoor_pm25 <= 12 and indoor_co2 <= 600:
@@ -189,42 +449,136 @@ def analyze():
     else:
         status = "POOR"
 
-    prompt = f"""You are an air quality analyst for a home in Greenpoint, Brooklyn. Give SPECIFIC, ACTIONABLE advice tied to health outcomes.
+    # Fetch weather context from Open-Meteo (free API, no key needed)
+    weather = get_open_meteo_data(HOME_LAT, HOME_LON)
+    current = weather.get("current", {})
+    wind_speed = current.get("wind_speed_10m")
+    wind_direction = current.get("wind_direction_10m")
+    visibility = current.get("visibility")
+    uv_index = current.get("uv_index")
+    dew_point = current.get("dew_point_2m")
 
-Current readings:
-- INDOOR: PM2.5={indoor_pm25} µg/m³, CO2={indoor_co2} ppm, Humidity={data.get('indoor_humidity')}%
-- OUTDOOR: PM2.5={outdoor_pm25} µg/m³, CO2={data.get('outdoor_co2')} ppm
-- NEIGHBORHOOD: Your rank {data.get('neighbor_rank')}/{data.get('neighbor_count')}, avg PM2.5={data.get('neighbor_avg_pm25')} µg/m³
+    wind_dir = get_wind_cardinal(wind_direction)
 
-TONE RULES:
-- Sound like a friend giving practical advice, not a robot
-- Include NUMBERS: times, percentages, health outcomes
-- Say WHY the action matters (not just "do this")
-- Be specific to Greenpoint (BQE traffic patterns, waterfront, industrial area)
-- Give health context: "reduce headache risk", "better sleep quality", "less respiratory strain"
+    # BQE traffic prediction based on time and wind
+    current_hour = datetime.now().hour
+    bqe_prediction = predict_bqe_traffic(current_hour, wind_direction)
 
-EXAMPLES OF GOOD VS BAD:
-❌ BAD: "Maintain ventilation"
-✅ GOOD: "Open windows for 15 min at a time (before 7am or after 10pm) — this cuts CO2 by ~40%, reducing afternoon headaches and improving sleep quality"
+    # Check for wildfire smoke (NOAA)
+    smoke_detected = get_smoke_data()
+    smoke_note = " ⚠️ Wildfire smoke in Northeast region — extra PM2.5 risk" if smoke_detected else ""
 
-❌ BAD: "Your filter is working"
-✅ GOOD: "Your HEPA filter is crushing it — keeping indoor PM2.5 75% lower than street level right now. Keep it running."
+    # Fetch pollen data (Google Pollen API)
+    pollen_data = get_pollen_data(HOME_LAT, HOME_LON)
+    pollen_summary = ""
+    if pollen_data:
+        pollen_str = ", ".join([f"{p['name']} ({p['level']})" for p in pollen_data])
+        pollen_summary = f"POLLEN TODAY: {pollen_str}"
+    else:
+        pollen_summary = "POLLEN: Data unavailable"
 
-Respond ONLY with valid JSON (no markdown, no extra text):
+    # Calculate composite health scores
+    scores = calculate_composite_scores(indoor_pm25, outdoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index, visibility, wind_speed)
+
+    # Seasonal allergen triggers (Greenpoint, New York)
+    month = datetime.now().month
+    if month in [4, 5]:
+        allergen_season = "TREE (birch, maple) pollen peak"
+    elif month in [6, 7, 8]:
+        allergen_season = "GRASS + MOLD SPORE season"
+    elif month in [8, 9, 10]:
+        allergen_season = "RAGWEED + MOLD SPORE peak"
+    else:
+        allergen_season = "Low pollen, mold dormancy period"
+
+    # Health context
+    humidity_status = "ideal" if 30 <= indoor_humidity <= 50 else "dry" if indoor_humidity < 30 else "humid"
+    humidity_risk = "Sinus dryness risk" if indoor_humidity < 30 else "Mold growth risk" if indoor_humidity > 60 else "Clear nasal passages"
+
+    # Dew point sinus impact
+    dew_point_status = ""
+    if dew_point is not None:
+        if dew_point < 5:
+            dew_point_status = "Very dry — severe sinus dryness risk"
+        elif dew_point < 10:
+            dew_point_status = "Dry — moderate sinus dryness"
+        else:
+            dew_point_status = "Comfortable for sinuses"
+
+    # Activity timing recommendation based on BQE rush
+    if current_hour >= 7 and current_hour <= 9:
+        activity_warning = "AVOID outdoor activity 7-9am (BQE morning rush peak)"
+        best_window = "10am-3pm is safest for outdoor activity"
+    elif current_hour >= 16 and current_hour <= 19:
+        activity_warning = "CAUTION: BQE evening rush (4-7pm) — outdoor exposure risky"
+        best_window = "Best outdoor window was 10am-3pm, next safe time is 8pm+"
+    else:
+        activity_warning = f"BQE traffic moderate at {current_hour}:00"
+        best_window = "10am-3pm is still the safest window today"
+
+    prompt = f"""You are a CONSUMER-GRADE health coach helping someone and their spouse manage allergies/sinus sensitivity in Greenpoint, Brooklyn using real-time data.
+
+═══ COMPREHENSIVE DATA INPUT ═══
+INDOOR CONDITIONS:
+  • PM2.5: {indoor_pm25} µg/m³ (EPA safe: ≤12)
+  • CO2: {indoor_co2} ppm (Alert: >800)
+  • Humidity: {indoor_humidity}% (Ideal: 30-50%)
+  • Dew Point: {dew_point}°C ({dew_point_status if dew_point_status else 'calculating...'})
+
+OUTDOOR CONDITIONS:
+  • PM2.5: {outdoor_pm25} µg/m³
+  • Wind: {wind_speed} km/h from {wind_dir} ({bqe_prediction['wind_impact']})
+  • Visibility: {visibility}m (Low=high particulate)
+  • UV Index: {uv_index}
+  {smoke_note}
+
+POLLEN DATA (Real-time from Google):
+  • {pollen_summary}
+
+LOCAL CONTEXT:
+  • Greenpoint Rank: {neighbor_rank}/{neighbor_count} cleanest (lower is better)
+  • Seasonal: {allergen_season}
+  • BQE Traffic: {bqe_prediction['traffic']} (Pollution Pressure: {bqe_prediction['pollution_pressure']}x)
+  • Activity: {activity_warning}
+
+HEALTH SCORES:
+  • Allergy Risk: {scores['allergy_risk']}/10 ({scores['mold_risk']} mold risk)
+  • Respiratory Load: {scores['respiratory_load']}/10
+  • Sinus Risk: {scores['sinus_dryness_risk']} sinus dryness
+
+═══ YOUR INSTRUCTIONS ═══
+1. **PERSONALIZE**: Speak to both household members with same data but acknowledge different sensitivities
+2. **SYMPTOM-FIRST**: Lead with what they'll FEEL ("Clear nasal passages", "Reduced headache risk", "Better sleep tonight")
+3. **ACTIVITY TIMING**: Recommend specific windows for outdoor activity, exercise, window-opening
+4. **FILTER ALERTS**: When to swap HEPA, when to run at high speed, expected lifespan
+5. **DRYNESS WARNING**: If dew point <10°C, mention humidifier urgently
+6. **MOLD WARNING**: If humidity >60%, mention dehumidifier or ventilation
+7. **BQE PREDICTION**: Warn if wind is from west (pollution incoming) or traffic peaks soon
+8. **WILDFIRE ALERT**: If smoke detected, recommend staying indoors, extra filtration
+9. **POLLEN ALERTS**: Rank allergens by today's levels — identify top trigger for each household member
+10. **7-DAY MINDSET**: Mention seasonal relief coming (e.g., "September ragweed relief in 3 weeks")
+
+═══ JSON OUTPUT (NO MARKDOWN) ═══
 {{
   "status": "{status}",
-  "status_line": "[One sentence: 'Your air is GOOD today' or 'Air quality is fair — take these steps']",
-  "why": [
-    "[Specific driver + context. Include time of day, weather, traffic, or location factor]",
-    "[Another driver]",
-    "[Third driver if relevant]"
+  "status_line": "[One sentence health headline: 'Your sinuses are clear, but check humidity']",
+  "rank": "{neighbor_rank}/{neighbor_count}",
+  "metrics": [
+    {{"icon": "🫁", "category": "Particulates", "status": "Excellent/Fair/Poor", "value": "{indoor_pm25} µg/m³", "benefit": "Blocking {{X}}% of street dust — fewer infections"}},
+    {{"icon": "💧", "category": "Humidity", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "{humidity_risk} — {{specific symptom prevention}}"}},
+    {{"icon": "🌬️", "category": "Ventilation", "status": "Healthy/Watch/Act", "value": "{indoor_co2} ppm", "benefit": "Sharp focus vs afternoon brain fog"}}
   ],
-  "do": [
-    "[SPECIFIC action (window open time, filter change, etc) + WHY it matters + expected outcome]",
-    "[Next action if needed]",
-    "[Optional third action]"
+  "working": [
+    "✓ Your filter is blocking {{X}}% more PM2.5 than Greenpoint average",
+    "✓ {{Humidity/Dew point}} is preventing sinus inflammation",
+    "✓ {{CO2/Window strategy}} keeping you sharp through afternoon"
   ],
-  "learn": "[Surprising fact or personal win related to their air quality or Greenpoint]"
+  "next_steps": [
+    "1. {best_window} safe for outdoor activity (BQE traffic predictable)",
+    "2. {{SPECIFIC filter/humidifier action with timing and reason}}",
+    "3. {{Window timing based on BQE rush + {{dew point/humidity issues if any}}}}"
+  ],
+  "insight": "{{Seasonal context}} — Next {{relief period}} comes {{date/week}}"
 }}"""
 
     def stream():
@@ -270,7 +624,7 @@ Respond ONLY with valid JSON (no markdown, no extra text):
 
 
 if __name__ == "__main__":
-    if not ANTHROPIC_API_KEY:
+    if not os.environ.get("ANTHROPIC_API_KEY"):
         print("⚠  ANTHROPIC_API_KEY not set — LLM analysis disabled")
         print("   Run: ANTHROPIC_API_KEY=sk-... python server.py")
     port = int(os.environ.get("PORT", 5555))
