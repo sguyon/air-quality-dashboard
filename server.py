@@ -458,10 +458,14 @@ def determine_health_status(indoor_pm25, indoor_co2, indoor_humidity, dew_point,
         signals.append(2)
 
     # ── Dew point (sinus dryness) ──
+    # Outdoor dew point matters less when indoor humidity is ideal (30-50%)
     if dew_point is not None:
         if dew_point >= 10:
             signals.append(0)
         elif dew_point >= 5:
+            signals.append(1)
+        elif 30 <= indoor_humidity <= 50:
+            # Indoor air is well-humidified — cap at FAIR, not POOR
             signals.append(1)
         else:
             signals.append(2)
