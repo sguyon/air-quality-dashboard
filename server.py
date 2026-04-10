@@ -60,6 +60,16 @@ def index():
     return send_file(Path(__file__).parent / "index.html")
 
 
+@app.route("/manifest.json")
+def manifest():
+    return send_file(Path(__file__).parent / "manifest.json", mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    return send_file(Path(__file__).parent / "sw.js", mimetype="application/javascript")
+
+
 @app.route("/health")
 def health():
     return jsonify({

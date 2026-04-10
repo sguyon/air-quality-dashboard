@@ -1,0 +1,50 @@
+{
+  "name": "Greenpoint Air Quality Dashboard",
+  "short_name": "Air Quality",
+  "description": "Real-time air quality monitoring with AI-powered insights for Greenpoint, Brooklyn",
+  "start_url": "/",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#09090b",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%2306b6d4' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='120' font-weight='700' fill='white' font-family='system-ui'>✓</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%2306b6d4' width='512' height='512'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='320' font-weight='700' fill='white' font-family='system-ui'>✓</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%23f8f9fb' width='540' height='720'/><text x='270' y='360' text-anchor='middle' font-size='64' fill='%23111118' font-family='system-ui' font-weight='600'>Air Quality</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": ["health", "utilities"],
+  "shortcuts": [
+    {
+      "name": "View Current Air Quality",
+      "short_name": "Current",
+      "description": "Check real-time indoor and outdoor air quality readings",
+      "url": "/",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%2306b6d4' width='96' height='96' rx='20'/><text x='48' y='48' dominant-baseline='middle' text-anchor='middle' font-size='60' font-weight='700' fill='white'>✓</text></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false
+}
