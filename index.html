@@ -190,7 +190,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 28px;
+    padding: 20px;
     position: relative;
   }
 
@@ -323,16 +323,16 @@
   }
 
   .ai-status-section {
-    margin-bottom: 28px;
-    padding-bottom: 28px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
     border-bottom: 1px solid var(--border);
   }
 
   .ai-status-line {
-    font-size: 1.6rem;
-    font-weight: 700;
+    font-size: 1.15rem;
+    font-weight: 600;
     line-height: 1.3;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
   .ai-status-good { color: var(--green); }
@@ -343,65 +343,68 @@
   .ai-metrics-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: 10px;
+    margin-bottom: 14px;
   }
 
   .ai-metric-card {
     background: var(--bg-subtle);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 16px;
+    padding: 12px;
     text-align: center;
     transition: border-color 0.2s;
   }
 
   .ai-metric-card:hover {
-    border-color: var(--cyan);
+    border-color: var(--border-light);
   }
 
   .ai-metric-icon {
-    font-size: 2.2rem;
-    margin-bottom: 8px;
+    font-size: 1.4rem;
+    margin-bottom: 4px;
   }
 
   .ai-metric-category {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-muted);
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
   }
 
   .ai-metric-status {
-    font-size: 1.1rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--cyan);
-    margin-bottom: 6px;
+    margin-bottom: 3px;
   }
 
   .ai-metric-value {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--text);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .ai-metric-benefit {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
-    line-height: 1.4;
-    font-weight: 500;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   /* Working & Actions Sections */
   .ai-insights-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 12px;
   }
 
   .ai-section {
@@ -425,13 +428,13 @@
   }
 
   .ai-item {
-    padding: 12px 14px;
+    padding: 8px 12px;
     background: var(--bg-subtle);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     border-left: 3px solid var(--cyan);
-    font-size: 0.82rem;
-    line-height: 1.6;
+    font-size: 0.78rem;
+    line-height: 1.4;
     color: var(--text);
     transition: all 0.2s ease;
   }
@@ -1970,7 +1973,7 @@ function displayAIInsights(insight) {
   content.innerHTML = `
     <div class="ai-status-section">
       <div style="display:flex;gap:12px;align-items:baseline">
-        <div style="width:44px;height:44px;border-radius:12px;background:${status === 'GOOD' ? 'rgba(34,197,94,0.15)' : status === 'FAIR' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)'};display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:${status === 'GOOD' ? 'var(--green)' : status === 'FAIR' ? 'var(--yellow)' : 'var(--red)'}">${statusIcon}</div>
+        <div style="width:32px;height:32px;border-radius:8px;background:${status === 'GOOD' ? 'rgba(34,197,94,0.15)' : status === 'FAIR' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)'};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:${status === 'GOOD' ? 'var(--green)' : status === 'FAIR' ? 'var(--yellow)' : 'var(--red)'};flex-shrink:0">${statusIcon}</div>
         <div class="ai-status-line ${statusClass}">${insight.status_line || 'Analyzing...'}</div>
       </div>
       ${insight.rank ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Rank ${insight.rank} among neighbors</div>` : ''}

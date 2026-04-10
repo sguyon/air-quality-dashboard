@@ -546,39 +546,44 @@ HEALTH SCORES:
   • Respiratory Load: {scores['respiratory_load']}/10
   • Sinus Risk: {scores['sinus_dryness_risk']} sinus dryness
 
-═══ YOUR INSTRUCTIONS ═══
-1. **PERSONALIZE**: Speak to both household members with same data but acknowledge different sensitivities
-2. **SYMPTOM-FIRST**: Lead with what they'll FEEL ("Clear nasal passages", "Reduced headache risk", "Better sleep tonight")
-3. **ACTIVITY TIMING**: Recommend specific windows for outdoor activity, exercise, window-opening
-4. **FILTER ALERTS**: When to swap HEPA, when to run at high speed, expected lifespan
-5. **DRYNESS WARNING**: If dew point <10°C, mention humidifier urgently
-6. **MOLD WARNING**: If humidity >60%, mention dehumidifier or ventilation
-7. **BQE PREDICTION**: Warn if wind is from west (pollution incoming) or traffic peaks soon
-8. **WILDFIRE ALERT**: If smoke detected, recommend staying indoors, extra filtration
-9. **POLLEN ALERTS**: Rank allergens by today's levels — identify top trigger for each household member
-10. **7-DAY MINDSET**: Mention seasonal relief coming (e.g., "September ragweed relief in 3 weeks")
+═══ STRICT BREVITY RULES ═══
+• status_line: MAX 12 words. Health outcome, not data.
+• metric benefit: MAX 10 words. What the user FEELS, not the number.
+• working items: MAX 15 words each. Start with verb. Exactly 3 items.
+• next_steps: MAX 20 words each. Start with timing or action verb. Exactly 3 items.
+• insight: MAX 20 words. Seasonal context + when relief comes.
+• NEVER add text outside the JSON object. Output ONLY the JSON.
+• Write like a fitness app notification, not a medical report.
 
-═══ JSON OUTPUT (NO MARKDOWN) ═══
+═══ CONTENT PRIORITIES ═══
+1. Symptom-first language ("Clear sinuses" not "PM2.5 is 10")
+2. Activity timing for runner + toddler outdoor time
+3. Dryness/humidity warnings (sinus-critical)
+4. BQE traffic + wind pollution timing
+5. Pollen alerts if any type is Moderate+
+6. Seasonal context (relief date)
+
+═══ JSON OUTPUT (ONLY JSON, NO MARKDOWN, NO EXTRA TEXT) ═══
 {{
   "status": "{status}",
-  "status_line": "[One sentence health headline: 'Your sinuses are clear, but check humidity']",
+  "status_line": "Sinuses clear today — humidity perfect, pollen moderate",
   "rank": "{neighbor_rank}/{neighbor_count}",
   "metrics": [
-    {{"icon": "🫁", "category": "Particulates", "status": "Excellent/Fair/Poor", "value": "{indoor_pm25} µg/m³", "benefit": "Blocking {{X}}% of street dust — fewer infections"}},
-    {{"icon": "💧", "category": "Humidity", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "{humidity_risk} — {{specific symptom prevention}}"}},
-    {{"icon": "🌬️", "category": "Ventilation", "status": "Healthy/Watch/Act", "value": "{indoor_co2} ppm", "benefit": "Sharp focus vs afternoon brain fog"}}
+    {{"icon": "🫁", "category": "Particulates", "status": "Excellent", "value": "{indoor_pm25} µg/m³", "benefit": "Filtering 70% of street dust"}},
+    {{"icon": "💧", "category": "Humidity", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "Nasal passages clear, no dryness"}},
+    {{"icon": "🌬️", "category": "Ventilation", "status": "Healthy", "value": "{indoor_co2} ppm", "benefit": "Sharp focus, no brain fog"}}
   ],
   "working": [
-    "✓ Your filter is blocking {{X}}% more PM2.5 than Greenpoint average",
-    "✓ {{Humidity/Dew point}} is preventing sinus inflammation",
-    "✓ {{CO2/Window strategy}} keeping you sharp through afternoon"
+    "Filter blocking 70% more PM2.5 than neighbors",
+    "Humidity keeping sinuses moist and clear",
+    "CO2 low — fresh air exchange working"
   ],
   "next_steps": [
-    "1. {best_window} safe for outdoor activity (BQE traffic predictable)",
-    "2. {{SPECIFIC filter/humidifier action with timing and reason}}",
-    "3. {{Window timing based on BQE rush + {{dew point/humidity issues if any}}}}"
+    "Run outdoors 10am–2pm (lowest pollen + BQE traffic)",
+    "Turn humidifier on by 8pm if dew point drops",
+    "Close windows 4–7pm during BQE evening rush"
   ],
-  "insight": "{{Seasonal context}} — Next {{relief period}} comes {{date/week}}"
+  "insight": "Tree pollen peaks through May — relief comes late May"
 }}"""
 
     def stream():
@@ -591,7 +596,7 @@ HEALTH SCORES:
             },
             json={
                 "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 2048,
+                "max_tokens": 800,
                 "stream": True,
                 "messages": [{"role": "user", "content": prompt}],
             },
