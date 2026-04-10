@@ -124,6 +124,28 @@ Instead of just showing metrics, the dashboard:
 
 ---
 
+### Phase 2.75: Server-Side Caching (High Priority)
+
+**Goal:** Reduce redundant API calls, improve response time, lower cost
+
+**Add:**
+- Server-side cache for external API responses (weather, pollen, smoke) with TTL
+  - Weather: cache 5 min (changes slowly)
+  - Pollen: cache 1 hour (daily data, rarely changes intraday)
+  - Smoke: cache 15 min (daily updates)
+  - BQE: no cache needed (pure calculation, no API call)
+- LLM analysis cache: hash sensor data + context → serve cached response if unchanged
+  - Manual refresh button bypasses cache
+  - Auto-refresh on significant data change only
+- Simple in-memory dict with timestamp expiry (no Redis needed for single-instance)
+
+**Why now:**
+- Weather + pollen + smoke = 3 API calls per page load, every 60s = wasteful
+- LLM calls are the most expensive (~$0.002 each)
+- Single dict cache is trivial to implement, huge ROI
+
+---
+
 ### Phase 3: Trending & Alerts (Medium Priority)
 
 **Goal:** Explain patterns, help predict problems before they happen

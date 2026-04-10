@@ -120,35 +120,46 @@ def get_smoke_data():
 
 
 def get_pollen_data(lat, lon):
-    """Fetch pollen forecast from Google Pollen API."""
+    """Fetch pollen forecast from Google Pollen API (GET with query params)."""
     api_key = os.environ.get("GOOGLE_POLLEN_API_KEY", "")
     if not api_key:
         return []
 
     try:
-        r = requests.post(
+        r = requests.get(
             "https://pollen.googleapis.com/v1/forecast:lookup",
-            params={"key": api_key},
-            json={
-                "location": {"latitude": lat, "longitude": lon},
-                "days": 1  # Just today's forecast
+            params={
+                "key": api_key,
+                "location.latitude": lat,
+                "location.longitude": lon,
+                "days": 1
             },
             timeout=10
         )
         r.raise_for_status()
         data = r.json()
 
-        # Extract pollen info (plant descriptions + risk index)
         pollen_list = []
-        for plant in data.get("dailyInfo", [{}])[0].get("plantInfo", []):
-            name = plant.get("displayName", "Unknown")
-            risk = plant.get("indexValue", 0)  # 0-5 scale
-            risk_level = ["None", "Low", "Moderate", "High", "Very High", "Extremely High"][min(risk, 5)]
-            pollen_list.append({"name": name, "level": risk_level, "index": risk})
+        daily = data.get("dailyInfo", [{}])
+        if not daily:
+            return []
+
+        for ptype in daily[0].get("pollenTypeInfo", []):
+            name = ptype.get("displayName", "Unknown")
+            index_info = ptype.get("indexInfo", {})
+            risk = index_info.get("value", 0)
+            category = index_info.get("category", "None")
+            in_season = ptype.get("inSeason", False)
+            pollen_list.append({
+                "name": name,
+                "level": category,
+                "index": risk,
+                "in_season": in_season
+            })
 
         return pollen_list
-    except Exception as e:
-        return []  # Gracefully degrade if Google Pollen API fails
+    except Exception:
+        return []
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
