@@ -673,9 +673,9 @@ HEALTH SCORES:
   "status_line": "Sinuses clear today — humidity perfect, pollen moderate",
   "rank": "{neighbor_rank}/{neighbor_count}",
   "metrics": [
-    {{"icon": "🫁", "category": "Particulates", "status": "Excellent", "value": "{indoor_pm25} µg/m³", "benefit": "Filtering 70% of street dust"}},
-    {{"icon": "💧", "category": "Humidity", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "Nasal passages clear, no dryness"}},
-    {{"icon": "🌬️", "category": "Ventilation", "status": "Healthy", "value": "{indoor_co2} ppm", "benefit": "Sharp focus, no brain fog"}}
+    {{"icon": "🫁", "category": "Air Quality (Indoor)", "status": "Excellent", "value": "{indoor_pm25} µg/m³ indoor · {outdoor_pm25} outdoor", "benefit": "Filtering 70% of street dust"}},
+    {{"icon": "💧", "category": "Humidity (Indoor)", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "Nasal passages clear, no dryness"}},
+    {{"icon": "🌬️", "category": "Ventilation (Indoor)", "status": "Healthy", "value": "{indoor_co2} ppm CO2", "benefit": "Sharp focus, no brain fog"}}
   ],
   "working": [
     "Filter blocking 70% more PM2.5 than neighbors",
