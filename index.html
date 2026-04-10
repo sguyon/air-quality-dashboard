@@ -6,6 +6,11 @@
 <title>Greenpoint Air Quality</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#09090b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Air Quality">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   :root {
@@ -126,6 +131,139 @@
     font-size: 0.8rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* ── AI Insights Section ────────────────────── */
+
+  .ai-insights-section {
+    margin-bottom: 24px;
+  }
+
+  .ai-insights-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    position: relative;
+  }
+
+  .ai-insights-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 12px;
+  }
+
+  .ai-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+
+  .ai-refresh-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 6px;
+    transition: color 0.2s, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-refresh-btn:hover {
+    color: var(--cyan);
+  }
+
+  .ai-refresh-btn.loading {
+    animation: spin 0.8s ease-in-out infinite;
+  }
+
+  .ai-status-section {
+    margin-bottom: 28px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ai-status-line {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  .ai-status-good { color: var(--green); }
+  .ai-status-fair { color: var(--yellow); }
+  .ai-status-poor { color: var(--red); }
+
+  .ai-insights-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .ai-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ai-section-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .ai-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ai-item {
+    padding: 12px 14px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--cyan);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--text);
+    transition: all 0.2s ease;
+  }
+
+  .ai-item:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-light);
+  }
+
+  .ai-item::before {
+    content: '';
+  }
+
+  .ai-learn {
+    grid-column: 1 / -1;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(168,85,247,0.05));
+    border: 1px solid rgba(6,182,212,0.2);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  .ai-timestamp {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: right;
   }
 
   /* ── Time Controller ─────────────────────── */
@@ -723,6 +861,35 @@
     100% { background-position: -200% 0; }
   }
 
+  /* ── Build Info Badge ────────────────────────── */
+
+  .build-info {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 9998;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.05em;
+    padding: 4px 8px;
+    border-radius: var(--radius-xs);
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    pointer-events: none;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+
+  .build-info:hover {
+    opacity: 1;
+  }
+
+  [data-theme="light"] .build-info {
+    background: rgba(0,0,0,0.05);
+  }
+
   /* ── Theme Toggle ─────────────────────────── */
 
   .theme-toggle {
@@ -787,6 +954,18 @@
       justify-content: flex-start;
     }
 
+    .ai-insights-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .ai-insights-card {
+      padding: 20px;
+    }
+
+    .ai-status-line {
+      font-size: 1.4rem;
+    }
+
     .monitors, .charts, .insights-grid { grid-template-columns: 1fr; }
     .metrics { grid-template-columns: 1fr 1fr; }
     .neighbor-row {
@@ -820,6 +999,18 @@
       <div id="last-updated" style="margin-left:8px">Connecting...</div>
     </div>
   </header>
+
+  <div class="ai-insights-section" id="ai-insights-section">
+    <div class="card ai-insights-card">
+      <div class="ai-insights-header">
+        <div class="ai-label">✨ AI Insights</div>
+        <button class="ai-refresh-btn" onclick="autoAnalyzeAir(true)" title="Refresh analysis">↻</button>
+      </div>
+      <div id="ai-insights-content">
+        <div style="color:var(--text-muted);font-size:0.8rem">Loading insights...</div>
+      </div>
+    </div>
+  </div>
 
   <div class="monitors" id="monitors">
     <div class="card"><div class="skeleton"></div></div>
@@ -871,6 +1062,8 @@
   <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
 </button>
 
+<div class="build-info" id="build-info"></div>
+
 <script>
 // ── Theme Toggle ─────────────────────────────────────
 (function() {
@@ -909,6 +1102,15 @@
       );
     });
   });
+})();
+
+// ── Build Info Display ───────────────────────────────
+(function() {
+  var buildEl = document.getElementById('build-info');
+  var buildInfo = document.documentElement.getAttribute('data-build');
+  if (buildEl && buildInfo) {
+    buildEl.textContent = buildInfo;
+  }
 })();
 
 // ── Time Range ───────────────────────────────────────
@@ -1330,13 +1532,35 @@ function renderCharts(indoorHistory, outdoorHistory) {
 // ── LLM Analysis ─────────────────────────────────────
 
 let lastData = {};
+let lastDataHash = '';
+let insightCache = {};
+let nextAutoAnalysisTime = 0;
 
-async function requestLLMAnalysis() {
-  const btn = document.querySelector('.llm-refresh-btn');
-  const content = document.getElementById('llm-content');
-  btn.disabled = true;
-  btn.innerHTML = '&#x2728; Analyzing...';
-  content.innerHTML = '<div style="display:flex;align-items:center;gap:10px"><span class="llm-streaming"></span><span style="color:var(--text-muted);font-size:0.8rem">Thinking...</span></div>';
+function hashData(data) {
+  const str = JSON.stringify(data);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return hash.toString();
+}
+
+async function autoAnalyzeAir(forceRefresh = false) {
+  const btn = document.querySelector('.ai-refresh-btn');
+  const content = document.getElementById('ai-insights-content');
+
+  if (!forceRefresh && nextAutoAnalysisTime > Date.now()) return;
+
+  const currentHash = hashData(lastData);
+  if (currentHash === lastDataHash && insightCache[currentHash] && !forceRefresh) {
+    displayAIInsights(insightCache[currentHash]);
+    return;
+  }
+
+  btn.classList.add('loading');
+  content.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Analyzing...</div>';
 
   try {
     const resp = await fetch('/api/analyze', {
@@ -1358,11 +1582,9 @@ async function requestLLMAnalysis() {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
-
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const payload = line.slice(6);
@@ -1375,42 +1597,93 @@ async function requestLLMAnalysis() {
       }
     }
 
-    // Render formatted output once complete
-    content.innerHTML = formatLLMOutput(fullText);
-
-  } catch (err) {
-    content.innerHTML = `<span class="llm-error">${err.message}</span>`;
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = '&#x2728; Analyze with AI';
-}
-
-function formatLLMText(text) {
-  return text.replace(/\n/g, '<br>');
-}
-
-function formatLLMOutput(text) {
-  // Try to parse JSON array from the response
-  try {
-    // Strip markdown code fences if present
-    const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    if (match) {
-      const insights = JSON.parse(match[0]);
-      return `<div class="insights-grid">${insights.map(i => `
-        <div class="insight">
-          <div class="insight-icon" style="background:rgba(168,85,247,0.1);color:var(--purple);font-size:1rem">${i.icon}</div>
-          <div class="insight-body">
-            <div class="insight-title">${i.title}</div>
-            <div class="insight-desc">${i.desc}</div>
-          </div>
-        </div>
-      `).join('')}</div>`;
+    const insight = parseAIInsight(fullText);
+    if (insight) {
+      lastDataHash = currentHash;
+      insightCache[currentHash] = insight;
+      displayAIInsights(insight);
+      nextAutoAnalysisTime = Date.now() + (5 * 60 * 1000);
+    } else {
+      throw new Error('Could not parse AI response');
     }
-  } catch {}
-  // Fallback to plain text
-  return `<div style="white-space:pre-wrap">${text}</div>`;
+  } catch (err) {
+    content.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;">${err.message}</div>`;
+  }
+  btn.classList.remove('loading');
+}
+
+function parseAIInsight(text) {
+  try {
+    // Strip markdown fences
+    let cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+    // Extract JSON object - be greedy to capture full response
+    const match = cleaned.match(/\{[\s\S]*\}(?:\s*$)/);
+    if (!match) {
+      console.error('No JSON found in response:', cleaned.substring(0, 200));
+      return null;
+    }
+
+    const jsonStr = match[0].trim();
+    const parsed = JSON.parse(jsonStr);
+
+    // Validate required fields
+    if (!parsed.status || !parsed.status_line || !parsed.why || !parsed.do) {
+      console.error('Missing required fields in response:', parsed);
+      return null;
+    }
+
+    return parsed;
+  } catch (err) {
+    console.error('Parse error:', err.message);
+    return null;
+  }
+}
+
+function displayAIInsights(insight) {
+  const content = document.getElementById('ai-insights-content');
+  const status = (insight.status || 'GOOD').toUpperCase();
+  const statusClass = status === 'GOOD' ? 'ai-status-good' : status === 'FAIR' ? 'ai-status-fair' : 'ai-status-poor';
+  const statusIcon = status === 'GOOD' ? '✓' : status === 'FAIR' ? '—' : '!';
+  const whyItems = (insight.why || []).map(w => `
+    <div class="ai-item">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="color:var(--text-secondary);font-weight:600;flex-shrink:0">→</span>
+        <span>${w}</span>
+      </div>
+    </div>
+  `).join('');
+  const doItems = (insight.do || []).map((d, i) => `
+    <div class="ai-item">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="background:var(--cyan);color:var(--bg);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0">${i + 1}</span>
+        <span>${d}</span>
+      </div>
+    </div>
+  `).join('');
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  content.innerHTML = `
+    <div class="ai-status-section">
+      <div style="display:flex;gap:12px;align-items:baseline">
+        <div style="width:44px;height:44px;border-radius:12px;background:${status === 'GOOD' ? 'rgba(34,197,94,0.15)' : status === 'FAIR' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)'};display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:${status === 'GOOD' ? 'var(--green)' : status === 'FAIR' ? 'var(--yellow)' : 'var(--red)'}">${statusIcon}</div>
+        <div class="ai-status-line ${statusClass}">${insight.status_line || 'Analyzing...'}</div>
+      </div>
+    </div>
+    <div class="ai-insights-grid">
+      <div class="ai-section">
+        <div class="ai-section-title">📍 Current Conditions</div>
+        <div class="ai-items">${whyItems}</div>
+      </div>
+      <div class="ai-section">
+        <div class="ai-section-title">✓ Recommended Actions</div>
+        <div class="ai-items">${doItems}</div>
+      </div>
+      <div class="ai-learn">💡 <strong>Did you know?</strong> ${insight.learn || ''}</div>
+    </div>
+    <div class="ai-timestamp">refreshed ${timeStr}</div>
+  `;
 }
 
 // Store data for LLM context
@@ -1465,6 +1738,7 @@ async function refresh() {
     document.getElementById('neighborhood').innerHTML = renderNeighborhood(neighbors);
 
     updateLLMContext(indoor, outdoor, neighbors);
+    autoAnalyzeAir(); // Auto-analyze on data refresh
 
     const ts = indoor?.timestamp || outdoor?.timestamp;
     document.getElementById('last-updated').textContent = ts
@@ -1495,6 +1769,17 @@ async function refresh() {
 
 refresh();
 setInterval(refresh, 60000);
+
+// ── Service Worker Registration ──────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then((reg) => {
+      console.log('Service Worker registered:', reg.scope);
+      // Check for updates periodically
+      setInterval(() => reg.update(), 60000);
+    })
+    .catch((err) => console.error('Service Worker registration failed:', err));
+}
 </script>
 </body>
 </html>

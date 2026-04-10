@@ -6,6 +6,8 @@ Deployed on Railway with Anthropic API integration for AI analysis.
 import json
 import math
 import os
+import subprocess
+from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_file
@@ -27,6 +29,24 @@ TOKEN = os.environ.get("AIRGRADIENT_TOKEN", "")
 HOME_LAT = 40.72717732493724
 HOME_LON = -73.9506644567995
 NEARBY_RADIUS_KM = 15
+
+
+def get_build_info():
+    """Get git commit hash and deployment time."""
+    try:
+        # Get latest commit hash (short 7 chars)
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=Path(__file__).parent,
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        commit = "unknown"
+
+    # Current deploy time
+    time_str = datetime.now().strftime("%H:%M:%S UTC")
+
+    return f"v2 · {commit} · {time_str}"
 
 
 def api_get(path, params=None):
@@ -57,7 +77,27 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 @app.route("/")
 def index():
-    return send_file(Path(__file__).parent / "index.html")
+    html_path = Path(__file__).parent / "index.html"
+    html = html_path.read_text()
+
+    # Inject build info into a data attribute on the body
+    build_info = get_build_info()
+    html = html.replace(
+        '<body>',
+        f'<body data-build="{build_info}">'
+    )
+
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.route("/manifest.json")
+def manifest():
+    return send_file(Path(__file__).parent / "manifest.json", mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    return send_file(Path(__file__).parent / "sw.js", mimetype="application/javascript")
 
 
 @app.route("/health")
@@ -122,14 +162,55 @@ def analyze():
 
     data = request.json
 
-    prompt = f"""You are an air quality analyst for a home in Greenpoint, Brooklyn (near the BQE and Newtown Creek industrial area). Analyze the current sensor readings and provide practical, specific insights.
+    indoor_pm25 = float(data.get('indoor_pm25', 0))
+    outdoor_pm25 = float(data.get('outdoor_pm25', 0))
+    indoor_co2 = float(data.get('indoor_co2', 0))
+
+    # Determine status
+    if indoor_pm25 <= 12 and indoor_co2 <= 600:
+        status = "GOOD"
+    elif indoor_pm25 <= 35 and indoor_co2 <= 800:
+        status = "FAIR"
+    else:
+        status = "POOR"
+
+    prompt = f"""You are an air quality analyst for a home in Greenpoint, Brooklyn. Give SPECIFIC, ACTIONABLE advice tied to health outcomes.
 
 Current readings:
-- INDOOR: PM2.5={data.get('indoor_pm25')} µg/m³, PM1={data.get('indoor_pm01')} µg/m³, PM10={data.get('indoor_pm10')} µg/m³, CO2={data.get('indoor_co2')} ppm, Temp={data.get('indoor_temp_f')}°F, Humidity={data.get('indoor_humidity')}%, VOC Index={data.get('indoor_voc')}, NOx Index={data.get('indoor_nox')}
-- OUTDOOR: PM2.5={data.get('outdoor_pm25')} µg/m³, PM1={data.get('outdoor_pm01')} µg/m³, PM10={data.get('outdoor_pm10')} µg/m³, CO2={data.get('outdoor_co2')} ppm, Temp={data.get('outdoor_temp_f')}°F, Humidity={data.get('outdoor_humidity')}%, VOC Index={data.get('outdoor_voc')}, NOx Index={data.get('outdoor_nox')}
-- NEIGHBORHOOD: {data.get('neighbor_count')} monitors within 15km, average PM2.5={data.get('neighbor_avg_pm25')} µg/m³, your rank={data.get('neighbor_rank')}/{data.get('neighbor_count')}
+- INDOOR: PM2.5={indoor_pm25} µg/m³, CO2={indoor_co2} ppm, Humidity={data.get('indoor_humidity')}%
+- OUTDOOR: PM2.5={outdoor_pm25} µg/m³, CO2={data.get('outdoor_co2')} ppm
+- NEIGHBORHOOD: Your rank {data.get('neighbor_rank')}/{data.get('neighbor_count')}, avg PM2.5={data.get('neighbor_avg_pm25')} µg/m³
 
-Give 3-4 concise, actionable insights. Be specific to Greenpoint/Brooklyn context (BQE traffic, industrial area, waterfront). Use plain language, no jargon. Each insight should be 1-2 sentences max. Format as a JSON array of objects with "icon" (single emoji), "title" (short), and "desc" (detail) fields."""
+TONE RULES:
+- Sound like a friend giving practical advice, not a robot
+- Include NUMBERS: times, percentages, health outcomes
+- Say WHY the action matters (not just "do this")
+- Be specific to Greenpoint (BQE traffic patterns, waterfront, industrial area)
+- Give health context: "reduce headache risk", "better sleep quality", "less respiratory strain"
+
+EXAMPLES OF GOOD VS BAD:
+❌ BAD: "Maintain ventilation"
+✅ GOOD: "Open windows for 15 min at a time (before 7am or after 10pm) — this cuts CO2 by ~40%, reducing afternoon headaches and improving sleep quality"
+
+❌ BAD: "Your filter is working"
+✅ GOOD: "Your HEPA filter is crushing it — keeping indoor PM2.5 75% lower than street level right now. Keep it running."
+
+Respond ONLY with valid JSON (no markdown, no extra text):
+{{
+  "status": "{status}",
+  "status_line": "[One sentence: 'Your air is GOOD today' or 'Air quality is fair — take these steps']",
+  "why": [
+    "[Specific driver + context. Include time of day, weather, traffic, or location factor]",
+    "[Another driver]",
+    "[Third driver if relevant]"
+  ],
+  "do": [
+    "[SPECIFIC action (window open time, filter change, etc) + WHY it matters + expected outcome]",
+    "[Next action if needed]",
+    "[Optional third action]"
+  ],
+  "learn": "[Surprising fact or personal win related to their air quality or Greenpoint]"
+}}"""
 
     def stream():
         resp = requests.post(
