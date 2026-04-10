@@ -613,7 +613,7 @@ HEALTH SCORES:
 
 
 if __name__ == "__main__":
-    if not ANTHROPIC_API_KEY:
+    if not os.environ.get("ANTHROPIC_API_KEY"):
         print("⚠  ANTHROPIC_API_KEY not set — LLM analysis disabled")
         print("   Run: ANTHROPIC_API_KEY=sk-... python server.py")
     port = int(os.environ.get("PORT", 5555))
