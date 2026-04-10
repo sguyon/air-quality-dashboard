@@ -67,6 +67,29 @@ The "✨ Analyze with AI" button sends current sensor readings (indoor/outdoor P
 
 Manual trigger only — analysis isn't automatic to manage costs.
 
+## Deployment Notifications
+
+Get instant notifications when deployments happen (no need to check Railway dashboard constantly).
+
+### Setup Slack Notifications
+
+1. **Create a Slack webhook:**
+   - Go to [api.slack.com/messaging/webhooks](https://api.slack.com/messaging/webhooks)
+   - Click "Create New App" → "From scratch"
+   - Give it a name (e.g., "Railway Deployer")
+   - Select your workspace
+   - Enable "Incoming Webhooks" and create a webhook for your channel
+
+2. **Add webhook to Railway:**
+   - Go to Railway project → Settings → **Webhooks**
+   - Click "Create Webhook"
+   - Paste your Slack webhook URL
+   - Enable events: `deployment.success`, `deployment.failure`
+
+3. **Done** — You'll get Slack messages when deployments start/finish
+
+**Alternative:** Railway also supports Discord, email, and custom webhooks. Configure in the same Settings → Webhooks section.
+
 ## Tech Stack
 
 - **Backend:** Flask + Gunicorn (Python)
