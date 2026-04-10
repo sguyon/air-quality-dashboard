@@ -83,13 +83,13 @@
   .header-left { display: flex; align-items: center; gap: 16px; }
 
   .header-title {
-    font-size: 1.25rem;
+    font-size: 1.4rem;
     font-weight: 600;
     letter-spacing: -0.03em;
   }
 
   .header-subtitle {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
     font-weight: 400;
   }
@@ -102,7 +102,7 @@
     background: var(--green-soft);
     border: 1px solid rgba(34,197,94,0.2);
     border-radius: 20px;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 500;
     color: var(--green);
     text-transform: uppercase;
@@ -123,10 +123,81 @@
   }
 
   #last-updated {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
   }
+
+  /* ── Time Controller ─────────────────────── */
+
+  .time-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .time-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: var(--radius-xs);
+    font-size: 0.8rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .time-btn:hover {
+    border-color: var(--border-light);
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+
+  .time-btn.active {
+    background: var(--cyan-soft);
+    border-color: rgba(6,182,212,0.3);
+    color: var(--cyan);
+  }
+
+  .time-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  .refresh-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .refresh-btn:hover {
+    border-color: var(--border-light);
+    color: var(--text);
+  }
+
+  .refresh-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .refresh-btn.spinning svg {
+    animation: spin 0.6s ease;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ── Cards ───────────────────────────────── */
 
@@ -141,7 +212,7 @@
   .card:hover { border-color: var(--border-light); }
 
   .section-label {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--text-muted);
@@ -166,7 +237,7 @@
   }
 
   .monitor-label {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     font-weight: 600;
@@ -184,7 +255,7 @@
   }
 
   .monitor-name {
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: var(--text-secondary);
     margin-top: 2px;
   }
@@ -193,7 +264,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
   }
 
@@ -252,14 +323,14 @@
   }
 
   .aqi-ring-value {
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     font-weight: 700;
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 
   .aqi-ring-unit {
-    font-size: 0.55rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     margin-top: 2px;
   }
@@ -270,7 +341,7 @@
   }
 
   .aqi-label-text {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -283,7 +354,7 @@
   }
 
   .aqi-detail {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     margin-top: 4px;
   }
@@ -303,7 +374,7 @@
   }
 
   .metric-label {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-muted);
@@ -311,7 +382,7 @@
   }
 
   .metric-value {
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     line-height: 1;
@@ -319,7 +390,7 @@
   }
 
   .metric-unit {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     font-weight: 400;
     margin-left: 2px;
@@ -339,7 +410,7 @@
   }
 
   .metric-sub {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
   }
 
@@ -359,7 +430,7 @@
   }
 
   .pm-detail-label {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-muted);
@@ -367,13 +438,13 @@
   }
 
   .pm-detail-value {
-    font-size: 0.9rem;
+    font-size: 1.0rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
 
   .pm-detail-unit {
-    font-size: 0.55rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     font-weight: 400;
   }
@@ -403,40 +474,34 @@
     margin-bottom: 12px;
   }
 
-  .llm-badge {
+  .llm-refresh-btn {
+    background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(6,182,212,0.15));
+    border: 1px solid rgba(168,85,247,0.3);
+    color: var(--purple);
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 8px;
-    background: rgba(168,85,247,0.1);
-    border: 1px solid rgba(168,85,247,0.2);
-    border-radius: 12px;
-    font-size: 0.6rem;
-    font-weight: 500;
-    color: var(--purple);
-    letter-spacing: 0.04em;
-  }
-
-  .llm-refresh-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    padding: 5px 12px;
-    border-radius: var(--radius-xs);
-    font-size: 0.7rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.15s;
+    gap: 6px;
   }
 
   .llm-refresh-btn:hover {
-    border-color: var(--border-light);
-    color: var(--text-secondary);
+    border-color: rgba(168,85,247,0.5);
+    background: linear-gradient(135deg, rgba(168,85,247,0.25), rgba(6,182,212,0.25));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(168,85,247,0.15);
   }
 
   .llm-refresh-btn:disabled {
-    opacity: 0.4;
+    opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 
   .llm-content {
@@ -461,7 +526,7 @@
   .llm-error {
     color: var(--text-muted);
     font-style: italic;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
 
   .insight {
@@ -492,14 +557,14 @@
   .insight-body { flex: 1; min-width: 0; }
 
   .insight-title {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 600;
     line-height: 1.3;
     margin-bottom: 2px;
   }
 
   .insight-desc {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     line-height: 1.4;
   }
@@ -521,13 +586,13 @@
   }
 
   .chart-title {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-secondary);
   }
 
   .chart-subtitle {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
   }
 
@@ -548,7 +613,7 @@
   }
 
   .neighbor-count {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
   }
 
@@ -566,12 +631,13 @@
   }
 
   .neighbor-extra {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     text-align: right;
   }
 
+  .neighbor-row { font-size: 0.8rem; }
   .neighbor-row:hover { background: var(--bg); }
 
   .neighbor-row.you {
@@ -595,7 +661,7 @@
 
   .neighbor-dist {
     color: var(--text-muted);
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
   }
 
@@ -632,7 +698,7 @@
   .footer {
     text-align: center;
     padding: 24px 0;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     border-top: 1px solid var(--border);
   }
@@ -708,7 +774,7 @@
     .neighbor-row {
       grid-template-columns: 20px 44px 1fr 64px 80px;
       gap: 8px;
-      font-size: 0.72rem;
+      font-size: 0.75rem;
     }
   }
 </style>
@@ -720,11 +786,21 @@
     <div class="header-left">
       <div>
         <div class="header-title">Greenpoint Air Quality</div>
-        <div class="header-subtitle">Eckford & Meserole, Greenpoint, Brooklyn</div>
+        <div class="header-subtitle"><a href="https://www.google.com/maps/search/Eckford+St+%26+Meserole+Ave,+Brooklyn,+NY" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dashed var(--text-muted)">Eckford & Meserole, Greenpoint, Brooklyn</a></div>
       </div>
       <div class="live-badge"><div class="live-dot"></div> Live</div>
     </div>
-    <div id="last-updated">Connecting...</div>
+    <div class="time-controls">
+      <button class="time-btn active" data-range="1" onclick="setTimeRange(1, this)">1h</button>
+      <button class="time-btn" data-range="6" onclick="setTimeRange(6, this)">6h</button>
+      <button class="time-btn" data-range="24" onclick="setTimeRange(24, this)">24h</button>
+      <button class="time-btn" data-range="168" onclick="setTimeRange(168, this)">7d</button>
+      <div class="time-divider"></div>
+      <button class="refresh-btn" onclick="manualRefresh(this)" title="Refresh now">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+      <div id="last-updated" style="margin-left:8px">Connecting...</div>
+    </div>
   </header>
 
   <div class="monitors" id="monitors">
@@ -737,10 +813,8 @@
   <div class="llm-section" id="llm-section">
     <div class="card">
       <div class="llm-header">
-        <div class="section-label" style="margin:0">
-          AI Analysis <span class="llm-badge">Claude Haiku</span>
-        </div>
-        <button class="llm-refresh-btn" onclick="requestLLMAnalysis()">Analyze</button>
+        <div class="section-label" style="margin:0">AI Analysis</div>
+        <button class="llm-refresh-btn" onclick="requestLLMAnalysis()">&#x2728; Analyze with AI</button>
       </div>
       <div class="llm-content" id="llm-content">
         <span class="llm-error">Click "Analyze" to get AI-powered insights about your air quality.</span>
@@ -752,14 +826,14 @@
     <div class="card">
       <div class="chart-header">
         <div class="chart-title">PM2.5</div>
-        <div class="chart-subtitle">Last 24 hours</div>
+        <div class="chart-subtitle chart-range-label">—</div>
       </div>
       <div class="chart-container"><canvas id="chart-pm"></canvas></div>
     </div>
     <div class="card">
       <div class="chart-header">
         <div class="chart-title">CO2</div>
-        <div class="chart-subtitle">Last 24 hours</div>
+        <div class="chart-subtitle chart-range-label">—</div>
       </div>
       <div class="chart-container"><canvas id="chart-co2"></canvas></div>
     </div>
@@ -818,6 +892,24 @@
     });
   });
 })();
+
+// ── Time Range ───────────────────────────────────────
+
+let currentRangeHours = 1;
+
+function setTimeRange(hours, btn) {
+  currentRangeHours = hours;
+  document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  refresh();
+}
+
+function manualRefresh(btn) {
+  btn.classList.add('spinning');
+  refresh().then(() => {
+    setTimeout(() => btn.classList.remove('spinning'), 400);
+  });
+}
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -1225,8 +1317,8 @@ async function requestLLMAnalysis() {
   const btn = document.querySelector('.llm-refresh-btn');
   const content = document.getElementById('llm-content');
   btn.disabled = true;
-  btn.textContent = 'Analyzing...';
-  content.innerHTML = '<span class="llm-streaming"></span>';
+  btn.innerHTML = '&#x2728; Analyzing...';
+  content.innerHTML = '<div style="display:flex;align-items:center;gap:10px"><span class="llm-streaming"></span><span style="color:var(--text-muted);font-size:0.8rem">Thinking...</span></div>';
 
   try {
     const resp = await fetch('/api/analyze', {
@@ -1259,16 +1351,13 @@ async function requestLLMAnalysis() {
           if (payload === '[DONE]') continue;
           try {
             const { text } = JSON.parse(payload);
-            if (text) {
-              fullText += text;
-              content.innerHTML = formatLLMText(fullText) + '<span class="llm-streaming"></span>';
-            }
+            if (text) fullText += text;
           } catch {}
         }
       }
     }
 
-    // Try to parse as JSON array of insights
+    // Render formatted output once complete
     content.innerHTML = formatLLMOutput(fullText);
 
   } catch (err) {
@@ -1276,7 +1365,7 @@ async function requestLLMAnalysis() {
   }
 
   btn.disabled = false;
-  btn.textContent = 'Analyze';
+  btn.innerHTML = '&#x2728; Analyze with AI';
 }
 
 function formatLLMText(text) {
@@ -1365,8 +1454,8 @@ async function refresh() {
       : '—';
 
     const now = new Date();
-    const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
-    const from = dayAgo.toISOString();
+    const rangeAgo = new Date(now - currentRangeHours * 60 * 60 * 1000);
+    const from = rangeAgo.toISOString();
     const to = now.toISOString();
 
     const [ih, oh] = await Promise.all([
@@ -1374,6 +1463,12 @@ async function refresh() {
       outdoor ? fetchJSON(`/api/history/${outdoor.locationId}?from=${from}&to=${to}`) : []
     ]);
     renderCharts(ih, oh);
+
+    // Update chart range labels
+    const rangeLabels = { 1: 'Last hour', 6: 'Last 6 hours', 24: 'Last 24 hours', 168: 'Last 7 days' };
+    document.querySelectorAll('.chart-range-label').forEach(el => {
+      el.textContent = rangeLabels[currentRangeHours] || `Last ${currentRangeHours}h`;
+    });
 
   } catch (err) {
     console.error('Refresh error:', err);
