@@ -127,7 +127,42 @@ Instead of just showing metrics, the dashboard:
 
 ---
 
-### Phase 2.75: Server-Side Caching (High Priority)
+### Phase 2.75: Session Learnings Capture (Process — Ongoing)
+
+**Goal:** Each coding session compounds the AI's knowledge of the project. Next session starts smarter.
+
+**Inspired by:** Every.to's Compound Engineering (`/workflows:compound`), Teresa Torres's "Claude, what did you learn today?"
+
+**Two modes:**
+
+**A. Automatic (end of session):**
+- On session end / context limit, Claude auto-generates a "learnings" summary
+- Updates AGENTS.md with new patterns, conventions, or gotchas discovered
+- Adds new memory entries for non-obvious preferences or decisions
+- Captures failed approaches so they're not retried
+- Could hook into build-log skill to also capture content-worthy moments
+
+**B. Manual (user-triggered):**
+- `/compound` or `/session-end` slash command
+- Asks: "What did we learn this session that would help next time?"
+- Proposes specific updates to AGENTS.md, CLAUDE.md, or memory files
+- User approves/edits before saving
+
+**What gets captured:**
+- New project conventions ("test locally before pushing to Railway")
+- API quirks ("Google Pollen API uses GET not POST")
+- Design decisions ("dew point severity capped at FAIR when indoor humidity is ideal")
+- LLM prompt patterns that work/don't work
+- User preferences not yet documented
+
+**Why ongoing (not a phase):**
+- This is a process, not a feature. Starts now, improves every session.
+- Compound Engineering proved: 80% planning + review, 20% execution
+- Each captured learning prevents a future 10-minute debugging loop
+
+---
+
+### Phase 2.8: Server-Side Caching (High Priority)
 
 **Goal:** Reduce redundant API calls, improve response time, lower cost
 
