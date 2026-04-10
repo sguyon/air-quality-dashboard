@@ -49,10 +49,13 @@ Instead of just showing metrics, the dashboard:
 | **v1** | Core monitoring + basic AI | Greenpoint-specific | ✅ Done | Apr 10 (main) |
 | **v1.5+** | Weather + smoke + BQE + health scores | Greenpoint + household aware | ✅ Done | Apr 10 (v2 staging) |
 | **v2** | Google Pollen API + personalized for household | Sacha + Janet specific recommendations | ✅ Done | Apr 10 (v2 staging) |
-| **v2.5** | External data card layout | Visual cards for weather, pollen, BQE, smoke | ⏳ Next | TBD |
-| **v3** | Trending, alerts, notifications | Push when thresholds hit | ⏳ Backlog | TBD |
-| **v4** | Generalize for others | Location picker, user profiles, multi-household | ⏳ Future | TBD |
-| **v5** | Mobile UX, PWA, offline | Optimize for mobile + installable | ⏳ Future | TBD |
+| **v2.5** | External data card layout | Visual cards for weather, pollen, BQE, smoke | ✅ Done | Apr 10 (v2 staging) |
+| **v2.75** | Server-side caching | Cache weather/pollen/smoke API calls | ⏳ Next | TBD |
+| **v3** | Visual design overhaul | Color bars, health score, icon recs, pollen bars | ⏳ Next | TBD |
+| **v3.5** | Symptom tracking | Log symptoms → correlate with environment | ⏳ Next | TBD |
+| **v4** | Trending & alerts | Historical comparisons, threshold notifications | ⏳ Backlog | TBD |
+| **v5** | Generalize for others | Location picker, user profiles, multi-household | ⏳ Future | TBD |
+| **v6** | Mobile UX, PWA, offline | Optimize for mobile + installable | ⏳ Future | TBD |
 
 ---
 
@@ -188,6 +191,65 @@ Instead of just showing metrics, the dashboard:
 - Symptom data makes trends actionable ("you're congested on high-pollen mornings")
 - Without symptoms, trending is just data visualization (commodity)
 - 2+ weeks of symptom logs = enough for first correlation report
+
+---
+
+### Phase 3.75: Visual Design Overhaul (High Priority — Next)
+
+**Goal:** Apply competitive best practices to match IQAir/Apple Health polish level
+
+**Based on:** Competitive design analysis of IQAir, Plume, Apple Health, AirScope, DailyBreath
+
+**A. Metric Cards — Color bars + visual hierarchy**
+- Add color bar under metric value (like AQI bars): ████████░░ Excellent
+- Status label next to bar, colored by severity (green/yellow/orange/red)
+- Consistent card height (100-120px)
+- Value font: 1.2rem bold, colored by status
+- Pattern source: IQAir mobile AQI card
+
+**B. Health Score — Single compound number**
+- Combine Allergy Risk + Respiratory Load into one "Health Score" (1-100)
+- Like DailyBreath's Perry Score but powered by personal sensors + LLM
+- Display as gauge/ring visual (Apple Health style)
+- This is the number that compounds with symptom tracking over time
+- Pattern source: DailyBreath Perry Score, Apple Health rings
+
+**C. Recommendations — Icon-prefix single lines**
+- Remove numbered list in boxes
+- Switch to: 🏃 single line per recommendation, icon prefix
+- Max 3 items, no boxes/cards around each one
+- No numbering (implies sequence that doesn't exist)
+- Pattern source: Plume morning report notifications
+
+**D. Pollen — Horizontal bar chart**
+- Replace text pills with: Tree ████████░░ Moderate (in season)
+- Color bars proportional to index (0-5), colored by severity
+- "(in season)" tag for active allergens
+- Pattern source: IQAir 3-day pollen forecast
+
+**E. Activity Timing — Dedicated safety rows**
+- Tie to Health profile tags (Runner, Toddler):
+  🏃 Outdoor run: ✓ Safe now (10am-2pm)
+  👶 Park time: ⚠ Check pollen after 2pm
+- Pattern source: Plume activity safety icons
+
+**F. Status Section — Compact single-line**
+- Status word (GOOD/FAIR/POOR) in large colored text, same line as icon
+- Rank right-aligned on same line
+- Status description below, normal weight
+- Pattern source: IQAir hero card
+
+**G. Info Panel — Bottom sheet for detail**
+- "Learn more" links on cards open bottom sheet overlay
+- Contains: scoring thresholds table, data sources, methodology
+- Works on mobile (slide up) and desktop (slide from right or modal)
+- Pattern source: Apple Health detail sheets, Oura 3-tier progressive disclosure
+
+**Why now:**
+- Current UI works functionally but looks unpolished vs competitors
+- These are CSS + HTML changes, no backend work needed
+- Polish drives trust — especially for health products
+- IQAir/Apple Health patterns are proven by millions of users
 
 ---
 
