@@ -21,6 +21,11 @@ tooling. Dependencies are Python only (`requirements.txt`), installed into a `.v
 - Secrets are read from a `.env` file in the repo root (gitignored) or from real env vars:
   `AIRGRADIENT_TOKEN` (required for the main dashboard data), `ANTHROPIC_API_KEY` (optional,
   enables the "Analyze with AI" button), `PORT` (optional).
+- Prefer the `.env` file: injected/exported secret env vars do NOT reliably reach a server
+  launched inside a tmux session (the tmux daemon starts with a stripped environment), so
+  write a gitignored `.env` (`printf 'AIRGRADIENT_TOKEN=%s\n' "$AIRGRADIENT_TOKEN" > .env`,
+  same for `ANTHROPIC_API_KEY`) and restart gunicorn; `server.py` loads it at import time.
+  Verify with `curl -s localhost:5555/health` (both `*_set` flags should be `true`).
 - `AIRGRADIENT_TOKEN` is tied to a private AirGradient account. Without it, `/api/current`
   and `/api/history/<id>` return upstream 401. Because the frontend's `refresh()` calls
   `/api/current` and `/api/neighborhood` together in a single `Promise.all`, a missing token
