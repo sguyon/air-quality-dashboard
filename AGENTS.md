@@ -51,23 +51,29 @@ done
 
 ## Deployment Workflow
 
-**v2 branch = testing/staging**
-- Work on `v2/ai-insights-redesign` branch
-- Test on https://air-quality-dashboard-dev.up.railway.app/
-- Verify with curl before asking user to test
-- Use "Clear Cache" button for testing without manual cache clearing
+Branching model: **`feature/*` → `dev` → `main`**.
 
-**main branch = production**
-- Only merge to main with explicit user approval ("Yes, deploy" or "Merge to main")
-- Never auto-merge without asking
-- Verify production deployment with curl
+**`dev` branch = staging**
+- Develop each feature on a short-lived `feature/<name>` branch off `dev`; open a PR into `dev`.
+- Railway's `air-quality (dev)` service auto-deploys `dev` → https://air-quality-dashboard-dev.up.railway.app/
+- Verify with curl before asking user to test.
+- Use "Clear Cache" button for testing without manual cache clearing (the dev site registers a service worker; localhost does not).
+
+**`main` branch = production**
+- Promote by opening a PR `dev` → `main`.
+- Railway's `air-quality (production)` service auto-deploys `main` → https://air-quality-dashboard.up.railway.app/
+- Only merge to main with explicit user approval ("Yes, deploy" or "Merge to main").
+- Never auto-merge without asking.
+- Verify production deployment with curl.
+
+Note: the old `web-production-c9ff2.up.railway.app` domain is retired — use `air-quality-dashboard.up.railway.app`. Railway generated domains can change if a service is recreated; a custom domain avoids this.
 
 ## Commit & Deploy Discipline
 
 **Before merging to main:**
 - Ask explicitly: "Ready to deploy? This will affect the live dashboard at [URL]"
 - Wait for clear approval before touching main
-- Test changes on v2 branch first
+- Test changes on `dev` first
 
 **After pushing:**
 - Poll for deployment with curl to confirm
