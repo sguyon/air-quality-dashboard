@@ -2,7 +2,7 @@
 
 Real-time indoor/outdoor air quality monitoring with AI-powered analysis. Compare sensor readings, track neighborhood air quality, and get actionable insights about your local environment.
 
-**🌐 Live Dashboard:** https://air-quality-dashboard-dev.up.railway.app/
+**🌐 Live Dashboard:** https://air-quality-dashboard.up.railway.app/
 
 ## Features
 
