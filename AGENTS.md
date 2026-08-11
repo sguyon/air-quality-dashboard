@@ -26,8 +26,6 @@ for i in {1..30}; do
 done
 ```
 
-
-
 ## Problem Solving
 
 **Root cause first, always:**
@@ -43,8 +41,6 @@ done
 - Issue requires user input/decision
 - It's taking >30 min and needs human judgment
 - Otherwise, keep exploring and fixing
-
-
 
 ## Proactive Tool Suggestions
 
@@ -62,21 +58,24 @@ done
 
 **Repo is public:** `github.com/sguyon/air-quality-dashboard`. Any push, merge, or PR to `origin` (including `dev`) is a public share.
 
-**dev branch = testing/staging**
+Branching model: **`feature/*` → `dev` → `main`**.
 
-- Work on feature branches off `dev`; merge PRs into `dev` for staging
-- Flow: `feature → dev → main` (main = production)
-- Test on [https://air-quality-dashboard-dev.up.railway.app/](https://air-quality-dashboard-dev.up.railway.app/)
+**`dev` branch = staging**
+
+- Develop each feature on a short-lived `feature/<name>` branch off `dev`; open a PR into `dev`
+- Railway's `air-quality (dev)` service auto-deploys `dev` → https://air-quality-dashboard-dev.up.railway.app/
 - Verify with curl before asking user to test
-- Use "Clear Cache" button for testing without manual cache clearing
+- Use "Clear Cache" button for testing without manual cache clearing (the dev site registers a service worker; localhost does not)
 
-**main branch = production**
+**`main` branch = production**
 
-- Only merge `dev → main` with explicit user approval ("Yes, deploy" or "Merge to main")
+- Promote by opening a PR `dev` → `main`
+- Railway's `air-quality (production)` service auto-deploys `main` → https://air-quality-dashboard.up.railway.app/
+- Only merge to main with explicit user approval ("Yes, deploy" or "Merge to main")
 - Never auto-merge without asking
 - Verify production deployment with curl
 
-
+Note: the old `web-production-c9ff2.up.railway.app` domain is retired — use `air-quality-dashboard.up.railway.app`. Railway generated domains can change if a service is recreated; a custom domain avoids this.
 
 ## Commit & Deploy Discipline
 
@@ -99,8 +98,6 @@ done
 - Poll for deployment with curl to confirm
 - Report "✓ Deployed" only after verified, not after git push
 
-
-
 ## Communication
 
 **Concise status updates:**
@@ -117,17 +114,39 @@ done
 
 ---
 
+## Cursor Cloud Environment
 
+Cloud agents boot a fresh, isolated VM per run and build it from `.cursor/environment.json`
+(the `install` step). That step:
+
+- Creates `.venv` and installs `requirements.txt` (the app's Python deps).
+- Installs the **Railway CLI** (`@railway/cli`) and symlinks it to `/usr/local/bin/railway`
+  so it's on `PATH` in every agent shell.
+
+Two separate secret stores (they do **not** sync):
+
+- **Cursor Secrets** → injected as env vars into the agent VM (so the agent can run/test the app).
+  Currently: `AIRGRADIENT_TOKEN`, `ANTHROPIC_API_KEY`, `GOOGLE_POLLEN_API_KEY`, `RAILWAY_API_TOKEN`.
+- **Railway Variables** → injected into the deployed app, set **per service** (dev vs prod) in the
+  Railway dashboard. Adding a key to dev does NOT add it to prod.
+
+### Using the Railway CLI in a cloud agent
+
+- Auth is via the `RAILWAY_API_TOKEN` secret — it must be a valid **account** token from
+  https://railway.com/account/tokens (a long opaque string, not a UUID/ID). Verify with
+  `railway whoami`. If that secret is invalid/missing, a run can only auth via a session-only
+  `railway login --browserless` (does not persist across runs).
+- Deploys do **not** require the CLI: Railway auto-deploys on push (`dev` → dev service,
+  `main` → production). Use the CLI only to inspect (`railway status`, `railway logs`,
+  `railway variables`) or to set variables / trigger redeploys.
 
 ## Quick Reference
 
-
-| Task            | Tool           | Command                              |
-| --------------- | -------------- | ------------------------------------ |
-| Test deployment | curl           | `curl -s URL | grep "expected-code"` |
-| Check git state | git            | `git log --oneline -5`               |
-| Poll for deploy | curl loop      | See example above                    |
-| Clear SW cache  | Browser button | "Clear Cache" button on dev URL      |
-| Check Railway   | CLI            | `railway deployment list`            |
-
-
+| Task | Tool | Command |
+|------|------|---------|
+| Test deployment | curl | `curl -s URL \| grep "expected-code"` |
+| Check git state | git | `git log --oneline -5` |
+| Poll for deploy | curl loop | See example above |
+| Clear SW cache | Browser button | "Clear Cache" button on dev URL |
+| Railway auth check | CLI | `railway whoami` |
+| Check Railway | CLI | `railway status` / `railway logs` |
