@@ -51,14 +51,15 @@ done
 
 ## Deployment Workflow
 
-**v2 branch = testing/staging**
-- Work on `v2/ai-insights-redesign` branch
+**dev branch = testing/staging**
+- Work on feature branches off `dev`; merge PRs into `dev` for staging
+- Flow: `feature → dev → main` (main = production)
 - Test on https://air-quality-dashboard-dev.up.railway.app/
 - Verify with curl before asking user to test
 - Use "Clear Cache" button for testing without manual cache clearing
 
 **main branch = production**
-- Only merge to main with explicit user approval ("Yes, deploy" or "Merge to main")
+- Only merge `dev → main` with explicit user approval ("Yes, deploy" or "Merge to main")
 - Never auto-merge without asking
 - Verify production deployment with curl
 
