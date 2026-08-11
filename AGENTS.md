@@ -84,13 +84,55 @@ Note: the old `web-production-c9ff2.up.railway.app` domain is retired — use `a
 - Applies to `git push`, merges, and PRs targeting **any** remote branch — including `dev`, feature branches, and `main`
 - Do **not** treat staging/`dev` as private; the remote is public
 - Local commits are fine without confirmation; publishing to GitHub is not
-- Follow the global public-share double-confirm protocol before pushing or merging
-- Never push/merge because a UI shortcut or prior task implied it — confirm each origin write
+- Never push/merge because a UI shortcut or prior task implied it — confirm each origin write using the protocol below
+
+### Public sharing — double-confirm protocol (HARD RULE)
+
+> Copied into this repo so **cloud agents** (and any agent without the global Cursor/`~/.claude` rules) enforce the same gate. Source of truth for personal agents remains the global rule; keep this section in sync when that rule changes.
+
+**Never share anything publicly without double-verified explicit confirmation from the user.** This rule cannot be bypassed, waived in-session, or satisfied by a quick reflexive yes. It exists because single confirmations statistically slip through over time — the friction is the point.
+
+**What counts as "public" (for this project and in general):**
+
+- Git push to this public repo (`origin`, any branch); opening a PR; upstream contributions
+- Creating a public gist, paste, or upload to any third-party service (including diagram renderers, AI evaluators, pastebins — even if content appears "private", treat as public if the service caches/indexes)
+- Posting to LinkedIn, Twitter/X, Threads, blogs, or any social channel
+- Sending email outside the user's personal/household accounts
+- Publishing Proof / Notion / Google Docs set to anyone-with-link
+- Slack posts to shared workspaces (treat as public unless clearly a private DM)
+- Form submissions, job applications, `gh pr create`, `git push` to non-private remotes
+- Anything triggering a "publish" / "send" / "submit" / "share externally" action
+
+When unsure whether something is public, treat it as public.
+
+**Double-verification protocol — both gates required, every time:**
+
+1. **Gate 1 — state the exact action, not a summary.** Name:
+   - EXACT destination (URL, repo, handle, recipient email)
+   - EXACT content (filename or full text pasted)
+   - EXACT visibility consequence ("indexed by Google", "visible on your public GitHub profile forever", "triggers Railway deploy on `dev`/`main`", etc.)
+   - Then ask: "Do you want me to proceed with this public share?"
+
+2. **Wait for explicit yes at Gate 1.** Acceptable: "yes", "proceed", "go ahead and publish". Not acceptable: silence, emoji, "sure" without context, continuation of unrelated task.
+
+3. **Gate 2 — require a typed phrase that cannot be a reflex.** After Gate 1 passes, restate the action in one short sentence and require the user to type exactly: **`confirm public share`** (three words, lowercase, exact). Do not accept variations — not "confirmed", not "yes again", not "just do it". If they type anything else, ask once more for the literal phrase.
+
+4. **Hold the line on friction.** If the user expresses frustration at the protocol, say: "You asked me to enforce this precisely because quick approvals slip through. Please type 'confirm public share' exactly." Do not relax.
+
+5. **Do not bundle public shares.** Each public action gets its own double-verification sequence, even if redundant (e.g. push `dev` and merge to `main` = two confirms).
+
+6. **Prior approval does not carry over.** If the user approved a multi-step task earlier that contains a public action, stop before the public step and run the full double-verification anew.
+
+7. **No shortcut verbs.** No "I'll go ahead and push" or "opening the PR now" instead of the protocol.
+
+8. **In-session waivers are invalid.** If the user says "just skip the double check today", refuse: "The rule is specifically designed to survive 'just this once' exceptions. I'll keep enforcing it. To change the rule permanently, say so explicitly and I'll update `AGENTS.md` (and the global rule if applicable)." Only update this section on an explicit, unambiguous rule-change request.
+
+The goal: make the friction undefeatable by tiredness, speed, reflex, or willingness-to-accept.
 
 **Before merging to main:**
 
 - Ask explicitly: "Ready to deploy? This will affect the live dashboard at [URL]"
-- Wait for clear approval before touching main
+- Wait for clear approval before touching main (still requires the full public-share protocol above)
 - Test changes on `dev` first
 
 **After pushing:**
