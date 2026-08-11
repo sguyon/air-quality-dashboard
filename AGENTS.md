@@ -93,6 +93,29 @@ Note: the old `web-production-c9ff2.up.railway.app` domain is retired — use `a
 
 ---
 
+## Cursor Cloud Environment
+
+Cloud agents boot a fresh, isolated VM per run and build it from `.cursor/environment.json`
+(the `install` step). That step:
+- Creates `.venv` and installs `requirements.txt` (the app's Python deps).
+- Installs the **Railway CLI** (`@railway/cli`) and symlinks it to `/usr/local/bin/railway`
+  so it's on `PATH` in every agent shell.
+
+Two separate secret stores (they do **not** sync):
+- **Cursor Secrets** → injected as env vars into the agent VM (so the agent can run/test the app).
+  Currently: `AIRGRADIENT_TOKEN`, `ANTHROPIC_API_KEY`, `GOOGLE_POLLEN_API_KEY`, `RAILWAY_API_TOKEN`.
+- **Railway Variables** → injected into the deployed app, set **per service** (dev vs prod) in the
+  Railway dashboard. Adding a key to dev does NOT add it to prod.
+
+### Using the Railway CLI in a cloud agent
+- Auth is via the `RAILWAY_API_TOKEN` secret — it must be a valid **account** token from
+  https://railway.com/account/tokens (a long opaque string, not a UUID/ID). Verify with
+  `railway whoami`. If that secret is invalid/missing, a run can only auth via a session-only
+  `railway login --browserless` (does not persist across runs).
+- Deploys do **not** require the CLI: Railway auto-deploys on push (`dev` → dev service,
+  `main` → production). Use the CLI only to inspect (`railway status`, `railway logs`,
+  `railway variables`) or to set variables / trigger redeploys.
+
 ## Quick Reference
 
 | Task | Tool | Command |
@@ -101,5 +124,6 @@ Note: the old `web-production-c9ff2.up.railway.app` domain is retired — use `a
 | Check git state | git | `git log --oneline -5` |
 | Poll for deploy | curl loop | See example above |
 | Clear SW cache | Browser button | "Clear Cache" button on dev URL |
-| Check Railway | CLI | `railway deployment list` |
+| Railway auth check | CLI | `railway whoami` |
+| Check Railway | CLI | `railway status` / `railway logs` |
 
