@@ -2,7 +2,11 @@
 
 Real-time indoor/outdoor air quality monitoring with AI-powered analysis. Compare sensor readings, track neighborhood air quality, and get actionable insights about your local environment.
 
-**🌐 Live Dashboard:** https://web-production-c9ff2.up.railway.app/
+**🌐 Live Dashboard:** https://air-quality-dashboard.up.railway.app/
+
+<p align="center">
+  <img src="docs/V2-screenshot.png" alt="Greenpoint Air Quality dashboard — AI health status, local conditions, indoor/outdoor sensors, charts, and neighborhood comparison" width="720" />
+</p>
 
 ## Features
 

@@ -1,16 +1,18 @@
 # AI Agent Collaboration Guidelines
 
-This document defines how Claude Code should work on this project. Updated: April 10, 2026.
+This document defines how Claude Code should work on this project. Updated: August 11, 2026.
 
 ## Testing & Verification
 
 **Before asking the user to test anything:**
+
 - Use `curl` or `fetch` to verify the server is serving updated code
 - Check deployment status via Railway CLI or dashboard API
 - Verify URLs are live and responding with expected changes
 - Only ask the user to test in their browser after confirming deployment is complete
 
 **Example workflow:**
+
 ```bash
 # Check if fix deployed
 curl -s https://air-quality-dashboard-dev.up.railway.app/ | grep "search-string"
@@ -24,23 +26,30 @@ for i in {1..30}; do
 done
 ```
 
+
+
 ## Problem Solving
 
 **Root cause first, always:**
+
 1. Investigate and diagnose the issue before jumping to fixes
 2. Use tools (curl, git log, Railway logs) to understand what's happening
 3. Fix the actual problem, not symptoms
 4. Verify the fix works (via curl/fetch) before asking user to test
 
 **Only escalate if:**
+
 - Genuinely stuck after investigation (not just first attempt)
 - Issue requires user input/decision
 - It's taking >30 min and needs human judgment
 - Otherwise, keep exploring and fixing
 
+
+
 ## Proactive Tool Suggestions
 
 **When finding relevant tools, suggest them:**
+
 - Railway CLI: Check deployments, logs, status
 - Git CLI: Verify commits, branches, deployment state
 - Curl/Fetch: Test server responses, verify deployment
@@ -51,50 +60,74 @@ done
 
 ## Deployment Workflow
 
+**Repo is public:** `github.com/sguyon/air-quality-dashboard`. Any push, merge, or PR to `origin` (including `dev`) is a public share.
+
 **dev branch = testing/staging**
+
 - Work on feature branches off `dev`; merge PRs into `dev` for staging
 - Flow: `feature → dev → main` (main = production)
-- Test on https://air-quality-dashboard-dev.up.railway.app/
+- Test on [https://air-quality-dashboard-dev.up.railway.app/](https://air-quality-dashboard-dev.up.railway.app/)
 - Verify with curl before asking user to test
 - Use "Clear Cache" button for testing without manual cache clearing
 
 **main branch = production**
+
 - Only merge `dev → main` with explicit user approval ("Yes, deploy" or "Merge to main")
 - Never auto-merge without asking
 - Verify production deployment with curl
 
+
+
 ## Commit & Deploy Discipline
 
+**Before any write to origin (HARD RULE):**
+
+- Applies to `git push`, merges, and PRs targeting **any** remote branch — including `dev`, feature branches, and `main`
+- Do **not** treat staging/`dev` as private; the remote is public
+- Local commits are fine without confirmation; publishing to GitHub is not
+- Follow the global public-share double-confirm protocol before pushing or merging
+- Never push/merge because a UI shortcut or prior task implied it — confirm each origin write
+
 **Before merging to main:**
+
 - Ask explicitly: "Ready to deploy? This will affect the live dashboard at [URL]"
 - Wait for clear approval before touching main
-- Test changes on v2 branch first
+- Test changes on `dev` first
 
 **After pushing:**
+
 - Poll for deployment with curl to confirm
 - Report "✓ Deployed" only after verified, not after git push
+
+
 
 ## Communication
 
 **Concise status updates:**
+
 - "✓ Fix deployed" (after verification)
 - "Investigating issue" (if diagnosis ongoing)
 - "Stuck on X, need guidance" (if genuinely blocked)
 
 **Avoid:**
+
 - Asking user to test on browser when you haven't verified deployment first
 - Mentioning investigations that don't lead to fixes
 - Long chains of questions — explore and test yourself first
 
 ---
 
+
+
 ## Quick Reference
 
-| Task | Tool | Command |
-|------|------|---------|
-| Test deployment | curl | `curl -s URL \| grep "expected-code"` |
-| Check git state | git | `git log --oneline -5` |
-| Poll for deploy | curl loop | See example above |
-| Clear SW cache | Browser button | "Clear Cache" button on dev URL |
-| Check Railway | CLI | `railway deployment list` |
+
+| Task            | Tool           | Command                              |
+| --------------- | -------------- | ------------------------------------ |
+| Test deployment | curl           | `curl -s URL | grep "expected-code"` |
+| Check git state | git            | `git log --oneline -5`               |
+| Poll for deploy | curl loop      | See example above                    |
+| Clear SW cache  | Browser button | "Clear Cache" button on dev URL      |
+| Check Railway   | CLI            | `railway deployment list`            |
+
 
