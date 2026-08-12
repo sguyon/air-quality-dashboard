@@ -7,11 +7,31 @@ import json
 import math
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_file
 import requests
+
+# One shared pool for short-lived upstream calls (weather / smoke / pollen).
+_UPSTREAM_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="upstream")
+
+
+def _call_with_deadline(fn, *args, deadline_s=5, default=None, **kwargs):
+    """Run fn with a hard wall-clock deadline.
+
+    Needed because macOS getaddrinfo can hang well past requests' connect timeout
+    (seen with pollen.googleapis.com DNS stalls ~30s).
+    """
+    fut = _UPSTREAM_POOL.submit(fn, *args, **kwargs)
+    try:
+        return fut.result(timeout=deadline_s)
+    except FuturesTimeout:
+        fut.cancel()
+        return default
+    except Exception:
+        return default
 
 # Load .env file if it exists
 env_path = Path(__file__).parent / ".env"
@@ -119,26 +139,36 @@ def get_smoke_data():
         return False  # Assume no smoke if API fails
 
 
+def _fetch_pollen_raw(lat, lon, api_key):
+    r = requests.get(
+        "https://pollen.googleapis.com/v1/forecast:lookup",
+        params={
+            "key": api_key,
+            "location.latitude": lat,
+            "location.longitude": lon,
+            "days": 1
+        },
+        timeout=(2, 5),
+    )
+    r.raise_for_status()
+    return r.json()
+
+
 def get_pollen_data(lat, lon):
     """Fetch pollen forecast from Google Pollen API (GET with query params)."""
     api_key = os.environ.get("GOOGLE_POLLEN_API_KEY", "")
     if not api_key:
         return []
 
-    try:
-        r = requests.get(
-            "https://pollen.googleapis.com/v1/forecast:lookup",
-            params={
-                "key": api_key,
-                "location.latitude": lat,
-                "location.longitude": lon,
-                "days": 1
-            },
-            timeout=10
-        )
-        r.raise_for_status()
-        data = r.json()
+    # Hard deadline: DNS stalls on pollen.googleapis.com have been observed at ~30s
+    # even with requests timeout set — that blocked the whole /api/context response.
+    data = _call_with_deadline(
+        _fetch_pollen_raw, lat, lon, api_key, deadline_s=5, default=None
+    )
+    if not data:
+        return []
 
+    try:
         pollen_list = []
         daily = data.get("dailyInfo", [{}])
         if not daily:
@@ -263,8 +293,24 @@ def get_wind_cardinal(degrees):
 @app.route("/api/context")
 def context():
     """Return external data sources (weather, pollen, BQE, smoke) as structured JSON."""
-    # Weather
-    weather = get_open_meteo_data(HOME_LAT, HOME_LON)
+    # Fetch independents in parallel; pollen has its own hard deadline inside get_pollen_data.
+    weather_fut = _UPSTREAM_POOL.submit(get_open_meteo_data, HOME_LAT, HOME_LON)
+    smoke_fut = _UPSTREAM_POOL.submit(get_smoke_data)
+    pollen_fut = _UPSTREAM_POOL.submit(get_pollen_data, HOME_LAT, HOME_LON)
+
+    try:
+        weather = weather_fut.result(timeout=12)
+    except Exception:
+        weather = {"current": {}}
+    try:
+        smoke = smoke_fut.result(timeout=12)
+    except Exception:
+        smoke = False
+    try:
+        pollen = pollen_fut.result(timeout=6)
+    except Exception:
+        pollen = []
+
     cur = weather.get("current", {})
     wind_speed = cur.get("wind_speed_10m")
     wind_direction = cur.get("wind_direction_10m")
@@ -300,12 +346,6 @@ def context():
     # BQE traffic
     current_hour = datetime.now().hour
     bqe = predict_bqe_traffic(current_hour, wind_direction)
-
-    # Smoke
-    smoke = get_smoke_data()
-
-    # Pollen
-    pollen = get_pollen_data(HOME_LAT, HOME_LON)
 
     return jsonify({
         "weather": {

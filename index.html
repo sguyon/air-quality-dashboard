@@ -2291,13 +2291,20 @@ async function fetchJSON(url) {
 }
 
 async function refresh() {
-  try {
-    const [current, neighbors, ctx] = await Promise.all([
-      fetchJSON('/api/current'),
-      fetchJSON('/api/neighborhood'),
-      fetchJSON('/api/context')
-    ]);
+  // Kick all fetches immediately, but paint sensors as soon as /api/current returns.
+  // Previously Promise.all waited on /api/context (pollen DNS stalls ~30s) before any UI update.
+  const currentP = fetchJSON('/api/current');
+  const neighborsP = fetchJSON('/api/neighborhood').catch(err => {
+    console.error('Neighborhood fetch failed:', err);
+    return [];
+  });
+  const ctxP = fetchJSON('/api/context').catch(err => {
+    console.error('Context fetch failed:', err);
+    return null;
+  });
 
+  try {
+    const current = await currentP;
     const indoor = current.find(m => m.locationType === 'indoor');
     const outdoor = current.find(m => m.locationType === 'outdoor');
 
@@ -2305,38 +2312,40 @@ async function refresh() {
       (indoor ? renderMonitor(indoor) : '') +
       (outdoor ? renderMonitor(outdoor) : '');
 
-    document.getElementById('neighborhood').innerHTML = renderNeighborhood(neighbors);
-
-    renderContextCards(ctx);
-
-    // AirGradient source dot
     setDot('src-airgradient', !!(indoor || outdoor));
-
-    updateLLMContext(indoor, outdoor, neighbors);
-    autoAnalyzeAir(); // Auto-analyze on data refresh
 
     const ts = indoor?.timestamp || outdoor?.timestamp;
     document.getElementById('last-updated').textContent = ts
       ? new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       : '—';
 
+    // History + charts can proceed without neighborhood/context
     const now = new Date();
     const rangeAgo = new Date(now - currentRangeHours * 60 * 60 * 1000);
     const from = rangeAgo.toISOString();
     const to = now.toISOString();
 
-    const [ih, oh] = await Promise.all([
-      indoor ? fetchJSON(`/api/history/${indoor.locationId}?from=${from}&to=${to}`) : [],
-      outdoor ? fetchJSON(`/api/history/${outdoor.locationId}?from=${from}&to=${to}`) : []
-    ]);
-    renderCharts(ih, oh);
+    const historyP = Promise.all([
+      indoor ? fetchJSON(`/api/history/${indoor.locationId}?from=${from}&to=${to}`) : Promise.resolve([]),
+      outdoor ? fetchJSON(`/api/history/${outdoor.locationId}?from=${from}&to=${to}`) : Promise.resolve([])
+    ]).then(([ih, oh]) => {
+      renderCharts(ih, oh);
+      const rangeLabels = { 1: 'Last hour', 6: 'Last 6 hours', 24: 'Last 24 hours', 168: 'Last 7 days' };
+      document.querySelectorAll('.chart-range-label').forEach(el => {
+        el.textContent = rangeLabels[currentRangeHours] || `Last ${currentRangeHours}h`;
+      });
+    }).catch(err => console.error('History fetch failed:', err));
 
-    // Update chart range labels
-    const rangeLabels = { 1: 'Last hour', 6: 'Last 6 hours', 24: 'Last 24 hours', 168: 'Last 7 days' };
-    document.querySelectorAll('.chart-range-label').forEach(el => {
-      el.textContent = rangeLabels[currentRangeHours] || `Last ${currentRangeHours}h`;
-    });
+    const neighbors = await neighborsP;
+    document.getElementById('neighborhood').innerHTML = renderNeighborhood(neighbors);
 
+    const ctx = await ctxP;
+    if (ctx) renderContextCards(ctx);
+
+    updateLLMContext(indoor, outdoor, neighbors);
+    autoAnalyzeAir();
+
+    await historyP;
   } catch (err) {
     console.error('Refresh error:', err);
   }
