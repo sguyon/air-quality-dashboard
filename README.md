@@ -2,7 +2,11 @@
 
 Real-time indoor/outdoor air quality monitoring with AI-powered analysis. Compare sensor readings, track neighborhood air quality, and get actionable insights about your local environment.
 
-**🌐 Live Dashboard:** https://web-production-c9ff2.up.railway.app/
+**🌐 Live Dashboard:** https://air-quality-dashboard.up.railway.app/
+
+<p align="center">
+  <img src="docs/V2-screenshot.png" alt="Greenpoint Air Quality dashboard — AI health status, local conditions, indoor/outdoor sensors, charts, and neighborhood comparison" width="720" />
+</p>
 
 ## Features
 
@@ -101,6 +105,22 @@ The dashboard automatically analyzes air quality every 5-10 minutes when sensor 
 
 ### Manual Analysis
 Click the ↻ button on the AI insights card to force an immediate refresh.
+
+## Branching & Deployments
+
+This project uses a **`feature/*` → `dev` → `main`** flow, with Railway auto-deploying two environments:
+
+| Branch | Railway service | URL | Purpose |
+|--------|-----------------|-----|---------|
+| `dev` | `air-quality (dev)` | https://air-quality-dashboard-dev.up.railway.app/ | Staging — integrate & test features |
+| `main` | `air-quality (production)` | https://air-quality-dashboard.up.railway.app/ | Production (live) |
+
+**Workflow:**
+1. Branch a feature off `dev`: `git checkout dev && git pull && git checkout -b feature/<name>`.
+2. Open a PR into `dev`. Merging auto-deploys the **dev** URL for testing.
+3. When validated, open a PR `dev` → `main`. Merging auto-deploys **production**.
+
+Both Railway services auto-deploy on push to their connected branch. Prefer a stable **custom domain** for production — Railway's generated `*.up.railway.app` domains can change if a service is recreated.
 
 ## Deployment Notifications
 
