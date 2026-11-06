@@ -13,4 +13,9 @@ TASKS.md
 TODO.md
 tmp/
 .claude/sessions/
+.superpowers/
 SESSION-HANDOFF.md
+CLAUDE.local.md
+
+# Design captures from the browse tool (local only)
+.gstack/
