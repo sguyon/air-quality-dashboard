@@ -48,6 +48,7 @@ var SKY = (() => {
   const ICO = {
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     rise: '<path d="M12 2v6M8.5 5.5 12 2l3.5 3.5"/><path d="M5 18a7 7 0 0 1 14 0"/><path d="M2 22h20"/>',
+    set: '<path d="M12 2v6M8.5 4.5 12 8l3.5-3.5"/><path d="M5 18a7 7 0 0 1 14 0"/><path d="M2 22h20"/>',
     moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
     cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.7-9h1.8a4.5 4.5 0 1 1 0 9Z"/>',
     therm: '<path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
@@ -59,7 +60,9 @@ var SKY = (() => {
   };
   const ic = (d, extra = '') => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"${extra}>${d}</svg>`;
   const words = v => {
-    const phase = elev > 10 ? 'Day' : elev > 0 ? (azim < 180 ? 'Sunrise' : 'Golden hour') : elev > -6 ? 'Twilight' : 'Night';
+    // golden hour: sun below ~6° (the usual definition); dawn and dusk: just below the horizon
+    const morning = azim < 180;
+    const phase = elev > 6 ? 'Day' : elev > 0 ? (morning ? 'Sunrise' : 'Golden hour') : elev > -6 ? (morning ? 'Dawn' : 'Dusk') : 'Night';
     const c = v.cloud || 0, skyW = c >= 90 ? 'Overcast' : c >= 60 ? 'Mostly cloudy' : c >= 25 ? 'Partly cloudy' : 'Clear sky';
     const pm = v.pm || 0, air = pm > 35 ? ['Smoky air', 'bad'] : pm > 12 ? ['Hazy air', 'warn'] : ['Air clear', 'good'];
     // drop: the order items hide in when the line is too narrow (1 first). The sky itself already shows time of day and clouds.
@@ -67,7 +70,7 @@ var SKY = (() => {
     const out = [];
     if (preview) out.push('<span class="cap-tag">Preview</span>');
     else out.push(`<span class="cap-i cap-live${live.fresh ? '' : ' cached'}" title="${live.fresh ? 'Live: weather from Open-Meteo, updated now' : 'Last known weather; live data is loading'}"><i></i>${live.fresh ? '' : 'Last known · '}${label(nyMinutes())}</span>`);
-    out.push(seg(ic(elev > 10 ? ICO.sun : elev > -6 ? ICO.rise : ICO.moon), phase, elev > 10 ? 'sun' : elev > -6 ? 'dusk' : 'night', 1));
+    out.push(seg(ic(elev > 6 ? ICO.sun : elev > -6 ? (morning ? ICO.rise : ICO.set) : ICO.moon), phase, elev > 6 ? 'sun' : elev > -6 ? 'dusk' : 'night', 1));
     out.push(v.thunder ? seg(ic(ICO.bolt), 'Thunderstorm', 'storm') : (v.rain || 0) > .05 ? seg(ic(ICO.rain), (v.rain > .65 ? 'Heavy rain' : v.rain > .4 ? 'Rain' : 'Drizzle'), 'rainy') : seg(ic(ICO.cloud), skyW, '', 2));
     if (!preview && has(live.temp)) out.push(seg(ic(ICO.therm), `${Math.round(live.temp * 9 / 5 + 32)}°F`, '', 3));
     out.push((v.spd || 0) < 2 ? seg(ic(ICO.arrow, ' style="opacity:.4"'), 'Calm')
@@ -99,7 +102,10 @@ var SKY = (() => {
     $('sky-grad').style.opacity = on.sky ? 1 : 0;
     const lum = (top[0] * .3 + top[1] * .59 + top[2] * .11 + hor[0] * .3 + hor[1] * .59 + hor[2] * .11) / 2;
     const topLum = top[0] * .3 + top[1] * .59 + top[2] * .11;
-    document.documentElement.classList.toggle('sky-dark', on.sky && topLum < 150);
+    // clouds lighten what's behind the text: blend in their tint before choosing light or dark text
+    const tintLum = cloudTint[0] * .3 + cloudTint[1] * .59 + cloudTint[2] * .11, ck = Math.min(.6, cloudCover * .6);
+    const seenLum = topLum * (1 - ck) + tintLum * ck;
+    document.documentElement.classList.toggle('sky-dark', on.sky && seenLum < 150);
     document.documentElement.classList.toggle('sky-on', on.sky);
     $('sky-haze').style.opacity = on.haze ? Math.min((v.pm || 0) / 55, 1) * .75 : 0;
     // sun glow: horizontal place from azimuth (east left, west right), height from elevation
@@ -327,7 +333,7 @@ var SKY = (() => {
   function syncPanel() {
     const v = st();
     $('fx-time').value = v.minutes; $('fx-dir').value = v.dir; $('fx-spd').value = v.spd; $('fx-cloud').value = v.cloud; $('fx-pm').value = v.pm; $('fx-rain').value = Math.round((v.rain || 0) * 100); $('fx-v-rain').textContent = !v.rain ? 'None' : v.thunder ? 'Thunderstorm' : v.rain > .65 ? 'Heavy' : v.rain > .4 ? 'Rain' : 'Drizzle';
-    const phase = elev > 10 ? 'day' : elev > 0 ? 'golden hour' : elev > -6 ? 'twilight' : 'night';
+    const phase = elev > 6 ? 'day' : elev > 0 ? (azim < 180 ? 'sunrise' : 'golden hour') : elev > -6 ? (azim < 180 ? 'dawn' : 'dusk') : 'night';
     $('fx-v-time').textContent = `${label(v.minutes)} · ${phase}`; $('fx-v-dir').textContent = card(v.dir);
     $('fx-v-spd').textContent = `${v.spd} km/h`; $('fx-v-cloud').textContent = `${Math.round(v.cloud)}%`; $('fx-v-pm').textContent = `${v.pm} µg/m³`;
     $('fx-mode').textContent = preview ? 'Preview' : 'Live'; $('fx-mode').classList.toggle('is-preview', !!preview); $('fx-live').hidden = !preview;

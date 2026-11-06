@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- An AirGradient outdoor model with a louvred weather screen (not the Open Air used here). Kept for other setups. -->
+  <defs>
+    <linearGradient id="oaBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f4f6f9"/><stop offset=".45" stop-color="#ffffff"/><stop offset="1" stop-color="#dde3ea"/></linearGradient>
+    <linearGradient id="oaCap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3e8ee"/></linearGradient>
+    <linearGradient id="oaPole" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9aa5b1"/><stop offset="1" stop-color="#6f7b88"/></linearGradient>
+    <radialGradient id="oaShadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#0f172a" stop-opacity=".2"/><stop offset="1" stop-color="#0f172a" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="24" cy="44" rx="12" ry="2.2" fill="url(#oaShadow)"/>
+  <!-- mounting pole and bracket -->
+  <rect x="22.4" y="31" width="3.2" height="12.5" rx="1.2" fill="url(#oaPole)"/>
+  <rect x="18.5" y="30" width="11" height="3" rx="1.2" fill="#8b96a3"/>
+  <!-- louvred body: stacked plates, like a weather screen -->
+  <g stroke="#c5cdd6" stroke-width=".8">
+    <rect x="11" y="24" width="26" height="6" rx="3" fill="url(#oaBody)"/>
+    <rect x="10.5" y="18.5" width="27" height="6" rx="3" fill="url(#oaBody)"/>
+    <rect x="10" y="13" width="28" height="6" rx="3" fill="url(#oaBody)"/>
+  </g>
+  <g stroke="#aeb8c3" stroke-width=".9" stroke-linecap="round" opacity=".8"><path d="M14 16h20M13.5 21.5h21M14 27h20"/></g>
+  <!-- cap -->
+  <path d="M9 13.2C9 9.7 13 7 24 7s15 2.7 15 6.2c0 .8-.7 1.3-1.6 1.3H10.6C9.7 14.5 9 14 9 13.2z" fill="url(#oaCap)" stroke="#c5cdd6" stroke-width=".8"/>
+  <path d="M14 9.4c2.6-.9 5.9-1.3 10-1.3" stroke="#ffffff" stroke-width="1" stroke-linecap="round" opacity=".95" fill="none"/>
+  <!-- status light -->
+  <circle cx="33.2" cy="21.5" r="1.25" fill="#34c38f"/>
+  <circle cx="33.2" cy="21.5" r="2.4" fill="#34c38f" opacity=".18"/>
+</svg>

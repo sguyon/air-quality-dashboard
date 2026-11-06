@@ -32,7 +32,7 @@ var NBMAP = (() => {
     const dark = theme() === 'dark', ink = dark ? '#ececef' : '#18181b', halo = dark ? '#17181c' : '#ffffff';
     const toward = data.wind != null && data.wind >= BQE_TOWARD[0] && data.wind <= BQE_TOWARD[1];
     map.addSource('plume', { type: 'geojson', data: plume(data.wind) });
-    map.addLayer({ id: 'plume', type: 'fill', source: 'plume', paint: { 'fill-color': toward ? '#f59e0b' : (dark ? '#9ca3af' : '#71717a'), 'fill-opacity': ['*', ['get', 'op'], toward ? 1 : .45] } });
+    map.addLayer({ id: 'plume', type: 'fill', source: 'plume', paint: { 'fill-color': '#f59e0b', 'fill-opacity': ['*', ['get', 'op'], toward ? 1.15 : .75] } });
     map.addSource('bqe', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: bqe } } });
     map.addLayer({ id: 'bqe-case', type: 'line', source: 'bqe', paint: { 'line-color': halo, 'line-width': 8 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
     map.addLayer({ id: 'bqe', type: 'line', source: 'bqe', paint: { 'line-color': dark ? '#a1a1aa' : '#71717a', 'line-width': 4 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
@@ -97,8 +97,8 @@ var NBMAP = (() => {
     if (!map || !map.getSource('mons')) return;
     const dark = theme() === 'dark', toward = data.wind != null && data.wind >= BQE_TOWARD[0] && data.wind <= BQE_TOWARD[1];
     map.getSource('plume').setData(plume(data.wind));
-    map.setPaintProperty('plume', 'fill-color', toward ? '#f59e0b' : (dark ? '#9ca3af' : '#71717a'));
-    map.setPaintProperty('plume', 'fill-opacity', ['*', ['get', 'op'], toward ? 1 : .45]);
+    map.setPaintProperty('plume', 'fill-color', '#f59e0b');
+    map.setPaintProperty('plume', 'fill-opacity', ['*', ['get', 'op'], toward ? 1.15 : .75]);
     map.getSource('mons').setData(fc(data.others.map(n => ({ type: 'Feature', id: n.id, properties: { pm: n.pm02, label: (Math.round(n.pm02 * 10) / 10).toFixed(1) }, geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] } }))));
   }
   function theme_() { if (map) { map.setStyle(STYLE[theme()]); } }
