@@ -431,7 +431,7 @@ function draw(id, a, b, times, range, spec) {
   const svg = $(id);
   let last = a.length - 1; while (last > 0 && !has(a[last]) && !has(b[last])) last--;
   a = a.slice(0, last + 1); b = b.slice(0, last + 1); times = times.slice(0, last + 1);
-  const W = 560, H = 210, L = 42, R = 58, T = 30, B = 24;   // R: room for the limit's label
+  const W = 560, H = 210, L = 42, R = 72, T = 30, B = 24;   // R: room for the limit's label ("polluted ↑" is the longest)
   const iw = W - L - R, ih = H - T - B;
   const values = [...a, ...b].filter(has);
   if (!values.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No readings in this range</text>`; return; }
