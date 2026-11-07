@@ -2504,3 +2504,46 @@ button.add svg.i { width: 15px; height: 15px; }
 /* logo: the top panes are the sky from its top to its horizon, so dawn and dusk show their warm band */
 .site svg.mark .mk-sky { fill: url(#mk-g) !important; opacity: .85 !important; }
 html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5 !important; }
+
+/* ── Simplification pass (from the earlier page): three equal need cards, a label instead of a chip,
+   quieter charts (only the limit), the meaning line last, shorter monitor headers ── */
+/* need label: a small icon + name above the answer, no border */
+.n-card .n-top { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; flex-wrap: nowrap !important; }
+.n-card .n-top .n-chip { order: -1 !important; margin: 0 !important; }
+.n-chip, .s-chips .n-chip { padding: 0 !important; border: 0 !important; background: none !important; gap: 6px; font: 500 12.5px/1.2 Inter, sans-serif !important; color: var(--muted) !important; }
+.n-chip svg.i { width: 15px !important; height: 15px !important; color: var(--muted) !important; }
+.n-chip:hover, .n-chip:focus-visible { background: none !important; color: var(--ink) !important; text-decoration: underline; text-underline-offset: 3px; }
+.n-card .n-top .n-answer b { font-size: 16px !important; }
+/* charts: only the limit is labeled */
+.n-card .s-goodlbl, .n-card .s-ends { display: none !important; }
+.n-card .s-spark, .n-card > .s-spark { margin: 10px 0 12px !important; }
+/* the meaning line comes last, after the number and chart */
+.n-card .s-means.n-sub { margin: 2px 0 0 !important; color: var(--muted) !important; font-size: 13px !important; }
+.n-card .n-ev { margin-top: 12px !important; }
+/* three equal cards */
+.ai .s-cards[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+@media (max-width: 900px) { .ai .s-cards[data-count="3"] { grid-template-columns: minmax(0, 1fr) !important; } }
+/* monitor headers about a third shorter */
+.mc > .mc-head { padding-top: 10px !important; padding-bottom: 10px !important; min-height: 0 !important; }
+.mc-hw { width: 60px !important; height: 60px !important; border-radius: 16px !important; } .mc-hw svg { width: 54px !important; height: 54px !important; }
+.mc-scene { width: 92px !important; height: 68px !important; }
+.mc-head .mc-id { padding-right: 112px !important; }
+@media (max-width: 560px) { .mc-hw { width: 48px !important; height: 48px !important; } .mc-hw svg { width: 42px !important; height: 42px !important; } .mc-scene { width: 72px !important; height: 53px !important; } .mc-head .mc-id { padding-right: 84px !important; } }
+.s-main .s-vis:has(.h-scale) { max-width: 620px; }
+/* need-card charts: the line and its dashed limit only (no green "good" band) */
+.n-card .s-good { display: none !important; }
+
+/* need-card charts say what they show: the span on the number row ("Last 24 h", replaced by the hover readout),
+   and the limit's meaning on its dashed line ("stale ↑ 800", "dry ↓ 30"), inside the plot */
+.n-ev .n-cap { margin-left: auto; font: 400 12px/1 Inter, sans-serif; color: var(--muted); }
+.n-ev:has(.n-span:not(:empty)) .n-cap { display: none; }
+.n-ev .n-span:not(:empty) { margin-left: auto; }
+.n-card .s-spark, .n-card > .s-spark { padding-right: 0 !important; --gut: 0px !important; }
+.n-card .s-lab { right: 0 !important; font: 500 10.5px/1 Inter, sans-serif; color: var(--muted); background: color-mix(in srgb, var(--card) 80%, transparent); padding: 1px 0 1px 4px; border-radius: 3px; }
+.n-card .s-lab.up { transform: translateY(calc(-100% - 3px)) !important; }
+.n-card .s-lab.down { transform: translateY(3px) !important; }
+.n-card .s-lab em { display: inline !important; }
+.n-card .s-lab b { color: var(--soft); }
+.n-card .s-lab { left: 0 !important; right: auto !important; padding: 1px 4px 1px 0 !important; }
+.n-card .n-ev { width: 100%; box-sizing: border-box; }
+.n-ev .n-span:empty { display: none; }

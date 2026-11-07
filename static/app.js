@@ -652,7 +652,7 @@ function sparkline(series, limit, tone, cross, word, low, good) {
   let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * .2 || 1; lo -= pad; hi += pad;
   const n = series.length - 1, x = i => i / n * W, y = v => H - (v - lo) / (hi - lo) * H;
   const d = pts.map((p, k) => (k && has(series[p[0] - 1]) ? 'L' : 'M') + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1)).join('');
-  const id = 'sp-' + String(limit) + '-' + (word || ''), col = { warn: 'var(--warn-fill)', bad: 'var(--bad)' }[tone] || 'var(--soft)';
+  const id = 'sp-' + String(limit) + '-' + (word || ''), col = tone === 'bad' ? 'var(--bad)' : 'var(--warn-fill)';   // past the limit is always colored, even if it's fine now
   const pct = v => (y(v) / H * 100).toFixed(1);
   const lim = v => `<line class="s-lim" x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" vector-effect="non-scaling-stroke"/>`;
   // soft fill under the line: gray, and amber where the line is past a limit
@@ -664,14 +664,14 @@ function sparkline(series, limit, tone, cross, word, low, good) {
     ${low ? `<clipPath id="${id}l"><rect x="0" y="${y(low.limit)}" width="${W}" height="${H - y(low.limit) + 10}"/></clipPath>` : ''}</defs>
     ${good ? `<rect class="s-good" x="0" y="${y(good[1]).toFixed(1)}" width="${W}" height="${(y(good[0]) - y(good[1])).toFixed(1)}"/>` : ''}
     <path d="${area}" fill="url(#${id}g)"/>
-    ${top && tone !== 'good' ? `<path d="${d}L${x1},${y(limit)}L${x0},${y(limit)}Z" fill="url(#${id}w)" clip-path="url(#${id})"/>` : ''}
+    ${top ? `<path d="${d}L${x1},${y(limit)}L${x0},${y(limit)}Z" fill="url(#${id}w)" clip-path="url(#${id})"/>` : ''}
     ${top ? lim(limit) : ''}${low ? lim(low.limit) : ''}
     <path class="s-base" d="${d}" vector-effect="non-scaling-stroke"/>
     ${top ? `<path class="s-hot" d="${d}" stroke="${col}" clip-path="url(#${id})" vector-effect="non-scaling-stroke"/>` : ''}
     ${low ? `<path class="s-hot" d="${d}" stroke="${col}" clip-path="url(#${id}l)" vector-effect="non-scaling-stroke"/>` : ''}</svg>
     ${top ? `<span class="s-lab up" style="top:${pct(limit)}%">${word ? `<em>${esc(word)} ↑</em> ` : ''}<b>${limit.toLocaleString()}</b></span>` : ''}
     ${low ? `<span class="s-lab down" style="top:${pct(low.limit)}%"><b>${low.limit}</b> <em>${esc(low.word)} ↓</em></span>` : ''}
-    ${good ? `<span class="s-goodlbl" style="top:${pct((good[0] + good[1]) / 2)}%">good</span>` : ''}<span class="s-ends"><span>24 h ago</span><span>now</span></span>${(() => { const lp = pts[pts.length - 1]; return `<span class="s-end" style="left:calc((100% - var(--gut, 52px)) * ${(x(lp[0]) / W).toFixed(4)});top:${pct(lp[1])}%;--c:${col}"></span>`; })()}</div>`;
+    ${good ? `<span class="s-goodlbl" style="top:${pct((good[0] + good[1]) / 2)}%">good</span>` : ''}<span class="s-ends"><span>24 h ago</span><span>now</span></span>${(() => { const lp = pts[pts.length - 1]; return `<span class="s-end" style="left:calc((100% - var(--gut, 52px)) * ${(x(lp[0]) / W).toFixed(4)});top:${pct(lp[1])}%;--c:${{ warn: 'var(--warn-fill)', bad: 'var(--bad)' }[tone] || 'var(--soft)'}"></span>`; })()}</div>`;
 }
 
 const CARD_ICON = { co2: '<span class="s-txt">CO₂</span>', humidity: null, pm: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="8" r="1.6"/><circle cx="15" cy="6" r="1.2"/><circle cx="17" cy="14" r="1.8"/><circle cx="9" cy="16" r="1.3"/><circle cx="12" cy="11" r="1"/></svg>' };
@@ -733,10 +733,10 @@ function needCard(n, c, r) {
   return `<div class="s-c n-card ${c.tone}" data-need="${n.id}" data-t1="${Date.parse(r.generated_at) || Date.now()}" data-unit="${esc(c.unit)}" data-metric="${c.id}">
     <div class="n-top"><button type="button" class="n-chip" data-open-home="needs" data-tip="${esc(tip)}">${ICONS[NEED_ICON[n.id]] || ''}${esc(n.name)}</button>
     <div class="n-answer ${tone}">${TONE_ICON[tone] || ''}<b>${esc(answer)}</b></div></div>
-    ${c.means ? `<p class="s-means n-sub">${esc(c.means)}</p>` : ''}
-    <div class="n-ev"><span class="n-metric">${esc(metric)}</span><b class="n-num">${num}</b><span class="s-u">${esc(c.unit)}</span>${dup ? '' : `<span class="n-word ${c.tone}">${esc(c.state)}</span>`}<span class="n-span"></span></div>
+    <div class="n-ev"><span class="n-metric">${esc(metric)}</span><b class="n-num">${num}</b><span class="s-u">${esc(c.unit)}</span>${dup ? '' : `<span class="n-word ${c.tone}">${esc(c.state)}</span>`}<span class="n-cap">Last 24 h</span><span class="n-span"></span></div>
     ${humidityAware(c)}
     ${n.id === 'sinus' ? pollenBars(n.pollen, r.relief_short, r.relief) : ''}
+    ${c.means ? `<p class="s-means n-sub">${esc(c.means)}</p>` : ''}
   </div>`;
 }
 
@@ -745,24 +745,6 @@ function needCard(n, c, r) {
 // (how fast the room clears). Hidden for other headlines until they have an honest picture.
 // For "dry the air": humidity inside vs outside on one 0–100% scale with the 30–60% good range, and whether airing would help,
 // judged by dew point (how much water the air actually holds), not by the two percentages.
-// One line under the 24 h humidity chart: how long it was out of range, and which way it's heading (30-minute steps)
-function humidityTrendNote(series) {
-  const v = (series || []).filter(has); if (!v.length) return '';
-  const hrs = n => { const h = Math.round(n / 2); return h === 1 ? '1 hour' : h + ' hours'; };
-  const over = v.filter(x => x > RH_DAMP).length, under = v.filter(x => x < RH_LOW).length, last = v[v.length - 1];
-  const prev = v[Math.max(0, v.length - 7)], d = last - prev;   // about 3 hours ago
-  const dir = d >= 3 ? ' · rising' : d <= -3 ? ' · falling' : ' · steady';
-  if (over === v.length) return `Over ${RH_DAMP}% the whole day${dir}`;
-  if (under === v.length) return `Under ${RH_LOW}% the whole day${dir}`;
-  if (last > RH_DAMP) return `Over ${RH_DAMP}% for ${hrs(over)} of the last 24${dir}`;
-  if (last < RH_LOW) return `Under ${RH_LOW}% for ${hrs(under)} of the last 24${dir}`;
-  // back in range: since when
-  let k = v.length - 1; while (k > 0 && v[k - 1] >= RH_LOW && v[k - 1] <= RH_DAMP) k--;
-  if (k === 0) return `In the good range all day${dir}`;
-  const t = new Date(Date.now() - (v.length - 1 - k) * 30 * 60e3);
-  return `In the good range since ${t.toLocaleTimeString('en-US', { hour: 'numeric', minute: t.getMinutes() ? '2-digit' : undefined, timeZone: 'America/New_York' })}`;
-}
-
 function renderHumidityVis(r, box) {
   const i = state.indoor ? reading(state.indoor, true) : {}, o = state.outdoor ? reading(state.outdoor, false) : {};
   if (!has(i.rh) || !has(o.rh)) { box.hidden = true; box.innerHTML = ''; return; }
@@ -940,25 +922,16 @@ function renderRead(r, stale, why) {
 
   if (r.needs && r.needs.length) {
     const byId = Object.fromEntries((r.cards || []).map(c => [c.id, c]));
-    // the need behind the headline is the main card (same anatomy: title + chip, why, reading picture); the row shows the others.
-    // Only when the main card has its picture (window: CO₂, humidity); otherwise the need's chart stays in the row.
-    const promoted = { window: 'co2', humidity: 'humidity' }[r.headline.key];
+    // the main card leads with the headline, its why and one picture; the three needs always sit in the row below
+    // (the one behind the headline says its state instead of repeating the action)
     const chips = (r.headline.needs || []).map(id => r.needs.find(n => n.id === id)).filter(Boolean);
     $('s-chips').innerHTML = chips.map(n => `<button type="button" class="n-chip" data-open-home="needs">${ICONS[NEED_ICON[n.id]] || ''}${esc(n.name)}</button>`).join('');
-    const row = r.needs.filter(n => byId[n.metric] && n.metric !== promoted);
+    const row = r.needs.filter(n => byId[n.metric]);
     $('s-cards').innerHTML = row.map(n => needCard(n, byId[n.metric], r)).join('');
     $('s-cards').dataset.count = row.length;
     wireSparks();
     renderAgenda(r);
     renderActionVis(r);
-    // the sinus need's pollen bars move up with it, so a damp day in pollen season still shows the pollen
-    let pb = $('s-pollen');
-    if (!pb) { pb = document.createElement('div'); pb.id = 's-pollen'; pb.className = 's-pollen'; $('s-vis').after(pb); }
-    const sinus = r.needs.find(n => n.id === 'sinus');
-    // and the 24 h humidity line, so a damp day still shows whether drying is working
-    const hum = byId.humidity;
-    pb.innerHTML = promoted === 'humidity' && sinus ? (hum && (hum.series || []).length ? `<div class="s-trend"><div class="v-head">Inside humidity · last 24 h</div>${humidityAware(hum)}<p class="v-note">${humidityTrendNote(hum.series)}</p></div>` : '')
-      + pollenBars(sinus.pollen, r.relief_short, r.relief) : '';
   } else $('s-cards').innerHTML = (r.cards || []).map(summaryCard).join('');   // a summary saved in the previous format
   if (revealNext) { revealNext = false; reveal(); }
   const by = r.source === 'model' ? `by ${r.model_name || r.model}` : 'from the rules';
