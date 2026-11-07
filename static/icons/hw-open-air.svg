@@ -5,7 +5,7 @@
     <linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d8ee6"/><stop offset="1" stop-color="#1f62c4"/></linearGradient>
     <radialGradient id="shadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#0f172a" stop-opacity=".22"/><stop offset="1" stop-color="#0f172a" stop-opacity="0"/></radialGradient>
   </defs>
-  <ellipse cx="24" cy="41.6" rx="17" ry="2.4" fill="url(#shadow)"/>
+  <ellipse cx="24" cy="42.6" rx="18" ry="2.4" fill="url(#shadow)"/><g transform="translate(0 2.6)">
   <!-- cable, drawn behind the base so it comes out from underneath -->
   <path d="M27.6 37.5c0 3 1.6 4.6 5 6.4" stroke="#8e98a3" stroke-width="2" fill="none" stroke-linecap="round"/>
   <path d="M27.6 37.5c0 3 1.6 4.6 5 6.4" stroke="#d6dce3" stroke-width=".8" fill="none" stroke-linecap="round" transform="translate(-.35 -.2)"/>
@@ -17,4 +17,4 @@
   <path d="M12.5 9.6h23" stroke="#ffffff" stroke-width="1" stroke-linecap="round" opacity=".95"/>
   <!-- logo -->
   <g fill="none" stroke="#8d949c" stroke-linecap="round"><path d="M18.16 23.85A1.86 1.86 0 1 0 18.16 26.97" stroke-width="0.45"/><path d="M17.61 24.39A1.15 1.15 0 1 0 17.61 26.43" stroke-width="0.27" opacity=".8"/></g><text x="16.60" y="26.40" font-family="Inter, Helvetica, Arial, sans-serif" font-size="3.00" fill="#8d949c" letter-spacing="-.04"><tspan font-weight="700" fill="#7b828a">air</tspan><tspan font-weight="500">gradient</tspan></text>
-</svg>
+</g></svg>

@@ -1,5 +1,8 @@
 // Home Air Quality: data, readings, summary, charts, header panels.
-const ICONS = {"toddler": "<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5\"/><path d=\"M15 12h.01\"/><path d=\"M19.38 6.813A9 9 0 0 1 20.8 10.2a2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1\"/><path d=\"M9 12h.01\"/></svg>", "sinus": "<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12.8 19.6A2 2 0 1 0 14 16H2\"/><path d=\"M17.5 8a2.5 2.5 0 1 1 2 4H2\"/><path d=\"M9.8 4.4A2 2 0 1 1 11 8H2\"/></svg>", "runner": "<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"5\" r=\"1\"/><path d=\"m9 20 3-6 3 6\"/><path d=\"m6 8 6 2 6-2\"/><path d=\"M12 10v4\"/></svg>", "drop": "<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\"/></svg>", "one": "<svg aria-hidden=\"true\" viewBox=\"0 0 48 48\" width=\"44\" height=\"44\" shape-rendering=\"geometricPrecision\"> <defs> <linearGradient id=\"hw8face\" x1=\"0\" y1=\"0\" x2=\".35\" y2=\"1\"><stop offset=\"0\" stop-color=\"#fbfbfc\"/><stop offset=\"1\" stop-color=\"#e9ebee\"/></linearGradient> <linearGradient id=\"hw8edge\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#d5d9de\"/><stop offset=\"1\" stop-color=\"#bfc5cc\"/></linearGradient> <linearGradient id=\"hw8oled\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#14171c\"/><stop offset=\"1\" stop-color=\"#05070a\"/></linearGradient> <radialGradient id=\"hw8sh\" cx=\".5\" cy=\".5\" r=\".5\"><stop offset=\"0\" stop-color=\"#0f172a\" stop-opacity=\".22\"/><stop offset=\"1\" stop-color=\"#0f172a\" stop-opacity=\"0\"/></radialGradient> </defs> <ellipse cx=\"24\" cy=\"42.6\" rx=\"18\" ry=\"2.4\" fill=\"url(#hw8sh)\"/> <rect x=\"5\" y=\"8.5\" width=\"38\" height=\"33\" rx=\"8\" fill=\"url(#hw8edge)\"/> <g fill=\"#aab1b9\"><rect x=\"11\" y=\"38.6\" width=\"5\" height=\".9\" rx=\".45\"/><rect x=\"18.5\" y=\"38.6\" width=\"5\" height=\".9\" rx=\".45\"/><rect x=\"26\" y=\"38.6\" width=\"5\" height=\".9\" rx=\".45\"/><rect x=\"33.5\" y=\"38.6\" width=\"4\" height=\".9\" rx=\".45\"/></g> <rect x=\"5\" y=\"5.5\" width=\"38\" height=\"32.5\" rx=\"8\" fill=\"url(#hw8face)\" stroke=\"#d3d8de\" stroke-width=\".6\"/> <path d=\"M12.5 6.25h23a7.4 7.4 0 0 1 4.6 1.6\" stroke=\"#ffffff\" stroke-width=\".7\" stroke-linecap=\"round\" fill=\"none\" opacity=\".8\"/> <g> <circle cx=\"11.6\" cy=\"11.6\" r=\"1.05\" fill=\"#22c55e\"/><circle cx=\"14.1\" cy=\"11.6\" r=\"1.05\" fill=\"#22c55e\"/><circle cx=\"16.6\" cy=\"11.6\" r=\"1.05\" fill=\"#2fc95b\"/> <circle cx=\"19.1\" cy=\"11.6\" r=\"1.05\" fill=\"#4ccf55\"/><circle cx=\"21.6\" cy=\"11.6\" r=\"1.05\" fill=\"#74d34c\"/><circle cx=\"24.1\" cy=\"11.6\" r=\"1.05\" fill=\"#a3d642\"/> <circle cx=\"26.6\" cy=\"11.6\" r=\"1.05\" fill=\"#cdd23a\"/><circle cx=\"29.1\" cy=\"11.6\" r=\"1.05\" fill=\"#f2c537\"/><circle cx=\"31.6\" cy=\"11.6\" r=\"1.05\" fill=\"#f6ab35\"/> <circle cx=\"34.1\" cy=\"11.6\" r=\"1.05\" fill=\"#f59234\"/><circle cx=\"36.6\" cy=\"11.6\" r=\"1.05\" fill=\"#d9dde2\"/> </g> <g fill=\"#ffffff\" opacity=\".55\"><circle cx=\"11.3\" cy=\"11.2\" r=\".3\"/><circle cx=\"19.0\" cy=\"11.2\" r=\".3\"/><circle cx=\"26.5\" cy=\"11.2\" r=\".3\"/><circle cx=\"34.0\" cy=\"11.2\" r=\".3\"/></g> <rect x=\"23.5\" y=\"17\" width=\"14.5\" height=\"9.6\" rx=\"1.2\" fill=\"url(#hw8oled)\" stroke=\"#2a2f37\" stroke-width=\".5\"/> <g fill=\"#eef3f8\"> <rect x=\"25\" y=\"18.8\" width=\"7.6\" height=\"1\" rx=\".35\"/><rect x=\"25\" y=\"20.8\" width=\"5.6\" height=\"1\" rx=\".35\"/> <rect x=\"25\" y=\"22.8\" width=\"6.8\" height=\"1\" rx=\".35\"/><rect x=\"25\" y=\"24.6\" width=\"4.8\" height=\".8\" rx=\".35\" opacity=\".7\"/> </g> <rect x=\"33.8\" y=\"18.8\" width=\"2.6\" height=\"1\" rx=\".35\" fill=\"#7fd3e6\"/> <g fill=\"none\" stroke=\"#8d949c\" stroke-linecap=\"round\"><path d=\"M11.61 31.70A1.67 1.67 0 1 0 11.61 34.52\" stroke-width=\"0.41\"/><path d=\"M11.10 32.19A1.04 1.04 0 1 0 11.10 34.03\" stroke-width=\"0.24\" opacity=\".8\"/></g><text x=\"10.20\" y=\"34.00\" font-family=\"Inter, Helvetica, Arial, sans-serif\" font-size=\"2.70\" fill=\"#8d949c\" letter-spacing=\"-.04\"><tspan font-weight=\"700\" fill=\"#7b828a\">air</tspan><tspan font-weight=\"500\">gradient</tspan></text> </svg>", "openair": "<svg aria-hidden=\"true\" viewBox=\"0 0 48 48\" width=\"44\" height=\"44\"> <defs> <linearGradient id=\"hw6shell\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\"><stop offset=\"0\" stop-color=\"#eef1f5\"/><stop offset=\".35\" stop-color=\"#ffffff\"/><stop offset=\"1\" stop-color=\"#dfe4ea\"/></linearGradient> <linearGradient id=\"hw6shellTop\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#ffffff\" stop-opacity=\".5\"/><stop offset=\"1\" stop-color=\"#ffffff\" stop-opacity=\"0\"/></linearGradient> <linearGradient id=\"hw6base\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#3d8ee6\"/><stop offset=\"1\" stop-color=\"#1f62c4\"/></linearGradient> <radialGradient id=\"hw6shadow\" cx=\".5\" cy=\".5\" r=\".5\"><stop offset=\"0\" stop-color=\"#0f172a\" stop-opacity=\".22\"/><stop offset=\"1\" stop-color=\"#0f172a\" stop-opacity=\"0\"/></radialGradient> </defs> <ellipse cx=\"24\" cy=\"41.6\" rx=\"17\" ry=\"2.4\" fill=\"url(#hw6shadow)\"/> <path d=\"M27.6 37.5c0 3 1.6 4.6 5 6.4\" stroke=\"#8e98a3\" stroke-width=\"2\" fill=\"none\" stroke-linecap=\"round\"/> <path d=\"M27.6 37.5c0 3 1.6 4.6 5 6.4\" stroke=\"#d6dce3\" stroke-width=\".8\" fill=\"none\" stroke-linecap=\"round\" transform=\"translate(-.35 -.2)\"/> <rect x=\"7.6\" y=\"31\" width=\"32.8\" height=\"7.6\" rx=\"3.3\" fill=\"url(#hw6base)\"/> <rect x=\"9\" y=\"32.2\" width=\"30\" height=\"1.2\" rx=\".6\" fill=\"#ffffff\" opacity=\".28\"/> <path d=\"M8.2 31.2V15.5C8.2 11 11 8 15.5 8h17C37 8 39.8 11 39.8 15.5v15.7c0 .5-.4.8-.9.8h-1.6c-.8 0-1.3-.4-1.6-1.1-.4-.9-1.1-1.5-2.1-1.5H14.4c-1 0-1.7.6-2.1 1.5-.3.7-.8 1.1-1.6 1.1H9c-.5 0-.8-.3-.8-.8z\" fill=\"url(#hw6shell)\" stroke=\"#c6ced7\" stroke-width=\".8\" stroke-linejoin=\"round\"/> <path d=\"M9.4 15.3C9.4 11.8 11.8 9.3 15.5 9.3h17c3.7 0 6.1 2.5 6.1 6v3H9.4z\" fill=\"url(#hw6shellTop)\"/> <path d=\"M12.5 9.6h23\" stroke=\"#ffffff\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\".95\"/> <g fill=\"none\" stroke=\"#8d949c\" stroke-linecap=\"round\"><path d=\"M18.16 23.85A1.86 1.86 0 1 0 18.16 26.97\" stroke-width=\"0.45\"/><path d=\"M17.61 24.39A1.15 1.15 0 1 0 17.61 26.43\" stroke-width=\"0.27\" opacity=\".8\"/></g><text x=\"16.60\" y=\"26.40\" font-family=\"Inter, Helvetica, Arial, sans-serif\" font-size=\"3.00\" fill=\"#8d949c\" letter-spacing=\"-.04\"><tspan font-weight=\"700\" fill=\"#7b828a\">air</tspan><tspan font-weight=\"500\">gradient</tspan></text> </svg>", "alert": "<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 8v4\"/><path d=\"M12 16h.01\"/></svg>"};
+const ICONS = {"toddler":"<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5\"/><path d=\"M15 12h.01\"/><path d=\"M19.38 6.813A9 9 0 0 1 20.8 10.2a2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1\"/><path d=\"M9 12h.01\"/></svg>","sinus":"<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12.8 19.6A2 2 0 1 0 14 16H2\"/><path d=\"M17.5 8a2.5 2.5 0 1 1 2 4H2\"/><path d=\"M9.8 4.4A2 2 0 1 1 11 8H2\"/></svg>","runner":"<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"5\" r=\"1\"/><path d=\"m9 20 3-6 3 6\"/><path d=\"m6 8 6 2 6-2\"/><path d=\"M12 10v4\"/></svg>","drop":"<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\"/></svg>","one":"<svg aria-hidden=\"true\" viewBox=\"0 0 48 48\" width=\"44\" height=\"44\" shape-rendering=\"geometricPrecision\"> <defs> <linearGradient id=\"hw8face\" x1=\"0\" y1=\"0\" x2=\".35\" y2=\"1\"><stop offset=\"0\" stop-color=\"#fbfbfc\"/><stop offset=\"1\" stop-color=\"#e9ebee\"/></linearGradient> <linearGradient id=\"hw8edge\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#d5d9de\"/><stop offset=\"1\" stop-color=\"#bfc5cc\"/></linearGradient> <linearGradient id=\"hw8oled\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#14171c\"/><stop offset=\"1\" stop-color=\"#05070a\"/></linearGradient> <radialGradient id=\"hw8sh\" cx=\".5\" cy=\".5\" r=\".5\"><stop offset=\"0\" stop-color=\"#0f172a\" stop-opacity=\".22\"/><stop offset=\"1\" stop-color=\"#0f172a\" stop-opacity=\"0\"/></radialGradient> </defs> <ellipse cx=\"24\" cy=\"42.6\" rx=\"18\" ry=\"2.4\" fill=\"url(#hw8sh)\"/> <rect x=\"5\" y=\"8.5\" width=\"38\" height=\"33\" rx=\"8\" fill=\"url(#hw8edge)\"/> <g fill=\"#aab1b9\"><rect x=\"11\" y=\"38.6\" width=\"5\" height=\".9\" rx=\".45\"/><rect x=\"18.5\" y=\"38.6\" width=\"5\" height=\".9\" rx=\".45\"/><rect x=\"26\" y=\"38.6\" width=\"5\" height=\".9\" rx=\".45\"/><rect x=\"33.5\" y=\"38.6\" width=\"4\" height=\".9\" rx=\".45\"/></g> <rect x=\"5\" y=\"5.5\" width=\"38\" height=\"32.5\" rx=\"8\" fill=\"url(#hw8face)\" stroke=\"#d3d8de\" stroke-width=\".6\"/> <path d=\"M12.5 6.25h23a7.4 7.4 0 0 1 4.6 1.6\" stroke=\"#ffffff\" stroke-width=\".7\" stroke-linecap=\"round\" fill=\"none\" opacity=\".8\"/> <g> <circle cx=\"11.6\" cy=\"11.6\" r=\"1.05\" fill=\"#22c55e\"/><circle cx=\"14.1\" cy=\"11.6\" r=\"1.05\" fill=\"#22c55e\"/><circle cx=\"16.6\" cy=\"11.6\" r=\"1.05\" fill=\"#2fc95b\"/> <circle cx=\"19.1\" cy=\"11.6\" r=\"1.05\" fill=\"#4ccf55\"/><circle cx=\"21.6\" cy=\"11.6\" r=\"1.05\" fill=\"#74d34c\"/><circle cx=\"24.1\" cy=\"11.6\" r=\"1.05\" fill=\"#a3d642\"/> <circle cx=\"26.6\" cy=\"11.6\" r=\"1.05\" fill=\"#cdd23a\"/><circle cx=\"29.1\" cy=\"11.6\" r=\"1.05\" fill=\"#f2c537\"/><circle cx=\"31.6\" cy=\"11.6\" r=\"1.05\" fill=\"#f6ab35\"/> <circle cx=\"34.1\" cy=\"11.6\" r=\"1.05\" fill=\"#f59234\"/><circle cx=\"36.6\" cy=\"11.6\" r=\"1.05\" fill=\"#d9dde2\"/> </g> <g fill=\"#ffffff\" opacity=\".55\"><circle cx=\"11.3\" cy=\"11.2\" r=\".3\"/><circle cx=\"19.0\" cy=\"11.2\" r=\".3\"/><circle cx=\"26.5\" cy=\"11.2\" r=\".3\"/><circle cx=\"34.0\" cy=\"11.2\" r=\".3\"/></g> <rect x=\"23.5\" y=\"17\" width=\"14.5\" height=\"9.6\" rx=\"1.2\" fill=\"url(#hw8oled)\" stroke=\"#2a2f37\" stroke-width=\".5\"/> <g fill=\"#eef3f8\"> <rect x=\"25\" y=\"18.8\" width=\"7.6\" height=\"1\" rx=\".35\"/><rect x=\"25\" y=\"20.8\" width=\"5.6\" height=\"1\" rx=\".35\"/> <rect x=\"25\" y=\"22.8\" width=\"6.8\" height=\"1\" rx=\".35\"/><rect x=\"25\" y=\"24.6\" width=\"4.8\" height=\".8\" rx=\".35\" opacity=\".7\"/> </g> <rect x=\"33.8\" y=\"18.8\" width=\"2.6\" height=\"1\" rx=\".35\" fill=\"#7fd3e6\"/> <g fill=\"none\" stroke=\"#8d949c\" stroke-linecap=\"round\"><path d=\"M11.61 31.70A1.67 1.67 0 1 0 11.61 34.52\" stroke-width=\"0.41\"/><path d=\"M11.10 32.19A1.04 1.04 0 1 0 11.10 34.03\" stroke-width=\"0.24\" opacity=\".8\"/></g><text x=\"10.20\" y=\"34.00\" font-family=\"Inter, Helvetica, Arial, sans-serif\" font-size=\"2.70\" fill=\"#8d949c\" letter-spacing=\"-.04\"><tspan font-weight=\"700\" fill=\"#7b828a\">air</tspan><tspan font-weight=\"500\">gradient</tspan></text> </svg>","openair":"<svg aria-hidden=\"true\" viewBox=\"0 0 48 48\" width=\"44\" height=\"44\"> <defs> <linearGradient id=\"hw6shell\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\"><stop offset=\"0\" stop-color=\"#eef1f5\"/><stop offset=\".35\" stop-color=\"#ffffff\"/><stop offset=\"1\" stop-color=\"#dfe4ea\"/></linearGradient> <linearGradient id=\"hw6shellTop\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#ffffff\" stop-opacity=\".5\"/><stop offset=\"1\" stop-color=\"#ffffff\" stop-opacity=\"0\"/></linearGradient> <linearGradient id=\"hw6base\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#3d8ee6\"/><stop offset=\"1\" stop-color=\"#1f62c4\"/></linearGradient> <radialGradient id=\"hw6shadow\" cx=\".5\" cy=\".5\" r=\".5\"><stop offset=\"0\" stop-color=\"#0f172a\" stop-opacity=\".22\"/><stop offset=\"1\" stop-color=\"#0f172a\" stop-opacity=\"0\"/></radialGradient> </defs> <ellipse cx=\"24\" cy=\"42.6\" rx=\"18\" ry=\"2.4\" fill=\"url(#hw6shadow)\"/><g transform=\"translate(0 2.6)\"> <path d=\"M27.6 37.5c0 3 1.6 4.6 5 6.4\" stroke=\"#8e98a3\" stroke-width=\"2\" fill=\"none\" stroke-linecap=\"round\"/> <path d=\"M27.6 37.5c0 3 1.6 4.6 5 6.4\" stroke=\"#d6dce3\" stroke-width=\".8\" fill=\"none\" stroke-linecap=\"round\" transform=\"translate(-.35 -.2)\"/> <rect x=\"7.6\" y=\"31\" width=\"32.8\" height=\"7.6\" rx=\"3.3\" fill=\"url(#hw6base)\"/> <rect x=\"9\" y=\"32.2\" width=\"30\" height=\"1.2\" rx=\".6\" fill=\"#ffffff\" opacity=\".28\"/> <path d=\"M8.2 31.2V15.5C8.2 11 11 8 15.5 8h17C37 8 39.8 11 39.8 15.5v15.7c0 .5-.4.8-.9.8h-1.6c-.8 0-1.3-.4-1.6-1.1-.4-.9-1.1-1.5-2.1-1.5H14.4c-1 0-1.7.6-2.1 1.5-.3.7-.8 1.1-1.6 1.1H9c-.5 0-.8-.3-.8-.8z\" fill=\"url(#hw6shell)\" stroke=\"#c6ced7\" stroke-width=\".8\" stroke-linejoin=\"round\"/> <path d=\"M9.4 15.3C9.4 11.8 11.8 9.3 15.5 9.3h17c3.7 0 6.1 2.5 6.1 6v3H9.4z\" fill=\"url(#hw6shellTop)\"/> <path d=\"M12.5 9.6h23\" stroke=\"#ffffff\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\".95\"/> <g fill=\"none\" stroke=\"#8d949c\" stroke-linecap=\"round\"><path d=\"M18.16 23.85A1.86 1.86 0 1 0 18.16 26.97\" stroke-width=\"0.45\"/><path d=\"M17.61 24.39A1.15 1.15 0 1 0 17.61 26.43\" stroke-width=\"0.27\" opacity=\".8\"/></g><text x=\"16.60\" y=\"26.40\" font-family=\"Inter, Helvetica, Arial, sans-serif\" font-size=\"3.00\" fill=\"#8d949c\" letter-spacing=\"-.04\"><tspan font-weight=\"700\" fill=\"#7b828a\">air</tspan><tspan font-weight=\"500\">gradient</tspan></text> </g></svg>","sceneIn":"<svg class=\"mc-scene\" aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 88\"><defs><linearGradient id=\"sci15sky\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" style=\"stop-color:var(--scene-top,#c9dcf4)\"/><stop offset=\"1\" style=\"stop-color:var(--scene-hor,#e6eef9)\"/></linearGradient><clipPath id=\"sci15g\"><rect x=\"46\" y=\"14\" width=\"34\" height=\"46\"/></clipPath></defs><rect x=\"26\" y=\"6\" width=\"74\" height=\"1.6\" rx=\".8\" fill=\"#d6d0c6\"/><path d=\"M40 8h46v58H40z\" fill=\"#eadfcd\"/><path d=\"M40 8l6 6v46l-6 6zM86 8l-6 6v46l6 6z\" fill=\"#d9c8ac\"/><path d=\"M40 8h46l-6 6H46z\" fill=\"#d2bf9f\"/><rect x=\"46\" y=\"14\" width=\"34\" height=\"46\" fill=\"url(#sci15sky)\"/><g clip-path=\"url(#sci15g)\"><path style=\"fill:var(--sky-city,#9fb0c8)\" opacity=\".38\" d=\"M46 60V48l5-4 5 4v-3h7v-5l6 5v-2h5l6 5v12z\"/><circle cx=\"53\" cy=\"47\" r=\"5\" fill=\"#9fb59a\" opacity=\".55\"/><path d=\"M53 51v9\" stroke=\"#9fb59a\" stroke-width=\"1.2\" opacity=\".55\"/></g><g clip-path=\"url(#sci15g)\"><g class=\"wx-lit\" fill=\"#ffd98a\"><rect x=\"57.5\" y=\"50\" width=\"1.2\" height=\"1.2\"/><rect x=\"64.6\" y=\"45\" width=\"1.2\" height=\"1.2\"/><rect x=\"64.6\" y=\"49\" width=\"1.2\" height=\"1.2\"/><rect x=\"71\" y=\"52\" width=\"1.2\" height=\"1.2\"/><rect x=\"51\" y=\"55\" width=\"1.2\" height=\"1.2\"/></g><g class=\"wx-c\" fill=\"#ffffff\" opacity=\".75\"><ellipse cx=\"54\" cy=\"20\" rx=\"8\" ry=\"3.4\"/><ellipse cx=\"60\" cy=\"18.4\" rx=\"6\" ry=\"3.6\"/><ellipse cx=\"72\" cy=\"24\" rx=\"7\" ry=\"2.8\"/></g><g class=\"wx-r\" stroke=\"#7d93b5\" stroke-width=\".55\" stroke-linecap=\"round\"><g class=\"wx-fall\"><path d=\"M55.0 5.0l-1.2 4.7\" opacity=\"0.52\"/><path d=\"M48.5 19.3l-1.2 6.3\" opacity=\"0.81\"/><path d=\"M75.1 10.7l-1.2 5.1\" opacity=\"0.57\"/><path d=\"M52.6 5.1l-1.2 4.1\" opacity=\"0.87\"/><path d=\"M77.5 38.7l-1.2 5.9\" opacity=\"0.54\"/><path d=\"M57.8 30.1l-1.2 5.7\" opacity=\"0.83\"/><path d=\"M79.4 4.2l-1.2 5.3\" opacity=\"0.75\"/><path d=\"M65.2 8.5l-1.2 4.9\" opacity=\"0.49\"/><path d=\"M81.5 41.5l-1.2 5.1\" opacity=\"0.59\"/><path d=\"M80.5 27.5l-1.2 6.1\" opacity=\"0.83\"/><path d=\"M65.3 19.9l-1.2 5.3\" opacity=\"0.64\"/><path d=\"M52.1 14.6l-1.2 5.9\" opacity=\"0.47\"/><path d=\"M47.8 30.1l-1.2 4.3\" opacity=\"0.69\"/><path d=\"M63.9 16.5l-1.2 6.5\" opacity=\"0.54\"/><path d=\"M61.7 9.7l-1.2 5.4\" opacity=\"0.57\"/><path d=\"M59.5 35.9l-1.2 4.5\" opacity=\"0.70\"/><path d=\"M80.4 4.8l-1.2 3.7\" opacity=\"0.55\"/><path d=\"M75.1 29.5l-1.2 4.2\" opacity=\"0.60\"/><path d=\"M52.7 22.0l-1.2 3.6\" opacity=\"0.76\"/><path d=\"M80.0 45.8l-1.2 5.7\" opacity=\"0.88\"/><path d=\"M46.7 13.9l-1.2 6.4\" opacity=\"0.80\"/><path d=\"M61.6 45.3l-1.2 5.4\" opacity=\"0.82\"/><path d=\"M57.1 9.2l-1.2 4.8\" opacity=\"0.51\"/><path d=\"M60.5 46.2l-1.2 4.5\" opacity=\"0.45\"/><path d=\"M47.7 8.1l-1.2 5.9\" opacity=\"0.61\"/><path d=\"M57.0 4.7l-1.2 6.4\" opacity=\"0.64\"/><g transform=\"translate(0 -48)\"><path d=\"M55.0 5.0l-1.2 4.7\" opacity=\"0.52\"/><path d=\"M48.5 19.3l-1.2 6.3\" opacity=\"0.81\"/><path d=\"M75.1 10.7l-1.2 5.1\" opacity=\"0.57\"/><path d=\"M52.6 5.1l-1.2 4.1\" opacity=\"0.87\"/><path d=\"M77.5 38.7l-1.2 5.9\" opacity=\"0.54\"/><path d=\"M57.8 30.1l-1.2 5.7\" opacity=\"0.83\"/><path d=\"M79.4 4.2l-1.2 5.3\" opacity=\"0.75\"/><path d=\"M65.2 8.5l-1.2 4.9\" opacity=\"0.49\"/><path d=\"M81.5 41.5l-1.2 5.1\" opacity=\"0.59\"/><path d=\"M80.5 27.5l-1.2 6.1\" opacity=\"0.83\"/><path d=\"M65.3 19.9l-1.2 5.3\" opacity=\"0.64\"/><path d=\"M52.1 14.6l-1.2 5.9\" opacity=\"0.47\"/><path d=\"M47.8 30.1l-1.2 4.3\" opacity=\"0.69\"/><path d=\"M63.9 16.5l-1.2 6.5\" opacity=\"0.54\"/><path d=\"M61.7 9.7l-1.2 5.4\" opacity=\"0.57\"/><path d=\"M59.5 35.9l-1.2 4.5\" opacity=\"0.70\"/><path d=\"M80.4 4.8l-1.2 3.7\" opacity=\"0.55\"/><path d=\"M75.1 29.5l-1.2 4.2\" opacity=\"0.60\"/><path d=\"M52.7 22.0l-1.2 3.6\" opacity=\"0.76\"/><path d=\"M80.0 45.8l-1.2 5.7\" opacity=\"0.88\"/><path d=\"M46.7 13.9l-1.2 6.4\" opacity=\"0.80\"/><path d=\"M61.6 45.3l-1.2 5.4\" opacity=\"0.82\"/><path d=\"M57.1 9.2l-1.2 4.8\" opacity=\"0.51\"/><path d=\"M60.5 46.2l-1.2 4.5\" opacity=\"0.45\"/><path d=\"M47.7 8.1l-1.2 5.9\" opacity=\"0.61\"/><path d=\"M57.0 4.7l-1.2 6.4\" opacity=\"0.64\"/></g></g></g><g class=\"wx-r\" fill=\"#ffffff\" opacity=\".7\"><circle cx=\"50\" cy=\"30\" r=\".7\"/><circle cx=\"57\" cy=\"44\" r=\".55\"/><circle cx=\"68\" cy=\"26\" r=\".6\"/><circle cx=\"74\" cy=\"40\" r=\".75\"/><circle cx=\"66\" cy=\"52\" r=\".5\"/><circle cx=\"52\" cy=\"54\" r=\".6\"/></g></g><rect x=\"46\" y=\"14\" width=\"34\" height=\"46\" fill=\"none\" stroke=\"#3a3530\" stroke-width=\"1.4\"/><path d=\"M63 14v46M46 37h34\" stroke=\"#3a3530\" stroke-width=\"1\"/><path d=\"M40 66h46l5 5H35z\" fill=\"#f4ede1\"/><rect x=\"35\" y=\"71\" width=\"56\" height=\"1.6\" fill=\"#ddd2c0\"/><rect x=\"49\" y=\"60.6\" width=\"8\" height=\"5.6\" rx=\"1.5\" fill=\"#fbfbfc\" stroke=\"#cdd2d8\" stroke-width=\".4\"/><path d=\"M50.6 62.1h4.8\" stroke=\"#8cc98f\" stroke-width=\".8\" stroke-linecap=\"round\" stroke-dasharray=\".1 1\"/><rect x=\"53.4\" y=\"63.2\" width=\"2.4\" height=\"1.6\" rx=\".3\" fill=\"#2a2d32\"/><path d=\"M70 66l.8-5h5.4l.8 5z\" fill=\"#cf9b78\"/><path d=\"M73.5 61c-.5-3 .5-5 2.5-6-.5 2-1 4-2.5 6zM73.5 61c-1.5-2-3.5-3-5.5-3 1.5 2 3.5 2.6 5.5 3z\" fill=\"#7aa784\"/><path d=\"M30 8h12c0 26 0 52-1 80H27c2-28 3-54 3-80z\" fill=\"#e6d8c0\"/><path d=\"M96 8H84c0 26 0 52 1 80h14c-2-28-3-54-3-80z\" fill=\"#e6d8c0\"/><g class=\"sig\"><circle cx=\"53\" cy=\"63.4\" r=\"3\" fill=\"none\" stroke=\"#4f86d6\" stroke-width=\".6\" opacity=\"0\"><animate attributeName=\"r\" values=\"3;12;12\" keyTimes=\"0;.36;1\" dur=\"7s\" begin=\"0s\" repeatCount=\"indefinite\"/><animate attributeName=\"opacity\" values=\"0;.85;0;0\" keyTimes=\"0;.04;.36;1\" dur=\"7s\" begin=\"0s\" repeatCount=\"indefinite\"/></circle><circle cx=\"53\" cy=\"63.4\" r=\"3\" fill=\"none\" stroke=\"#4f86d6\" stroke-width=\".6\" opacity=\"0\"><animate attributeName=\"r\" values=\"3;12;12\" keyTimes=\"0;.36;1\" dur=\"7s\" begin=\"0.7s\" repeatCount=\"indefinite\"/><animate attributeName=\"opacity\" values=\"0;.85;0;0\" keyTimes=\"0;.04;.36;1\" dur=\"7s\" begin=\"0.7s\" repeatCount=\"indefinite\"/></circle></g></svg>","sceneOut":"<svg class=\"mc-scene\" aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 88\"><defs><linearGradient id=\"sco15glass\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" style=\"stop-color:var(--scene-top,#c9dcf4)\"/><stop offset=\"1\" style=\"stop-color:var(--scene-hor,#e6eef9)\"/></linearGradient></defs><rect x=\"0\" y=\"12\" width=\"120\" height=\"56\" fill=\"#f5f3ef\"/><rect x=\"94\" y=\"12\" width=\"26\" height=\"56\" fill=\"#e3d2bb\"/><path d=\"M99 12v56M104 12v56M109 12v56M114 12v56\" stroke=\"#d6c2a6\" stroke-width=\".6\"/><rect x=\"0\" y=\"9\" width=\"120\" height=\"3.2\" fill=\"#4a4d52\"/><rect x=\"0\" y=\"12.2\" width=\"120\" height=\"1.2\" fill=\"#e4e1db\"/><rect x=\"38\" y=\"17\" width=\"54\" height=\"40\" fill=\"url(#sco15glass)\"/><rect class=\"wx-n\" x=\"38\" y=\"17\" width=\"54\" height=\"40\" fill=\"#f7e2b4\"/><path d=\"M41 17h7L39 38V20z\" fill=\"#ffffff\" opacity=\".3\"/><rect x=\"38\" y=\"17\" width=\"54\" height=\"40\" fill=\"none\" stroke=\"#45484d\" stroke-width=\"1.1\"/><path d=\"M56 17v40M74 17v40\" stroke=\"#45484d\" stroke-width=\".8\"/><path d=\"M95.6 36.4v-2.6c0-1.6 1-2.4 2.4-2.4h2.2c1.4 0 2.4.8 2.4 2.4v2.6z\" fill=\"#ffffff\" stroke=\"#cdd2d8\" stroke-width=\".4\"/><rect x=\"95.4\" y=\"36\" width=\"7.4\" height=\"1.6\" rx=\".6\" fill=\"#5b8fd9\"/><rect x=\"36\" y=\"57\" width=\"58\" height=\"4\" fill=\"#efebe5\"/><rect x=\"32\" y=\"61\" width=\"66\" height=\"4\" fill=\"#e7e2da\"/><rect x=\"28\" y=\"65\" width=\"74\" height=\"4.4\" fill=\"#dfd9cf\"/><path d=\"M36 57.2h58M32 61.2h66M28 65.2h74\" stroke=\"#b9b1a5\" stroke-width=\".7\"/><rect x=\"0\" y=\"69.2\" width=\"120\" height=\"18.8\" fill=\"#a7c19c\"/><circle cx=\"22\" cy=\"65\" r=\"5.4\" fill=\"#93ae8a\"/><circle cx=\"17\" cy=\"67\" r=\"3.6\" fill=\"#9db897\"/><path class=\"wx-dark\" fill-rule=\"evenodd\" d=\"M0 0h120v88H0zM38 17v40h54V17z\" fill=\"#1c2747\"/><g class=\"wx-c\" fill=\"#ffffff\" opacity=\".85\"><ellipse cx=\"52\" cy=\"4.6\" rx=\"9\" ry=\"3.2\"/><ellipse cx=\"60\" cy=\"3.4\" rx=\"6\" ry=\"3.2\"/><ellipse cx=\"84\" cy=\"5\" rx=\"7\" ry=\"2.6\"/></g><g class=\"wx-r\" stroke=\"#7d93b5\" stroke-width=\".55\" stroke-linecap=\"round\"><g class=\"wx-fall\"><path d=\"M46.7 4.5l-1.2 3.7\" opacity=\"0.53\"/><path d=\"M88.9 11.4l-1.2 3.6\" opacity=\"0.67\"/><path d=\"M50.4 75.8l-1.2 3.9\" opacity=\"0.69\"/><path d=\"M97.6 31.1l-1.2 6.5\" opacity=\"0.66\"/><path d=\"M49.8 31.2l-1.2 3.6\" opacity=\"0.64\"/><path d=\"M50.4 67.6l-1.2 6.0\" opacity=\"0.67\"/><path d=\"M30.8 19.3l-1.2 4.2\" opacity=\"0.54\"/><path d=\"M48.8 66.1l-1.2 3.9\" opacity=\"0.47\"/><path d=\"M111.5 43.0l-1.2 6.5\" opacity=\"0.63\"/><path d=\"M109.1 49.7l-1.2 5.9\" opacity=\"0.79\"/><path d=\"M72.5 7.1l-1.2 4.1\" opacity=\"0.84\"/><path d=\"M109.0 70.3l-1.2 4.5\" opacity=\"0.75\"/><path d=\"M100.0 48.8l-1.2 5.9\" opacity=\"0.69\"/><path d=\"M86.9 52.1l-1.2 4.3\" opacity=\"0.87\"/><path d=\"M114.1 5.7l-1.2 6.4\" opacity=\"0.88\"/><path d=\"M88.2 3.4l-1.2 6.2\" opacity=\"0.51\"/><path d=\"M115.2 50.7l-1.2 3.7\" opacity=\"0.53\"/><path d=\"M85.2 43.3l-1.2 5.7\" opacity=\"0.87\"/><path d=\"M47.7 0.2l-1.2 6.3\" opacity=\"0.46\"/><path d=\"M106.9 8.8l-1.2 5.9\" opacity=\"0.80\"/><path d=\"M107.0 41.8l-1.2 6.1\" opacity=\"0.54\"/><path d=\"M88.4 25.1l-1.2 6.2\" opacity=\"0.80\"/><path d=\"M70.4 40.0l-1.2 3.6\" opacity=\"0.47\"/><path d=\"M81.5 37.2l-1.2 6.1\" opacity=\"0.72\"/><path d=\"M40.5 27.6l-1.2 5.8\" opacity=\"0.69\"/><path d=\"M28.9 63.7l-1.2 6.0\" opacity=\"0.49\"/><path d=\"M76.9 29.0l-1.2 5.9\" opacity=\"0.59\"/><path d=\"M49.0 37.0l-1.2 6.4\" opacity=\"0.49\"/><path d=\"M38.3 47.2l-1.2 6.2\" opacity=\"0.68\"/><path d=\"M67.1 65.2l-1.2 5.8\" opacity=\"0.48\"/><path d=\"M107.3 14.9l-1.2 4.4\" opacity=\"0.83\"/><path d=\"M66.0 60.7l-1.2 4.0\" opacity=\"0.84\"/><path d=\"M43.9 11.3l-1.2 5.0\" opacity=\"0.60\"/><path d=\"M76.8 68.7l-1.2 5.6\" opacity=\"0.45\"/><path d=\"M56.1 41.4l-1.2 5.0\" opacity=\"0.77\"/><path d=\"M71.6 5.8l-1.2 4.2\" opacity=\"0.83\"/><path d=\"M60.1 58.3l-1.2 6.5\" opacity=\"0.73\"/><path d=\"M88.9 46.3l-1.2 4.4\" opacity=\"0.86\"/><path d=\"M70.0 69.3l-1.2 4.4\" opacity=\"0.84\"/><path d=\"M98.8 46.6l-1.2 4.8\" opacity=\"0.51\"/><g transform=\"translate(0 -76)\"><path d=\"M46.7 4.5l-1.2 3.7\" opacity=\"0.53\"/><path d=\"M88.9 11.4l-1.2 3.6\" opacity=\"0.67\"/><path d=\"M50.4 75.8l-1.2 3.9\" opacity=\"0.69\"/><path d=\"M97.6 31.1l-1.2 6.5\" opacity=\"0.66\"/><path d=\"M49.8 31.2l-1.2 3.6\" opacity=\"0.64\"/><path d=\"M50.4 67.6l-1.2 6.0\" opacity=\"0.67\"/><path d=\"M30.8 19.3l-1.2 4.2\" opacity=\"0.54\"/><path d=\"M48.8 66.1l-1.2 3.9\" opacity=\"0.47\"/><path d=\"M111.5 43.0l-1.2 6.5\" opacity=\"0.63\"/><path d=\"M109.1 49.7l-1.2 5.9\" opacity=\"0.79\"/><path d=\"M72.5 7.1l-1.2 4.1\" opacity=\"0.84\"/><path d=\"M109.0 70.3l-1.2 4.5\" opacity=\"0.75\"/><path d=\"M100.0 48.8l-1.2 5.9\" opacity=\"0.69\"/><path d=\"M86.9 52.1l-1.2 4.3\" opacity=\"0.87\"/><path d=\"M114.1 5.7l-1.2 6.4\" opacity=\"0.88\"/><path d=\"M88.2 3.4l-1.2 6.2\" opacity=\"0.51\"/><path d=\"M115.2 50.7l-1.2 3.7\" opacity=\"0.53\"/><path d=\"M85.2 43.3l-1.2 5.7\" opacity=\"0.87\"/><path d=\"M47.7 0.2l-1.2 6.3\" opacity=\"0.46\"/><path d=\"M106.9 8.8l-1.2 5.9\" opacity=\"0.80\"/><path d=\"M107.0 41.8l-1.2 6.1\" opacity=\"0.54\"/><path d=\"M88.4 25.1l-1.2 6.2\" opacity=\"0.80\"/><path d=\"M70.4 40.0l-1.2 3.6\" opacity=\"0.47\"/><path d=\"M81.5 37.2l-1.2 6.1\" opacity=\"0.72\"/><path d=\"M40.5 27.6l-1.2 5.8\" opacity=\"0.69\"/><path d=\"M28.9 63.7l-1.2 6.0\" opacity=\"0.49\"/><path d=\"M76.9 29.0l-1.2 5.9\" opacity=\"0.59\"/><path d=\"M49.0 37.0l-1.2 6.4\" opacity=\"0.49\"/><path d=\"M38.3 47.2l-1.2 6.2\" opacity=\"0.68\"/><path d=\"M67.1 65.2l-1.2 5.8\" opacity=\"0.48\"/><path d=\"M107.3 14.9l-1.2 4.4\" opacity=\"0.83\"/><path d=\"M66.0 60.7l-1.2 4.0\" opacity=\"0.84\"/><path d=\"M43.9 11.3l-1.2 5.0\" opacity=\"0.60\"/><path d=\"M76.8 68.7l-1.2 5.6\" opacity=\"0.45\"/><path d=\"M56.1 41.4l-1.2 5.0\" opacity=\"0.77\"/><path d=\"M71.6 5.8l-1.2 4.2\" opacity=\"0.83\"/><path d=\"M60.1 58.3l-1.2 6.5\" opacity=\"0.73\"/><path d=\"M88.9 46.3l-1.2 4.4\" opacity=\"0.86\"/><path d=\"M70.0 69.3l-1.2 4.4\" opacity=\"0.84\"/><path d=\"M98.8 46.6l-1.2 4.8\" opacity=\"0.51\"/></g></g></g><g class=\"sig\"><circle cx=\"99\" cy=\"34.5\" r=\"3\" fill=\"none\" stroke=\"#4f86d6\" stroke-width=\".6\" opacity=\"0\"><animate attributeName=\"r\" values=\"3;12;12\" keyTimes=\"0;.36;1\" dur=\"7s\" begin=\"3.5s\" repeatCount=\"indefinite\"/><animate attributeName=\"opacity\" values=\"0;.85;0;0\" keyTimes=\"0;.04;.36;1\" dur=\"7s\" begin=\"3.5s\" repeatCount=\"indefinite\"/></circle><circle cx=\"99\" cy=\"34.5\" r=\"3\" fill=\"none\" stroke=\"#4f86d6\" stroke-width=\".6\" opacity=\"0\"><animate attributeName=\"r\" values=\"3;12;12\" keyTimes=\"0;.36;1\" dur=\"7s\" begin=\"4.2s\" repeatCount=\"indefinite\"/><animate attributeName=\"opacity\" values=\"0;.85;0;0\" keyTimes=\"0;.04;.36;1\" dur=\"7s\" begin=\"4.2s\" repeatCount=\"indefinite\"/></circle></g></svg>"};
+// Each inserted copy of a drawing gets its own ids: a gradient referenced from a hidden copy doesn't paint.
+let svgCopy = 0;
+const uniq = svg => { const n = ++svgCopy; return svg.replace(/id="([^"]+)"/g, `id="$1-${n}"`).replace(/url\(#([^)]+)\)/g, `url(#$1-${n})`); };
 const TZ = 'America/New_York';
 const PM_FINE = 12, PM_HIGH = 35, CO2_OPEN = 800;
 const RH_LOW = 30, RH_HIGH = 50, RH_DAMP = 60;   // same as server.py
@@ -9,7 +12,6 @@ const RANGE_HOURS = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 };
 const RANGE_LABEL = { '1h': 'Last hour', '6h': 'Last 6 hours', '24h': 'Last 24 hours', '7d': 'Last 7 days' };
 const READ_MAX_AGE = 10 * 60 * 1000;
 const CACHE_KEY = 'air-read-v2';
-const FILTER_NAME = { toddler: 'Toddler', sinus: 'Sinus and allergy', runner: 'Runner' };
 
 const state = { range: '1h', indoor: null, outdoor: null, neighbors: [], read: null, readAt: 0, readKey: '' };
 
@@ -20,8 +22,6 @@ const has = v => v !== null && v !== undefined && !Number.isNaN(v);
 const num = (v, d = 1) => has(v) ? Number(v).toFixed(d) : '—';
 const pick = (m, ...keys) => { for (const k of keys) if (m && has(m[k])) return m[k]; return null; };
 const clock = d => new Date(d).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
-const toneVar = t => ({ good: 'var(--good)', warn: 'var(--warn)', bad: 'var(--bad)' }[t] || 'var(--soft)');
-const hourLabel = h => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
 const store = {
   get() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); } catch { return null; } },
   set(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch {} }
@@ -40,12 +40,6 @@ function homeHour() {
   return Number(new Date().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false })) % 24;
 }
 
-function rushText(hour) {
-  const on = RUSH.find(([s, e]) => hour >= s && hour < e);
-  if (on) return `${on[2]} rush until ${hourLabel(on[1])}`;
-  const next = RUSH.find(([s]) => s > hour) || RUSH[0];
-  return `next rush ${hourLabel(next[0])}${next[0] <= hour ? ' tomorrow' : ''}`;
-}
 
 function freshness(m) {
   if (!m || !m.timestamp) return { tone: 'bad', label: 'Offline' };
@@ -84,14 +78,6 @@ function reading(m, indoor) {
 
 // ── Monitors ──────────────────────────────────────────
 
-// Aim for each reading. A value past its aim is amber; nothing else is colored.
-const AIM = {
-  pm:  { text: `< ${PM_FINE}`, over: v => v > PM_FINE },
-  co2: { text: `< ${CO2_OPEN}`, over: v => v > CO2_OPEN, indoorOnly: true },
-  voc: { text: '~100', over: v => v > 150, indoorOnly: true },
-  nox: { text: '~1', over: v => v > 20, indoorOnly: true },
-  rh:  { text: '30–60%', over: v => v > 60 || v < 30, indoorOnly: true },
-};
 
 // Production's card structure: PM2.5 hero, then CO₂ / temperature / humidity with bars and words,
 // then VOC / NOx / Wi-Fi, then the secondary particle readings.
@@ -135,10 +121,14 @@ function monitorCard(m, indoor) {
   const metric = (label, value, unit, color, extra, sub) =>
     `<div class="mc-m"><span>${label}</span><b${color ? ` style="color:${color}"` : ''}>${value}${unit ? `<small>${unit}</small>` : ''}</b>${extra || ''}<em>${sub || ''}</em></div>`;
   const tF = has(r.t) ? num(r.t * 9 / 5 + 32) : '—';
-  return `<article class="card mc" style="--tint:${indoor ? 'var(--series-in)' : 'var(--series-out)'}">
-    <div class="mc-head">
-      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${indoor ? ICONS.one : ICONS.openair}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name">${indoor ? 'AirGradient ONE · main room' : 'AirGradient Open Air · street side'}</div></div></div>
-      <div class="mc-status ${f.tone}" title="${m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading'}"><i class="live ${f.tone}"></i>${f.label}</div>
+  // temperature in words, like CO₂ and humidity: a comfort range indoors, plain words outdoors (°F)
+  const fT = has(r.t) ? r.t * 9 / 5 + 32 : null;
+  const tl = !has(fT) ? { word: '', tone: 'muted' } : indoor
+    ? (fT < 64 ? { word: 'Cold', tone: 'warn' } : fT < 68 ? { word: 'Cool', tone: 'muted' } : fT <= 76 ? { word: 'Comfortable', tone: 'muted' } : fT <= 80 ? { word: 'Warm', tone: 'muted' } : { word: 'Hot', tone: 'warn' })
+    : { word: fT < 40 ? 'Cold' : fT < 60 ? 'Cool' : fT < 75 ? 'Mild' : fT < 85 ? 'Warm' : 'Hot', tone: 'muted' };
+  return `<article class="card mc ${indoor ? 'mc-in' : 'mc-out'}" style="--tint:${indoor ? 'var(--series-in)' : 'var(--series-out)'}">
+    <div class="mc-head">${uniq(indoor ? ICONS.sceneIn : ICONS.sceneOut)}
+      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${uniq(indoor ? ICONS.one : ICONS.openair)}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name">${indoor ? 'AirGradient ONE · main room' : 'AirGradient Open Air · backyard'}</div><div class="mc-status ${f.tone}" title="${(m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i>${f.label}${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi">· Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</div></div></div>
     </div>
     <div class="mc-hero ${pl.tone}">
       ${pmRing(r.pm, pl.tone)}
@@ -146,18 +136,19 @@ function monitorCard(m, indoor) {
         <div class="mc-hero-s">Fine particles · aim under ${PM_FINE} µg/m³</div></div>
     </div>
     <div class="mc-grid">
-      ${metric('CO₂', has(r.co2) ? Math.round(r.co2).toLocaleString() : '—', 'ppm', cl.tone === 'good' && !indoor ? null : TONE[cl.tone], has(r.co2) ? bar(r.co2 / 2000 * 100, cl.tone) : '', cl.word)}
-      ${metric('Temp', tF, '°F', null, '', has(r.t) ? num(r.t) + '°C' : '')}
-      ${metric('Humidity', has(r.rh) ? Math.round(r.rh) : '—', '%', indoor && hl.tone === 'warn' ? TONE.warn : null, has(r.rh) ? bar(r.rh, indoor ? (hl.tone === 'warn' ? 'warn' : 'good') : 'muted') : '', hl.word)}
-      ${metric('VOC index', has(voc) ? voc : '—', '', has(voc) && voc > 150 && indoor ? TONE.warn : null, '', has(voc) ? (voc <= 100 ? 'Normal' : voc <= 200 ? 'Elevated' : 'High') : '')}
-      ${metric('NOx index', has(nox) ? nox : '—', '', null, '', has(nox) ? (nox <= 20 ? 'Clean' : nox <= 100 ? 'Moderate' : 'High') : '')}
-      ${metric('Wi‑Fi', has(wifi) ? wifi : '—', 'dBm', null, '', has(wifi) ? (wifi >= -50 ? 'Excellent' : wifi >= -65 ? 'Good' : wifi >= -75 ? 'Fair' : 'Weak') : '')}
+      ${metric('CO₂', has(r.co2) ? Math.round(r.co2).toLocaleString() : '—', 'ppm', cl.tone === 'warn' || cl.tone === 'bad' ? TONE[cl.tone] : null, has(r.co2) ? bar(r.co2 / 2000 * 100, cl.tone === 'good' ? 'muted' : cl.tone) : '', cl.word)}
+      ${metric('Temp', tF, '°F', tl.tone === 'warn' ? TONE.warn : null, has(r.t) ? bar((r.t * 9 / 5 + 32 - 30) / 70 * 100, tl.tone === 'warn' ? 'warn' : 'muted') : '', has(r.t) ? `${tl.word} · ${num(r.t)}°C` : '')}
+      ${metric('Humidity', has(r.rh) ? Math.round(r.rh) : '—', '%', indoor && hl.tone === 'warn' ? TONE.warn : null, has(r.rh) ? bar(r.rh, indoor && hl.tone === 'warn' ? 'warn' : 'muted') : '', hl.word)}
     </div>
-    <div class="mc-pm">
-      <div><span>PM1</span><b>${num(m && m.pm01)}<small>µg/m³</small></b></div>
-      <div><span>PM2.5 raw</span><b>${num(m && m.pm02)}<small>µg/m³</small></b></div>
-      <div><span>PM10</span><b>${num(pick(m, 'pm10_corrected', 'pm10'))}<small>µg/m³</small></b></div>
-      <div><span>0.3 µm count</span><b>${m && has(m.pm003Count) ? Math.round(m.pm003Count) : '—'}<small>/dL</small></b></div>
+    <div class="mc-pm mc-groups">
+      <div class="mc-g"><span class="mc-gl">Gases</span><div class="mc-gr">
+        <div title="Volatile organic compounds, Sensirion index (100 = this room's usual)"><span>VOC index</span><b${has(voc) && voc > 150 ? ' class="warn"' : ''}>${has(voc) ? voc : '—'}</b><em>${has(voc) ? (voc <= 100 ? 'normal' : voc <= 200 ? 'elevated' : 'high') : ''}</em></div>
+        <div title="Nitrogen oxides, Sensirion index (1 = clean)"><span>NOx index</span><b>${has(nox) ? nox : '—'}</b><em>${has(nox) ? (nox <= 20 ? 'clean' : nox <= 100 ? 'moderate' : 'high') : ''}</em></div>
+      </div></div>
+      <div class="mc-g" title="Also measured: PM2.5 before AirGradient's correction ${num(m && m.pm02)} µg/m³ · particles over 0.3 µm ${m && has(m.pm003Count) ? Math.round(m.pm003Count) : '—'} per dL"><span class="mc-gl">Particles</span><div class="mc-gr">
+        <div><span>PM1</span><b>${num(m && m.pm01)}<small>µg/m³</small></b></div>
+        <div><span>PM10</span><b>${num(pick(m, 'pm10_corrected', 'pm10'))}<small>µg/m³</small></b></div>
+      </div></div>
     </div>
   </article>`;
 }
@@ -172,7 +163,7 @@ function updateStatus() {
   $('dot-sum').className = 'av-dot ' + (okN === 2 ? 'good' : okN ? 'warn' : 'bad');
   const hw = $('vsum-hw');
   if (hw) hw.innerHTML = [[ICONS.one, state.indoor, 'Indoor · AirGradient ONE'], [ICONS.openair, state.outdoor, 'Outdoor · AirGradient Open Air']]
-    .map(([ic, m, name]) => { const f = freshness(m); return `<span class="vhw" data-tip="${name}: ${f.label}">${ic}<i class="${f.tone}"></i></span>`; }).join('');
+    .map(([ic, m, name]) => { const f = freshness(m); return `<span class="vhw" data-tip="${name}: ${f.label}">${uniq(ic)}<i class="${f.tone}"></i></span>`; }).join('');
 }
 
 function renderMonitors() {
@@ -231,9 +222,13 @@ function setEdges() {
   for (const id of ['wx-hero', 'pollen-hero', 'bqe-hero', 'smoke-hero']) {
     const el = $(id), card = el && el.closest('.card');
     if (!card) continue;
-    const c = el.style.getPropertyValue('--c');
+    // the dot says whether the source is connected, as everywhere else on the page (the hero word's color says good or bad):
+    // green when it answered, amber when it didn't (no data / not checked), none while loading
+    const t = el.textContent.trim(), failed = /^(No reading|No data|Not checked)$/.test(t);
+    const c = t === '—' || !t ? '' : failed ? 'var(--warn-fill)' : 'var(--good)';
     card.style.setProperty('--edge', c || 'var(--sky)');
     card.classList.toggle('has-status', !!c);
+    card.querySelector('.k-link')?.setAttribute('aria-description', failed ? 'Source not answering' : c ? 'Source connected' : 'Loading');
   }
 }
 
@@ -319,12 +314,6 @@ function renderContext(ctx) {
 
 // ── Neighborhood ──────────────────────────────────────
 
-function barColor(v) {
-  if (v > 35) return 'var(--bad)';
-  if (v > PM_FINE) return 'var(--warn-fill)';
-  const k = Math.min(v / PM_FINE, 1);               // light to deep green across the fine range
-  return `color-mix(in srgb, var(--bar-hi) ${Math.round(k * 100)}%, var(--bar-lo))`;
-}
 
 // Neighborhood table rows highlight their dot on the map, and the other way around
 document.addEventListener('mouseover', e => { const tr = e.target.closest && e.target.closest('#nb tr[data-id]'); if (tr && typeof NBMAP !== 'undefined') NBMAP.highlight(Number(tr.dataset.id)); });
@@ -623,7 +612,7 @@ function broadcastHover(t) {
 function wireSparks() {
   document.querySelectorAll('#s-cards .n-card').forEach(card => {
     const sp = card.querySelector('.s-spark'); if (!sp) return;
-    const t1 = Number(card.dataset.t1), readout = card.querySelector('.n-metric');
+    const t1 = Number(card.dataset.t1), readout = card.querySelector('.n-span');   // hovering a chart shows the time and value here
     sp.insertAdjacentHTML('beforeend', '<span class="s-xh" style="display:none"><i></i></span>');
     sp.__hover = { kind: 'spark', t0: t1 - 24 * 3600e3, t1, series: JSON.parse(sp.dataset.series), lo: Number(sp.dataset.lo), hi: Number(sp.dataset.hi),
       mark: sp.querySelector('.s-xh'), readout, label: readout.textContent, unit: card.dataset.unit, metric: card.dataset.metric };
@@ -649,32 +638,17 @@ function readKey(p) {
   return [r(p.indoor_co2, 50), r(p.indoor_humidity, 3), r(p.outdoor_pm25, 1), homeHour()].join('|');
 }
 
-function splitFirst(text) {
-  const m = String(text || '').match(/^(.+?[.!?])(\s[\s\S]*)?$/);
-  return m ? [m[1], m[2] || ''] : [String(text || ''), ''];
-}
 
-function ftag(filter) {
-  return filter && ICONS[filter] ? `<span class="ftags" title="${FILTER_NAME[filter]}">${ICONS[filter]}</span>` : '';
-}
 
-function setCheck(id, v, text) {
-  const card = $(id);
-  card.style.setProperty('--c', toneVar(v.tone));
-  card.querySelector('.n').textContent = v.word;
-  card.querySelector('.s').textContent = text;
-}
 
-// why: 'offline' or 'failed' when this is an earlier summary shown in place of a new one.
-// Sparkline: gray line, colored only where it is over the limit; the limit is labeled at the end of its line.
-let sparkN = 0;
 // zone: words for the side above the limit (e.g. "Stale"), drawn as a faint tinted band so it's clear which side is bad.
 // Chart: the line, its limit line, and in the right gutter the limit's number with one word for the bad side ("stale ↑").
 // limit null: no upper limit (a dry-only humidity chart). low: { limit, word } for a second bad side below.
-function sparkline(series, limit, tone, cross, word, low) {
+// good: [lo, hi] of the healthy range, drawn as a pale band; the scale always includes it, so a line that's all outside reads as outside.
+function sparkline(series, limit, tone, cross, word, low, good) {
   const pts = series.map((v, i) => [i, v]).filter(p => has(p[1]));
   if (pts.length < 2) return '';
-  const top = limit != null, W = 260, H = 56, vals = [...pts.map(p => p[1]), ...(top ? [limit] : []), ...(low ? [low.limit] : [])];
+  const top = limit != null, W = 260, H = 56, vals = [...pts.map(p => p[1]), ...(top ? [limit] : []), ...(low ? [low.limit] : []), ...(good || [])];
   let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * .2 || 1; lo -= pad; hi += pad;
   const n = series.length - 1, x = i => i / n * W, y = v => H - (v - lo) / (hi - lo) * H;
   const d = pts.map((p, k) => (k && has(series[p[0] - 1]) ? 'L' : 'M') + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1)).join('');
@@ -688,6 +662,7 @@ function sparkline(series, limit, tone, cross, word, low) {
     <linearGradient id="${id}w" x1="0" x2="0" y1="0" y2="1"><stop offset="0" class="s-warn-a"/><stop offset="1" class="s-warn-b"/></linearGradient>
     ${top ? `<clipPath id="${id}"><rect x="0" y="-10" width="${W}" height="${y(limit) + 10}"/></clipPath>` : ''}
     ${low ? `<clipPath id="${id}l"><rect x="0" y="${y(low.limit)}" width="${W}" height="${H - y(low.limit) + 10}"/></clipPath>` : ''}</defs>
+    ${good ? `<rect class="s-good" x="0" y="${y(good[1]).toFixed(1)}" width="${W}" height="${(y(good[0]) - y(good[1])).toFixed(1)}"/>` : ''}
     <path d="${area}" fill="url(#${id}g)"/>
     ${top && tone !== 'good' ? `<path d="${d}L${x1},${y(limit)}L${x0},${y(limit)}Z" fill="url(#${id}w)" clip-path="url(#${id})"/>` : ''}
     ${top ? lim(limit) : ''}${low ? lim(low.limit) : ''}
@@ -696,7 +671,7 @@ function sparkline(series, limit, tone, cross, word, low) {
     ${low ? `<path class="s-hot" d="${d}" stroke="${col}" clip-path="url(#${id}l)" vector-effect="non-scaling-stroke"/>` : ''}</svg>
     ${top ? `<span class="s-lab up" style="top:${pct(limit)}%">${word ? `<em>${esc(word)} ↑</em> ` : ''}<b>${limit.toLocaleString()}</b></span>` : ''}
     ${low ? `<span class="s-lab down" style="top:${pct(low.limit)}%"><b>${low.limit}</b> <em>${esc(low.word)} ↓</em></span>` : ''}
-    <span class="s-span">24 h</span>${(() => { const lp = pts[pts.length - 1]; return `<span class="s-end" style="left:calc((100% - var(--gut, 52px)) * ${(x(lp[0]) / W).toFixed(4)});top:${pct(lp[1])}%;--c:${col}"></span>`; })()}</div>`;
+    ${good ? `<span class="s-goodlbl" style="top:${pct((good[0] + good[1]) / 2)}%">good</span>` : ''}<span class="s-ends"><span>24 h ago</span><span>now</span></span>${(() => { const lp = pts[pts.length - 1]; return `<span class="s-end" style="left:calc((100% - var(--gut, 52px)) * ${(x(lp[0]) / W).toFixed(4)});top:${pct(lp[1])}%;--c:${col}"></span>`; })()}</div>`;
 }
 
 const CARD_ICON = { co2: '<span class="s-txt">CO₂</span>', humidity: null, pm: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="8" r="1.6"/><circle cx="15" cy="6" r="1.2"/><circle cx="17" cy="14" r="1.8"/><circle cx="9" cy="16" r="1.3"/><circle cx="12" cy="11" r="1"/></svg>' };
@@ -709,16 +684,21 @@ function summaryCard(c) {
     <div class="s-num"><b>${num}</b><span class="s-u">${esc(c.unit)}</span><span class="s-limt">${esc(c.limit_label)} <strong>${c.limit}</strong></span></div>
     <div class="s-st"><b>${esc(c.state)}</b>${c.fact ? ` <span>· ${esc(c.fact)}</span>` : ''}</div>
     ${sparkline(c.series || [], c.limit, c.tone, c.cross)}
-    ${c.means ? `<div class="s-means">${esc(c.means)}</div>` : ''}
   </div>`;
 }
 
 // A need paired with the card that holds its evidence: the action first, then the number and its chart.
-const TONE_ICON = {
-  good: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
-  warn: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+const TONE_ICON = {   // the answer marks: a check or an exclamation, each in a circle (a calm pair, colored like the answer's text)
+  good: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m8 12.3 2.7 2.7L16.2 9.5"/></svg>',
+  warn: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v5.2"/><path d="M12 16.4h.01"/></svg>',
 };
 TONE_ICON.bad = TONE_ICON.warn;
+// small marks for Coming up rows that aren't a need: the BQE, sunrise, sunset
+const AG_ICON = {
+  road: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 21M16 3l4 18M12 4v3M12 11v3M12 18v2"/></svg>',
+  sunrise: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 18a5 5 0 0 0-10 0M12 3v6M9 6l3-3 3 3M3 18h18M5.6 12.6l1.4 1.4M18.4 12.6 17 14"/></svg>',
+  sunset: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 18a5 5 0 0 0-10 0M12 9V3M9 6l3 3 3-3M3 18h18M5.6 12.6l1.4 1.4M18.4 12.6 17 14"/></svg>',
+};
 const NEED_ICON = { toddler: 'toddler', sinus: 'sinus', runner: 'runner' };
 
 function pollenBars(list, short, relief) {
@@ -732,21 +712,30 @@ function pollenBars(list, short, relief) {
 
 // Humidity has two bad sides. Shade each only when the line comes within 10 points of it (the damp side by default),
 // so a dry winter day shows "Too dry below" and the chart isn't squashed the rest of the time.
+// Each chart shows its healthy range as a band: CO₂ up to 800 (from the ~420 of fresh outdoor air), humidity 30–60%, PM2.5 up to 12.
 function humidityAware(c) {
   const word = { co2: 'stale', humidity: 'damp', pm: 'polluted' }[c.id];
-  if (c.id !== 'humidity') return sparkline(c.series || [], c.limit, c.tone, c.cross, word);
-  const v = (c.series || []).filter(has), lo = v.length ? Math.min(...v) : 50, hi = v.length ? Math.max(...v) : 50;
-  const nearDry = lo < RH_LOW + 10, nearDamp = hi > RH_DAMP - 10 || !nearDry, dry = nearDry ? { limit: RH_LOW, word: 'dry' } : null;
-  return sparkline(c.series || [], nearDamp ? c.limit : null, c.tone, c.cross, word, dry);
+  if (c.id === 'co2') return sparkline(c.series || [], c.limit, c.tone, c.cross, word, null, [420, c.limit]);
+  if (c.id === 'pm') return sparkline(c.series || [], c.limit, c.tone, c.cross, word, null, [0, c.limit]);
+  return sparkline(c.series || [], c.limit, c.tone, c.cross, word, { limit: RH_LOW, word: 'dry' }, [RH_LOW, c.limit]);
 }
 
+// A need card reads top-down: for whom (the same chip as in the Home menu), the answer for that need,
+// the evidence (the reading and its 24 h chart), then what it means, quieter.
 function needCard(n, c, r) {
   const num = c.num == null ? '—' : (c.id === 'pm' ? Number(c.num).toFixed(1) : Number(c.num).toLocaleString());
+  const tone = n.tone === 'muted' ? 'muted' : n.tone, metric = c.name.replace(/\s*\(.*\)$/, '').replace('Room air', 'CO₂').replace('Outside air', 'Outdoor PM2.5');
+  // the card that carries the headline doesn't repeat it: it says what the reading is instead ("Too damp inside")
+  const norm = t => String(t || '').toLowerCase().replace(/[^a-z]+/g, ' ').trim();
+  const dup = !!(r.headline && norm(n.action) === norm(r.headline.text)) && c.state && c.num != null;
+  const answer = dup ? `${c.state} ${c.id === 'pm' ? 'outside' : 'inside'}` : n.action;
+  const tip = { toddler: 'Toddler: outdoor time and the air at sleep time get called out.', sinus: 'Sinus & allergy: humidity, pollen and dry air, explained for sensitive sinuses.', runner: 'Runner: when the outdoor air and BQE traffic make a run worth it.' }[n.id] || '';
   return `<div class="s-c n-card ${c.tone}" data-need="${n.id}" data-t1="${Date.parse(r.generated_at) || Date.now()}" data-unit="${esc(c.unit)}" data-metric="${c.id}">
-    <div class="s-k"><button type="button" class="n-need" data-open-home="needs" title="Change needs"><span class="n-ic">${ICONS[NEED_ICON[n.id]] || ''}</span>${esc(n.name)}</button><span class="n-metric">${esc(c.name)} · 24 h</span></div>
-    <div class="s-num"><b>${num}</b><span class="s-u">${esc(c.unit)}</span><span class="n-word ${c.tone}">${esc(c.state)}</span></div>
+    <div class="n-top"><button type="button" class="n-chip" data-open-home="needs" data-tip="${esc(tip)}">${ICONS[NEED_ICON[n.id]] || ''}${esc(n.name)}</button>
+    <div class="n-answer ${tone}">${TONE_ICON[tone] || ''}<b>${esc(answer)}</b></div></div>
+    ${c.means ? `<p class="s-means n-sub">${esc(c.means)}</p>` : ''}
+    <div class="n-ev"><span class="n-metric">${esc(metric)}</span><b class="n-num">${num}</b><span class="s-u">${esc(c.unit)}</span>${dup ? '' : `<span class="n-word ${c.tone}">${esc(c.state)}</span>`}<span class="n-span"></span></div>
     ${humidityAware(c)}
-    ${c.means ? `<div class="s-means">${esc(c.means)}</div>` : ''}
     ${n.id === 'sinus' ? pollenBars(n.pollen, r.relief_short, r.relief) : ''}
   </div>`;
 }
@@ -754,9 +743,52 @@ function needCard(n, c, r) {
 // ── Next to the headline: why, as a picture from the readings ──
 // For "open a window": inside vs outside CO₂ on one scale with the limit, plus the last big CO₂ drop in the past 24 h
 // (how fast the room clears). Hidden for other headlines until they have an honest picture.
+// For "dry the air": humidity inside vs outside on one 0–100% scale with the 30–60% good range, and whether airing would help,
+// judged by dew point (how much water the air actually holds), not by the two percentages.
+// One line under the 24 h humidity chart: how long it was out of range, and which way it's heading (30-minute steps)
+function humidityTrendNote(series) {
+  const v = (series || []).filter(has); if (!v.length) return '';
+  const hrs = n => { const h = Math.round(n / 2); return h === 1 ? '1 hour' : h + ' hours'; };
+  const over = v.filter(x => x > RH_DAMP).length, under = v.filter(x => x < RH_LOW).length, last = v[v.length - 1];
+  const prev = v[Math.max(0, v.length - 7)], d = last - prev;   // about 3 hours ago
+  const dir = d >= 3 ? ' · rising' : d <= -3 ? ' · falling' : ' · steady';
+  if (over === v.length) return `Over ${RH_DAMP}% the whole day${dir}`;
+  if (under === v.length) return `Under ${RH_LOW}% the whole day${dir}`;
+  if (last > RH_DAMP) return `Over ${RH_DAMP}% for ${hrs(over)} of the last 24${dir}`;
+  if (last < RH_LOW) return `Under ${RH_LOW}% for ${hrs(under)} of the last 24${dir}`;
+  // back in range: since when
+  let k = v.length - 1; while (k > 0 && v[k - 1] >= RH_LOW && v[k - 1] <= RH_DAMP) k--;
+  if (k === 0) return `In the good range all day${dir}`;
+  const t = new Date(Date.now() - (v.length - 1 - k) * 30 * 60e3);
+  return `In the good range since ${t.toLocaleTimeString('en-US', { hour: 'numeric', minute: t.getMinutes() ? '2-digit' : undefined, timeZone: 'America/New_York' })}`;
+}
+
+function renderHumidityVis(r, box) {
+  const i = state.indoor ? reading(state.indoor, true) : {}, o = state.outdoor ? reading(state.outdoor, false) : {};
+  if (!has(i.rh) || !has(o.rh)) { box.hidden = true; box.innerHTML = ''; return; }
+  const dp = (t, rh) => { if (!has(t) || !has(rh) || rh <= 0) return null; const g = Math.log(rh / 100) + 17.62 * t / (243.12 + t); return 243.12 * g / (17.62 - g); };
+  const di = dp(i.t, i.rh), dout = dp(o.t, o.rh), wetter = has(di) && has(dout) && dout - di > 1, drier = has(di) && has(dout) && di - dout > 1;
+  const firstReal = !box.dataset.real && !revealNext; box.dataset.real = '1';
+  box.hidden = false;
+  const pin = (label, v, cls, side) => `<span class="h-pin ${cls}${side ? ' ' + side : ''}" style="left:${Math.max(0, Math.min(100, v))}%"><i></i><b>${label} ${Math.round(v)}%</b></span>`;
+  // close markers: the lower one's label moves to its left; very close, the outside one goes under the scale
+  const gap = Math.abs(i.rh - o.rh), close = gap < 6, near = gap < 25;
+  const iSide = near && !close && i.rh < o.rh ? 'left' : '', oSide = close ? 'below' : near && o.rh < i.rh ? 'left' : '';
+  box.innerHTML = `<div class="v-left"><div class="v-head">Inside vs outside · now</div>
+    <div class="h-scale"><span class="h-band" style="left:${RH_LOW}%;width:${RH_DAMP - RH_LOW}%"><em>good</em></span>
+      ${pin('Inside', i.rh, i.rh > RH_DAMP || i.rh < RH_LOW ? 'warn' : 'ok', iSide)}${pin('Outside', o.rh, 'out', oSide)}</div>
+    <div class="h-ticks"><span>0</span><span style="left:${RH_LOW}%">${RH_LOW}</span><span style="left:${RH_DAMP}%">${RH_DAMP}</span><span style="left:100%">100%</span></div></div>
+    <p class="v-note" title="${has(di) && has(dout) ? `Dew point ${num(di)} °C inside, ${num(dout)} °C outside` : ''}">${wetter ? 'The outside air holds more water than inside, so opening windows would add moisture.'
+      : drier ? 'The outside air holds less water than inside, so airing for a while also helps.'
+      : 'Inside and outside hold about the same water, so airing won\'t change much.'}</p>`;
+  if (firstReal && !reduceMotion.matches) box.querySelectorAll('.h-pin').forEach((p, k) =>
+    p.animate([{ opacity: 0, transform: 'translate(-50%, 4px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { duration: 600, delay: 200 + k * 180, easing: 'cubic-bezier(.2, .7, .2, 1)', fill: 'backwards' }));
+}
+
 function renderActionVis(r) {
   const box = $('s-vis'); if (!box) return;
   const key = r && r.headline && r.headline.key, inC = state.indoor ? reading(state.indoor, true).co2 : null, outC = state.outdoor ? reading(state.outdoor, false).co2 : null;
+  if (key === 'humidity') return renderHumidityVis(r, box);
   if (key !== 'window') { box.hidden = true; box.innerHTML = ''; return; }
   if (!has(inC) || !has(outC)) {   // readings still loading: same size, placeholder bars
     box.hidden = false; delete box.dataset.real;
@@ -815,11 +847,10 @@ function buildAgenda(r) {
   }
   // the run window, unless the headline is already about running
   if (key !== 'run' && has(pm)) {
-    if (pm > PM_HIGH) out.push({ at: 0, time: 'Now', title: 'Skip the run', sub: `Outdoor PM2.5 is ${num(pm)}`, tone: 'bad', needs: ['runner'] });
-    else if (pm > PM_FINE) out.push({ at: 0, time: 'Now', title: 'Keep runs short', sub: `Outdoor PM2.5 is ${num(pm)}`, tone: 'warn', needs: ['runner'] });
+    // (a plain "fine / short / skip" right now is the Runner card's job; only a window with an end or a start goes here)
+    if (pm > PM_FINE) { /* the Runner card says it */ }
     else if (nextToward && nextToward.inNow) out.push({ at: ahead(nextToward.e), time: `From ${minLabel(nextToward.e * 60)}`, title: 'Good time to run', sub: 'Clean air, rush over', tone: 'good', needs: ['runner'] });
     else if (nextToward) out.push({ at: 0, time: `Now–${minLabel(nextToward.a * 60)}`, title: 'Good time to run', sub: 'Clean air, light traffic', tone: 'good', needs: ['runner'] });
-    else out.push({ at: 0, time: 'Now', title: 'Fine to run', sub: 'Clean air', tone: 'good', needs: ['runner'] });
   }
   // sunrise or sunset in the next 12 hours
   const el = m => (typeof SKY !== 'undefined' && SKY && SKY.sunEl) ? SKY.sunEl(((m % 1440) + 1440) % 1440) : null;
@@ -830,7 +861,10 @@ function buildAgenda(r) {
   // airing the bedroom before the toddler's bedtime
   if (needs.toddler && needs.toddler.tone !== 'good' && needs.toddler.tone !== 'muted' && h0 >= 12 && h0 < 20)
     out.push({ at: ahead(20), time: '8 PM', title: 'Air the bedroom before sleep', sub: `If CO₂ is still over ${CO2_OPEN}`, tone: '', needs: ['toddler'] });
-  return out.sort((x, y) => x.at - y.at).slice(0, 5);
+  // a rush happening now that doesn't blow this way is the reason the run is fine: say it once
+  const rushNow = out.find(o => o.title === 'BQE rush hour' && o.at === 0 && o.tone !== 'warn'), runNow = out.find(o => o.needs.includes('runner') && o.title !== 'BQE rush hour' && o.at === 0);
+  if (rushNow && runNow) { runNow.sub = `Rush hour until ${rushNow.time.replace('Now–', '')}, but ${rushNow.sub.charAt(0).toLowerCase() + rushNow.sub.slice(1)}`; out.splice(out.indexOf(rushNow), 1); }
+  return out.sort((x, y) => x.at - y.at).slice(0, 4);
 }
 
 function renderAgenda(r) {
@@ -844,7 +878,9 @@ function renderAgenda(r) {
   }
   const items = buildAgenda(r);
   box.hidden = !items.length;
-  box.innerHTML = `<h3>Coming up</h3><ol class="ag">${items.map(it => `<li class="${it.tone}"${it.sub ? ` title="${esc(it.sub)}"` : ''}><span class="ag-t">${esc(it.time)}</span><span class="ag-d"></span><span class="ag-x"><b>${esc(it.title)}</b></span></li>`).join('')}</ol>`;
+  const icon = it => it.title === 'BQE rush hour' ? AG_ICON.road : it.tone === 'sun' ? (it.title === 'Sunrise' ? AG_ICON.sunrise : AG_ICON.sunset)
+    : it.needs[0] ? ICONS[NEED_ICON[it.needs[0]]] || '' : '';
+  box.innerHTML = `<h3>Coming up</h3><ol class="ag ag2">${items.map(it => `<li class="${it.tone}"${it.sub ? ` title="${esc(it.sub)}"` : ''}><span class="ag-i">${icon(it)}</span><b class="ag-n">${esc(it.title)}</b><span class="ag-w">${esc(it.time)}</span>${it.sub ? `<em class="ag-s">${esc(it.sub)}</em>` : ''}</li>`).join('')}</ol>`;
 }
 
 
@@ -886,13 +922,14 @@ function reveal() {
   remember();
 }
 
+// why: 'offline' or 'failed' when this is an earlier summary shown in place of a new one.
 function renderRead(r, stale, why) {
   shownSig = readSig(r);
   if (!r.headline) return;                      // a summary saved in the old format
   // in front of the headline: an alert triangle when there's something to do, a check when all is fine
   const urgent = r.headline.tone === 'warn' || r.headline.tone === 'bad';
   const key = urgent || r.headline.tone === 'good';
-  $('s-act').hidden = true;
+  $('s-act').hidden = !key;   // the main answer opens with its icon, like the need cards
   document.querySelector('.s-main').className = 's-main' + (r.headline.tone === 'warn' || r.headline.tone === 'bad' ? ' alert ' + r.headline.tone : '');
   $('s-act').className = 's-act ' + r.headline.tone;
   $('s-act').innerHTML = key ? (urgent ? TONE_ICON.warn : TONE_ICON.good) : '';
@@ -902,16 +939,34 @@ function renderRead(r, stale, why) {
 
   if (r.needs && r.needs.length) {
     const byId = Object.fromEntries((r.cards || []).map(c => [c.id, c]));
-    $('s-cards').innerHTML = r.needs.filter(n => byId[n.metric]).map(n => needCard(n, byId[n.metric], r)).join('');
+    // the need behind the headline is the main card (same anatomy: title + chip, why, reading picture); the row shows the others.
+    // Only when the main card has its picture (window: CO₂, humidity); otherwise the need's chart stays in the row.
+    const promoted = { window: 'co2', humidity: 'humidity' }[r.headline.key];
+    const chips = (r.headline.needs || []).map(id => r.needs.find(n => n.id === id)).filter(Boolean);
+    $('s-chips').innerHTML = chips.map(n => `<button type="button" class="n-chip" data-open-home="needs">${ICONS[NEED_ICON[n.id]] || ''}${esc(n.name)}</button>`).join('');
+    const row = r.needs.filter(n => byId[n.metric] && n.metric !== promoted);
+    $('s-cards').innerHTML = row.map(n => needCard(n, byId[n.metric], r)).join('');
+    $('s-cards').dataset.count = row.length;
     wireSparks();
     renderAgenda(r);
     renderActionVis(r);
+    // the sinus need's pollen bars move up with it, so a damp day in pollen season still shows the pollen
+    let pb = $('s-pollen');
+    if (!pb) { pb = document.createElement('div'); pb.id = 's-pollen'; pb.className = 's-pollen'; $('s-vis').after(pb); }
+    const sinus = r.needs.find(n => n.id === 'sinus');
+    // and the 24 h humidity line, so a damp day still shows whether drying is working
+    const hum = byId.humidity;
+    pb.innerHTML = promoted === 'humidity' && sinus ? (hum && (hum.series || []).length ? `<div class="s-trend"><div class="v-head">Inside humidity · last 24 h</div>${humidityAware(hum)}<p class="v-note">${humidityTrendNote(hum.series)}</p></div>` : '')
+      + pollenBars(sinus.pollen, r.relief_short, r.relief) : '';
   } else $('s-cards').innerHTML = (r.cards || []).map(summaryCard).join('');   // a summary saved in the previous format
   if (revealNext) { revealNext = false; reveal(); }
   const by = r.source === 'model' ? `by ${r.model_name || r.model}` : 'from the rules';
   // the byline says who wrote the advice: Claude, or the rules when the model is off
-  $('s-by').textContent = r.source === 'model' ? '· based on' : '· from the rules, based on';
-  document.querySelector('.s-by b').textContent = r.source === 'model' ? 'AI advice' : 'Advice';
+  $('s-by').textContent = r.source === 'model' ? '' : '· by the rules,';
+  $('s-tag-t').textContent = r.source === 'model' ? 'AI summary' : 'Summary';
+  if (!stale && !busyCount) aiRipple('once');   // a fresh summary landed: the dot sends one ripple
+  if ($('s-ago')) { $('s-ago').dataset.at = Date.parse(r.generated_at) || Date.now(); agoTick(); }
+  if ($('s-src')) $('s-src').dataset.when = r.clock ? `Written ${r.clock} ·\u00a0` : '';   // the banner's status line: when, then the sources
   const swaps = (r.replaced || []).length;
   const note = $('stale-note');
   note.hidden = !why;
@@ -966,17 +1021,17 @@ function stopSpin() {
   a.finished.then(() => { if (spin === a) spin = null; }, () => {});
 }
 
-// What the AI is doing, shown after the source icons at the real moments: reading the sources, then writing.
-// It sits after the icons so nothing before it moves.
+// What the AI is doing, shown right after the Refresh button at the real moments: reading the sources, then writing.
 function setPhase(p) {
   const ai = document.querySelector('section.ai'), step = $('s-step'); if (!ai || !step) return;
-  if (p) { ai.dataset.phase = p; step.textContent = p === 'read' ? '· reading your monitors and sources…' : '· writing advice…'; }
+  if (p) { ai.dataset.phase = p; step.textContent = p === 'read' ? 'Reading your monitors and sources…' : 'Writing advice…'; }
   else { delete ai.dataset.phase; step.textContent = ''; }
 }
 
 function setBusy(on) {
   busyCount = Math.max(0, busyCount + (on ? 1 : -1));
   const busy = busyCount > 0;
+  aiRipple(busy ? 'on' : 'off');
   for (const el of [document.querySelector('section.ai'), $('read-refresh')]) el.setAttribute('aria-busy', String(busy));
   busy ? startSpin() : stopSpin();
   if (!busy) setPhase(null);
@@ -1122,6 +1177,7 @@ document.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('
   try { pick === 'system' ? localStorage.removeItem('aq-theme') : localStorage.setItem('aq-theme', pick); } catch {}
   switchTheme(pick === 'system' ? (darkQuery.matches ? 'dark' : 'light') : pick);
 }));
+// Quick theme switch inside the weather pill (it sits in the menu's <summary>, so it must not open the menu)
 $('theme-toggle').addEventListener('click', e => {
   e.preventDefault(); e.stopPropagation();
   const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -1170,9 +1226,12 @@ function renderSources() {
   const rows = [...document.querySelectorAll('.blocks .pr')];
   const icon = name => { const li = rows.find(r => { const b = r.querySelector('.pr-t b'); return b && b.textContent === name; }); return li ? li.querySelector('.pr-ic').innerHTML : ''; };
   const st = id => { const el = $('st-' + id); return el ? { tone: (el.className.match(/\b(good|warn|bad|neutral)\b/) || [])[1] || '', text: el.textContent.trim() } : { tone: '', text: '' }; };
-  box.innerHTML = SOURCES.map(([name, id]) => { const t = st(id).tone; return `<span class="s-src-i${t === 'warn' || t === 'bad' ? ' ' + t : ''}" style="--i:${SOURCES.findIndex(x => x[1] === id)}">${icon(name)}</span>`; }).join('') +
-    `<span class="s-src-card" role="tooltip"><strong>Sources</strong>${SOURCES.map(([name, id, label]) => { const x = st(id);
-      return `<span class="s-src-row"><span class="s-src-ic">${icon(name)}</span><span>${label}</span><em class="${x.tone}">${esc(x.text || '…')}</em></span>`; }).join('')}</span>`;
+  // the byline says how many sources, and how many aren't answering; the card on hover lists them
+  const down = SOURCES.filter(([, id]) => /warn|bad/.test(st(id).tone)).length;
+  box.innerHTML = `<span class="s-src-n">from ${SOURCES.length} sources${down ? `<em> · ${down} not answering</em>` : ''}</span>`;
+  const list = $('s-src-list');
+  if (list) list.innerHTML = SOURCES.map(([name, id, label]) => { const x = st(id);
+    return `<span class="s-src-row"><span class="s-src-ic">${icon(name)}</span><span>${label}</span><em class="${x.tone}">${esc(x.text || '…')}</em></span>`; }).join('');
 }
 renderSources();
 
@@ -1211,3 +1270,76 @@ $('s-src') && $('s-src').addEventListener('keydown', e => { if (e.key === 'Enter
 
 // The address opens the map; it must not also toggle the Home panel.
 document.querySelectorAll('a.addr').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
+
+// Pin the weather panel where it opened (see app.css): measured once on open, relative to the "Right now" line
+(() => { const d = document.getElementById('dsp'); if (!d) return;
+  d.addEventListener('toggle', () => { if (!d.open) return; const line = d.closest('.now-line'); if (!line) return;
+    const x = d.getBoundingClientRect().left - line.getBoundingClientRect().left - 6;
+    line.style.setProperty('--pop-left', Math.max(0, Math.round(x)) + 'px'); });
+})();
+
+// Weather view: the page fades away except the "Right now" row (its weather and theme menu stays usable), so the sky fills the page.
+// The bottom bar offers the browser's full screen as an option, and "Show the page"; Esc also leaves. Not remembered.
+(() => { const open = document.getElementById('fx-full'), box = document.getElementById('wx-mode'), exit = document.getElementById('wx-exit'), fs = document.getElementById('wx-fs');
+  if (!open || !box) return;
+  const R = document.documentElement;
+  const leave = () => { if (!R.classList.contains('wx-full')) return; R.classList.remove('wx-full'); box.hidden = true; label(false);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
+  const label = on => { const t = [...open.childNodes].find(n => n.nodeType === 3); if (t) t.textContent = on ? 'Close weather view' : 'Open weather view'; };
+  open.addEventListener('click', () => { if (R.classList.contains('wx-full')) return leave();
+    R.classList.add('wx-full'); box.hidden = false; label(true);
+    // the controls stay open, docked, on the previews, so the sky is visible while you play
+    const d = document.getElementById('dsp'); if (d) { d.open = true; const pv = d.querySelector('.fx-preview'); if (pv) pv.open = true; } });
+  exit.addEventListener('click', leave);
+  if (fs) { if (!R.requestFullscreen) fs.hidden = true;
+    fs.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else R.requestFullscreen().catch(() => {}); });
+    document.addEventListener('fullscreenchange', () => { const on = !!document.fullscreenElement; fs.setAttribute('aria-pressed', on); fs.title = on ? 'Exit full screen' : 'Full screen'; fs.setAttribute('aria-label', fs.title); }); }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.getElementById('dsp')?.open && !document.fullscreenElement) leave(); });
+})();
+
+// Weather menu: mark the chosen preview preset, and paint each slider's filled track (--p)
+(() => { const pop = document.querySelector('.dsp-pop'); if (!pop) return;
+  const presets = [...pop.querySelectorAll('[data-fx]')], live = document.getElementById('fx-live');
+  const mark = b => presets.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  presets.forEach(b => b.addEventListener('click', () => mark(b)));
+  if (live) live.addEventListener('click', () => mark(null));
+  const ranges = [...pop.querySelectorAll('input[type=range]')];
+  const fill = () => ranges.forEach(r => r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min) * 100).toFixed(1) + '%'));
+  ranges.forEach(r => r.addEventListener('input', () => { fill(); mark(null); }));
+  new MutationObserver(fill).observe(pop, { subtree: true, childList: true, characterData: true });
+  fill(); mark(null);
+})();
+
+// Banner: "Updated 5 min ago" (relative, so it never clashes with the clock in Right now), refreshed every 30 s.
+function agoTick() { const el = document.getElementById('s-ago'); if (!el || !el.dataset.at) return;
+  const m = Math.round((Date.now() - Number(el.dataset.at)) / 60000);
+  el.textContent = m < 1 ? 'Updated just now' : m < 60 ? `Updated ${m} min ago` : `Updated ${Math.round(m / 60)} h ago`; }
+setInterval(agoTick, 30000);
+
+// The AI dot's ripple: rings spread from it when a fresh summary lands (once), and keep spreading while it's writing.
+// Event-driven on purpose: the only continuous pulse on the page is the green "live" dot.
+var rippleTimer = null;   // var: setBusy can call aiRipple during startup, before this line runs
+function aiRipple(mode) {
+  const rings = [...document.querySelectorAll('.s-tag-mark .rip')]; if (!rings.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const wave = () => rings.forEach((c, k) => setTimeout(() => c.querySelectorAll('animate').forEach(a => { try { a.beginElement(); } catch (e) {} }), k * 300));
+  if (mode === 'once') { if (!rippleTimer) wave(); return; }
+  if (mode === 'on') { if (!rippleTimer) { wave(); rippleTimer = setInterval(wave, 1900); } return; }
+  clearInterval(rippleTimer); rippleTimer = null;
+}
+
+// Preview menu: "Random" cycles through random moments, a new one every 8 s (long enough for the sky to ease into it).
+// It stops on a preset, a slider, Back to live, or a second click.
+(() => { const b = document.getElementById('fx-rand'); if (!b) return;
+  const CYCLE_MS = 8000; let t = null;
+  const r = (a, z, step = 1) => Math.round((a + Math.random() * (z - a)) / step) * step;
+  const pick = () => { const rain = Math.random() < .3 ? r(20, 100) / 100 : 0;
+    return { minutes: r(0, 1435, 5), dir: r(0, 359), spd: r(0, 38, .5), cloud: rain ? r(60, 100) : r(0, 90), rain, thunder: rain > .85,
+      pm: Math.random() < .15 ? r(35, 70, .5) : r(0, 18, .5) }; };
+  const stop = () => { clearInterval(t); t = null; b.setAttribute('aria-pressed', 'false'); };
+  const step = () => window.skyPreview && window.skyPreview(pick());
+  b.addEventListener('click', () => { if (t) return stop();
+    document.querySelectorAll('.fx-presets [data-fx]').forEach(x => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', 'true'); step(); t = setInterval(step, CYCLE_MS); });
+  document.querySelectorAll('.fx-presets [data-fx], #fx-live').forEach(x => x.addEventListener('click', stop));
+  document.querySelectorAll('.fx-sliders input').forEach(x => x.addEventListener('input', e => { if (e.isTrusted) stop(); }));
+})();

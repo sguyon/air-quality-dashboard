@@ -428,10 +428,35 @@ def api_headers(resp):
     return resp
 
 
+def icon_env():
+    """Which icon set this address gets: "dev" locally (localhost and local network IPs), "preview" on the Railway dev
+    service, None (the clean icons) everywhere else, production included."""
+    host = (request.host or "").split(":")[0].lower()
+    if host in ("localhost", "127.0.0.1", "0.0.0.0") or host.startswith(("127.", "10.", "192.168.")) or re.match(r"^172\.(1[6-9]|2\d|3[01])\.", host):
+        return "dev"
+    if host == "air-quality-dashboard-dev.up.railway.app":
+        return "preview"
+    return None
+
+
+ENV_LABEL = {"dev": "DEV", "preview": "PREVIEW"}
+
+
+def tag_env(html):
+    """DEV / PREVIEW icons, tab title and home-screen name, so the environments can't be mixed up."""
+    env = icon_env()
+    if not env:
+        return html
+    html = re.sub(r'(<link rel="(?:icon|apple-touch-icon)"[^>]*href=")/static/icons/', rf'\1/static/icons/{env}/', html)
+    html = html.replace("<title>Home Air Quality</title>", f"<title>{ENV_LABEL[env]} · Home Air Quality</title>", 1)
+    html = html.replace('<meta name="apple-mobile-web-app-title" content="Air Quality">', f'<meta name="apple-mobile-web-app-title" content="AQ {ENV_LABEL[env]}">', 1)
+    return html
+
+
 @app.route("/")
 def index():
     html_path = Path(__file__).parent / "index.html"
-    html = version_assets(html_path.read_text())
+    html = tag_env(version_assets(html_path.read_text()))
 
     # Inject build info into a data attribute on the body
     build_info = get_build_info()
@@ -475,7 +500,19 @@ def archive_proposal():
 
 @app.route("/manifest.json")
 def manifest():
-    return send_file(Path(__file__).parent / "manifest.json", mimetype="application/manifest+json")
+    path = Path(__file__).parent / "manifest.json"
+    env = icon_env()
+    if not env:
+        return send_file(path, mimetype="application/manifest+json")
+    data = json.loads(path.read_text())   # the installed app gets the DEV / PREVIEW icons and name too
+    data["name"] = f'{data.get("name", "Home Air Quality")} ({ENV_LABEL[env]})'
+    data["short_name"] = f"AQ {ENV_LABEL[env]}"
+    for ic in data.get("icons", []):
+        if str(ic.get("src", "")).startswith("/static/icons/"):
+            ic["src"] = ic["src"].replace("/static/icons/", f"/static/icons/{env}/", 1)
+    resp = jsonify(data)
+    resp.headers["Content-Type"] = "application/manifest+json"
+    return resp
 
 
 @app.route("/sw.js")
@@ -880,7 +917,6 @@ PM_FINE = 12
 PM_HIGH = 35
 CO2_OPEN = 800
 RH_LOW, RH_HIGH, RH_DAMP = 30, 50, 60
-FILTERS = {"toddler": "Toddler", "sinus": "Sinus & allergy", "runner": "Runner"}
 MACHINE_WORDS = re.compile(r"\b(de)?humidifier|purifier|hepa|air conditioner|\bac\b|\bfan\b", re.I)
 
 
@@ -944,103 +980,6 @@ def rule_run(outdoor_pm, smoke, rush, wind_toward, hour):
         return verdict(f"Fine until {fmt_hour(rush['start'])}", "good",
                        f"{base} Fine for a run, and for the toddler outside, until {fmt_hour(rush['start'])}. Then the BQE rush starts, with the wind toward Greenpoint.")
     return verdict("Fine", "good", f"{base} Fine for a run, and for the toddler outside.")
-
-
-def rule_pollen(pollen):
-    if not pollen:
-        return verdict("No data", "muted", "Google Pollen did not answer, so there is no pollen reading.")
-    top = max(pollen, key=lambda p: p.get("index") or 0)
-    index = top.get("index") or 0
-    parts = ", ".join(f"{p['name'].lower()} {p.get('index') or 0}" for p in pollen)
-    if index == 0:
-        return verdict("None", "good", f"Grass, tree, and weed are at 0. Nothing in the air to congest you.")
-    if index <= 2:
-        return verdict("Low", "good", f"Pollen is low ({parts}, on a 0 to 5 scale).")
-    word = "Moderate" if index == 3 else "High"
-    return verdict(word, "warn", f"{top['name']} pollen is {index} of 5 ({parts}). Expect congestion outdoors.", "Expect pollen congestion outdoors")
-
-
-def rule_window(co2, outdoor_pm, moisture, damp):
-    if co2 is None:
-        return verdict("No reading", "muted", "The indoor monitor has not reported CO2.")
-    c = fmt_num(co2, 0)
-    if co2 <= CO2_OPEN:
-        tail = " Opening it would bring in damper air." if moisture == "adds" else ""
-        return verdict("No need", "good", f"Indoor CO2 is {c} ppm, under {CO2_OPEN}, so the window can stay shut.{tail}")
-    if outdoor_pm is not None and outdoor_pm > PM_HIGH:
-        return verdict("Hold off", "warn", f"Indoor CO2 is {c} ppm, but outdoor PM2.5 is {fmt_num(outdoor_pm)}. Wait for the outside air to clear.", "Keep the window shut for now")
-    if moisture == "adds" and damp:
-        return verdict("Open briefly", "warn", f"Indoor CO2 is {c} ppm, over {CO2_OPEN}. Open a window for a few minutes only: the outside air is damper.", "Open a window for a few minutes")
-    return verdict("Open it", "warn", f"Indoor CO2 is {c} ppm, over {CO2_OPEN}. Open a window until it drops.", "Open a window")
-
-
-def rule_humidity(rh):
-    """Returns (also item or None, note for the model)."""
-    if rh is None:
-        return None, "Indoor humidity: no reading."
-    r = fmt_num(rh, 0)
-    if rh > RH_DAMP:
-        return ({"id": "humidity", "tone": "warn", "filter": "sinus",
-                 "text": f"The indoor air is too damp. Humidity is {r}%, above the {RH_LOW}–{RH_HIGH}% band. Drying it is the thing to do.", "action": "Dry the indoor air"},
-                f"Indoor humidity {r}% is above {RH_DAMP}%: an ACTION. Never call the indoor air healthy or comfortable.")
-    if rh < RH_LOW:
-        return ({"id": "humidity", "tone": "warn", "filter": "sinus",
-                 "text": f"The indoor air is too dry. Humidity is {r}%, under the {RH_LOW}–{RH_HIGH}% band. Adding moisture is the thing to do.", "action": "Add moisture to the indoor air"},
-                f"Indoor humidity {r}% is under {RH_LOW}%: an ACTION.")
-    if rh > RH_HIGH:
-        return None, f"Indoor humidity {r}% is a little above the {RH_LOW}–{RH_HIGH}% band. Not an action, but do not call the indoor air healthy."
-    return None, f"Indoor humidity {r}% is inside the {RH_LOW}–{RH_HIGH}% band."
-
-
-def indoor_history_facts(location_id, now_local):
-    """Plain facts about the last 24 h of indoor CO2 and humidity, or '' when history is missing."""
-    if not location_id:
-        return ""
-    now_utc = now_local.astimezone(timezone.utc)
-    try:
-        rows = api_get(f"/locations/{int(location_id)}/measures/past", {
-            "from": (now_utc - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "to": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        })
-    except (RuntimeError, ValueError):
-        return ""
-    points = []
-    for row in rows or []:
-        co2 = fnum(row.get("rco2_corrected", row.get("rco2")))
-        rh = fnum(row.get("rhum_corrected", row.get("rhum")))
-        try:
-            ts = datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00")).astimezone(now_local.tzinfo)
-        except (KeyError, ValueError, AttributeError):
-            continue
-        points.append((ts, co2, rh))
-    points.sort(key=lambda p: p[0])
-    co2_points = [(t, c) for t, c, _ in points if c is not None]
-    if len(co2_points) < 6:
-        return ""
-
-    def when(ts):
-        day = "today" if ts.date() == now_local.date() else "yesterday"
-        return f"{ts.strftime('%-I:%M %p')} {day}"
-
-    peak_t, peak = max(co2_points, key=lambda p: p[1])
-    over = [p for p in co2_points if p[1] > CO2_OPEN]
-    lines = [f"Indoor CO2, last 24 h: peak {round(peak)} ppm at {when(peak_t)}."]
-    if over:
-        # Longest unbroken stretch above the line.
-        best, run = [], []
-        for t, c in co2_points:
-            run = run + [(t, c)] if c > CO2_OPEN else []
-            if len(run) > len(best):
-                best = run
-        hours = (best[-1][0] - best[0][0]).total_seconds() / 3600
-        lines.append(f"Above {CO2_OPEN} ppm for about {round(len(over) * 24 / len(co2_points))} of the 24 h; "
-                     f"the longest stretch ran from {when(best[0][0])} to {when(best[-1][0])} ({hours:.0f} h).")
-    else:
-        lines.append(f"Never above {CO2_OPEN} ppm.")
-    rhs = [r for _, _, r in points if r is not None]
-    if rhs:
-        lines.append(f"Indoor humidity, last 24 h: {round(min(rhs))}% to {round(max(rhs))}%.")
-    return " ".join(lines)
 
 
 READ_SYSTEM = """You explain an air summary for one household in Greenpoint, Brooklyn: a toddler, sinus and allergy sensitivity, and a runner.

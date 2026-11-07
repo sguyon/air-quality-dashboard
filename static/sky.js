@@ -94,13 +94,27 @@ var SKY = (() => {
     if (rain) { top = mix(top, [34, 40, 54], rain * .72); hor = mix(hor, [72, 80, 96], rain * .62); }
     if (dark) { top = mix(top, [10, 16, 26], .5); hor = mix(hor, [14, 22, 34], .5); }
     tgt.top = top; tgt.hor = hor;
+    // the monitor cards read these: the outdoor card shows this sky, the indoor card's window looks out on it
+    const rs = document.documentElement.style, outLum = (top[0] * .3 + top[1] * .59 + top[2] * .11 + hor[0] * .3 + hor[1] * .59 + hor[2] * .11) / 2;
+    rs.setProperty('--sky-top', `rgb(${top.map(Math.round)})`); rs.setProperty('--sky-hor', `rgb(${hor.map(Math.round)})`);
+    // a light pastel of the same hue, for tints: keeps the sky's color (indigo at night, warm at dusk) without its darkness
+    const pastel = (c, L) => { const [r, g, b] = c.map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+      let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360;
+      const sat = Math.max(.45, Math.min(.75, d / (1 - Math.abs(mx + mn - 1) || 1))); return `hsl(${Math.round(h)} ${Math.round(sat * 100)}% ${L}%)`; };
+    rs.setProperty('--sky-tint', pastel(top, 90)); rs.setProperty('--sky-tint2', pastel(hor, 93));
+    // the header scenes follow the sky in the page's soft palette: same hue, lighter; a little deeper at night
+    rs.setProperty('--scene-top', pastel(top, elev > -2 ? 84 : 72)); rs.setProperty('--scene-hor', pastel(hor, elev > -2 ? 90 : 80));
+    document.documentElement.classList.toggle('outside-dark', outLum < 140);
+    document.documentElement.classList.toggle('outside-night', elev < -6);
+    // the header scenes follow the weather too (rain on the glass, clouds, light behind the doors at night)
+    document.documentElement.classList.toggle('wx-rain', (v.rain || 0) > .05 || !!v.thunder);
+    document.documentElement.classList.toggle('wx-cloud', (v.cloud || 0) >= 60);
     cloudCover = on.sky ? (v.cloud || 0) / 100 : 0;
     cloudTint = elev > 8 ? [255, 255, 255] : elev > -2 ? [255, 214, 196] : elev > -8 ? [150, 150, 180] : (dark ? [58, 68, 92] : [74, 84, 110]);
     if (rain) cloudTint = mix(cloudTint, [68, 74, 90], rain * .8);
     rainAmt = on.wind ? rain : 0; thunder = !!v.thunder && on.sky && !reduce;
     if (!cur.top || reduce) { cur.top = top.slice(); cur.hor = hor.slice(); }
     $('sky-grad').style.opacity = on.sky ? 1 : 0;
-    const lum = (top[0] * .3 + top[1] * .59 + top[2] * .11 + hor[0] * .3 + hor[1] * .59 + hor[2] * .11) / 2;
     const topLum = top[0] * .3 + top[1] * .59 + top[2] * .11;
     // clouds lighten what's behind the text: blend in their tint before choosing light or dark text
     const tintLum = cloudTint[0] * .3 + cloudTint[1] * .59 + cloudTint[2] * .11, ck = Math.min(.6, cloudCover * .6);
@@ -348,6 +362,7 @@ var SKY = (() => {
     storm: { minutes: 1035, dir: 265, spd: 34, cloud: 100, pm: 4, rain: 1, thunder: true },
   };
   function setPreview(p) { preview = p; paint(); kick(); }
+  window.skyPreview = p => setPreview(p);   // used by the menu's Random cycle (app.js)
   ['time', 'dir', 'spd', 'cloud', 'pm', 'rain'].forEach(id => $('fx-' + id).addEventListener('input', e => {
     const v = { ...st() }; v[id === 'time' ? 'minutes' : id] = id === 'rain' ? Number(e.target.value) / 100 : Number(e.target.value); if (id === 'rain') v.thunder = v.rain > .85; setPreview(v);
   }));

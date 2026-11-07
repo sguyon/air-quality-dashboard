@@ -14,15 +14,15 @@ The advice is generated with AI: fixed rules decide what to do, and an AI model 
 
 ## Features
 
-- **Advice:** one headline action for my needs: a toddler, sinus and allergies, and running. Rules decide; Claude writes the explanation (see below)
-- **Need cards:** Toddler (room CO₂), Sinus & allergy (humidity and pollen), Runner (outdoor PM2.5). Each has the number, its state, a 24 h chart with the limit, and what the reading means
-- **Coming up:** the next few hours on a timeline: a good time to run, the BQE rush, sunrise or sunset, airing the bedroom before bedtime
-- **Home monitors:** indoor and outdoor AirGradient readings: PM1, PM2.5, PM10, CO₂, temperature, humidity, the VOC and NOx indices, and Wi-Fi signal
+- **AI summary:** the most pressing answer for my needs (a toddler, sinus and allergies, running) leads, with a picture of why: for damp air, humidity inside vs outside now and over the last 24 hours. Rules decide; Claude writes the explanation (see below). A slim banner says it's AI, from how many sources, and how fresh it is, with a refresh button
+- **Need cards:** Toddler (room CO₂), Sinus & allergy (humidity and pollen), Runner (outdoor PM2.5): the answer, what the reading means, the number with its state, and a 24 h chart with the healthy range. The need behind the main answer moves up into it
+- **Coming up:** a short side list of the next moments: a good time to run, the BQE rush, sunrise or sunset, airing the bedroom before bedtime
+- **Home monitors:** indoor and outdoor AirGradient readings: PM2.5, CO₂, temperature and humidity in words, then gases (VOC, NOx) and particles (PM1, PM10), plus status and Wi-Fi. Each card has a small scene that follows the live sky and the weather
 - **History:** PM2.5 and CO₂, indoors and outdoors, over 1 h, 6 h, 24 h or 7 d. Time over the limit is shaded amber, and hovering one chart marks the same moment on all of them
-- **Local conditions:** weather with dew point and sinus dryness, pollen with the usual New York season, a BQE traffic estimate, and a NOAA smoke check. Each card links to a public source page
+- **Local conditions:** weather with dew point and sinus dryness, pollen with the usual New York season, a BQE traffic estimate, and a NOAA smoke check. Each card's title links to a public source page, and its dot says whether the source answered
 - **Neighborhood:** your outdoor PM2.5 against public AirGradient monitors within 15 km
-- **Live sky:** the page background follows the real sun, clouds, wind, rain and outdoor haze. It can be turned off and stays still with reduced motion
-- **Light and dark themes:** follows the system setting, with a toggle
+- **Live sky:** the page background follows the real sun, clouds, wind, rain and outdoor haze. The Weather & theme menu turns it off, previews moments (presets, a random cycle, sliders), and opens a weather view that hides the page. It stays still with reduced motion
+- **Light and dark themes:** follows the system setting, with a quick switch in the weather control
 - **Installable:** works as a Progressive Web App on Android, iOS, and desktop; offline it shows the last readings and summary
 
 ## Install
@@ -78,7 +78,7 @@ Get your Anthropic API key from [console.anthropic.com](https://console.anthropi
 
 ## How the AI Advice Works
 
-The "Right now" card is written for my three needs: a toddler, sinus and allergies, and running.
+The AI summary is written for my three needs: a toddler, sinus and allergies, and running.
 
 1. **Readings.** The page sends the latest monitor readings to `POST /api/analyze` with `"format": "read"`. The server adds Open-Meteo weather, Google Pollen, NOAA smoke, the BQE estimate (hour × wind), and the last 24 hours of indoor and outdoor history.
 2. **Rules decide.** Fixed thresholds set the headline action and each need's state and color: indoor CO₂ against 800 ppm for the window, indoor humidity against 30% (too dry) and 60% (too damp), outdoor PM2.5 against 12 and 35 µg/m³ with the BQE rush (7–10 AM, 4–8 PM) and the wind for the run, and the Google pollen index (0 to 5). The window rule also checks whether the outside air is damper than inside. Green means fine, amber means something to do, red means a bad level.
@@ -99,6 +99,8 @@ Features branch off `dev` and merge back through a PR; `dev` is promoted to `mai
 | `main` | https://air-quality-dashboard.up.railway.app/ | Production |
 
 Locally and on `dev`, a build line and a **Clear cache** button sit under the footer. Production never shows them.
+
+The tab icon, home-screen icon and title also say where you are: **DEV** (amber band) locally and on local network addresses, **PREVIEW** (violet band) on the `dev` deployment, and the plain icon in production (`icon_env()` in `server.py`).
 
 The full workflow and the rules for agents are in `AGENTS.md`.
 
