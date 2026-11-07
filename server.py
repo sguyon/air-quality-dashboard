@@ -449,8 +449,9 @@ def asset_version(rel_path):
 
 
 def version_assets(html):
-    """Add ?v=<hash> to every /static/*.css and /static/*.js reference."""
-    return re.sub(r'"(/static/[\w./-]+\.(?:css|js))"', lambda m: f'"{m.group(1)}?v={asset_version(m.group(1))}"', html)
+    """Add ?v=<hash> to the page's CSS, JS, icons and manifest, so a changed file gets a new URL. Safari keeps
+    home-screen icons per URL, so a new icon needs a new URL to show."""
+    return re.sub(r'"(/static/[\w./-]+\.(?:css|js|png|svg)|/manifest\.json)"', lambda m: f'"{m.group(1)}?v={asset_version(m.group(1))}"', html)
 
 
 @app.after_request
@@ -538,16 +539,17 @@ def archive_proposal():
 def manifest():
     path = Path(__file__).parent / "manifest.json"
     env = icon_env()
-    if not env:
-        return send_file(path, mimetype="application/manifest+json")
-    data = json.loads(path.read_text())   # the installed app gets the DEV / PREVIEW icons and name too
-    data["name"] = f'{data.get("name", "Home Air Quality")} ({ENV_LABEL[env]})'
-    data["short_name"] = f"AQ {ENV_LABEL[env]}"
+    data = json.loads(path.read_text())
+    if env:   # the installed app gets the DEV / PREVIEW icons and name too
+        data["name"] = f'{data.get("name", "Home Air Quality")} ({ENV_LABEL[env]})'
+        data["short_name"] = f"AQ {ENV_LABEL[env]}"
     for ic in data.get("icons", []):
-        if str(ic.get("src", "")).startswith("/static/icons/"):
-            ic["src"] = ic["src"].replace("/static/icons/", f"/static/icons/{env}/", 1)
+        src = str(ic.get("src", ""))
+        if src.startswith("/static/icons/"):
+            ic["src"] = (src.replace("/static/icons/", f"/static/icons/{env}/", 1) if env else src) + f"?v={asset_version(src)}"
     resp = jsonify(data)
     resp.headers["Content-Type"] = "application/manifest+json"
+    resp.headers["Cache-Control"] = "no-cache"
     return resp
 
 
