@@ -2494,3 +2494,10 @@ html.wx-full .now-bar { left: 0 !important; right: 0 !important; margin: 0 auto 
 .s-act svg.i { width: 28px !important; height: 28px !important; stroke-width: 2.1 !important; }
 .n-answer.good svg.i { color: var(--good) !important; } .n-answer.warn svg.i { color: var(--warn) !important; } .n-answer.bad svg.i { color: var(--bad) !important; }
 .n-answer svg.i { stroke-width: 2.1 !important; }
+
+/* Home panel "Add" buttons: read as buttons (disabled until the editor exists), full width for sources */
+.plist .pr.pr-add { display: block !important; padding: 10px 0 0 !important; border: 0 !important; }
+.pr-add .add { width: 100% !important; justify-content: center; white-space: nowrap; height: 40px; }
+button.add { border: 1px dashed var(--line-strong) !important; background: transparent !important; color: var(--soft) !important; border-radius: 10px; }
+button.add:disabled { opacity: .7 !important; cursor: not-allowed; }
+button.add svg.i { width: 15px; height: 15px; }
