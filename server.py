@@ -258,7 +258,7 @@ def _fetch_weather():
             "latitude": HOME_LAT,
             "longitude": HOME_LON,
             "current": "temperature_2m,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,visibility,uv_index,cloud_cover",
-            "hourly": "wind_direction_10m,wind_speed_10m",
+            "hourly": "wind_direction_10m,wind_speed_10m,precipitation_probability,precipitation,weather_code,temperature_2m,dew_point_2m,uv_index",
             "forecast_hours": 24,
             "timezone": "America/New_York"
         },
@@ -281,6 +281,32 @@ def get_open_meteo_data(lat=None, lon=None):
             "current": {"wind_speed_10m": None, "wind_direction_10m": None, "visibility": None, "uv_index": None, "dew_point_2m": None},
             "hourly": {"wind_direction_10m": [], "wind_speed_10m": []}
         }
+
+
+def _fetch_air_forecast():
+    """Outdoor PM2.5 for the next 24 hours from Open-Meteo's air-quality model (CAMS, free, no key)."""
+    r = requests.get(
+        "https://air-quality-api.open-meteo.com/v1/air-quality",
+        params={"latitude": HOME_LAT, "longitude": HOME_LON, "hourly": "pm2_5",
+                "forecast_hours": 24, "timezone": "America/New_York"},
+        timeout=10
+    )
+    r.raise_for_status()
+    hourly = r.json().get("hourly") or {}
+    times, vals = hourly.get("time") or [], hourly.get("pm2_5") or []
+    if not times:
+        raise RuntimeError("Open-Meteo air quality answered without hours")
+    return dict(zip(times, vals))
+
+
+def get_air_forecast():
+    """{"2026-11-07T18:00": pm2.5, ...}; empty when the model can't be reached. A model, so it can sit above or
+    below the monitor: the page reacts to how it changes, not just its level."""
+    try:
+        value, _ = cached("aq", _fetch_air_forecast, ttl=1800, swr=3600, keep=6 * 3600, force=_force(), force_floor=300)
+        return value
+    except Exception:
+        return {}
 
 
 HMS_KML = "https://satepsanone.nesdis.noaa.gov/pub/FIRE/web/HMS/Smoke_Polygons/KML/{y}/{m}/hms_smoke{d}.kml"
@@ -352,7 +378,7 @@ def _fetch_pollen_raw(lat, lon, api_key):
             "key": api_key,
             "location.latitude": lat,
             "location.longitude": lon,
-            "days": 1
+            "days": 2   # today, plus tomorrow for Coming up
         },
         timeout=(2, 5),
     )
@@ -360,36 +386,46 @@ def _fetch_pollen_raw(lat, lon, api_key):
     return r.json()
 
 
+def _pollen_types(day):
+    out = []
+    for ptype in (day or {}).get("pollenTypeInfo", []):
+        index_info = ptype.get("indexInfo", {})
+        out.append({
+            "name": ptype.get("displayName", "Unknown"),
+            "level": index_info.get("category", "None"),
+            "index": index_info.get("value", 0),
+            "in_season": ptype.get("inSeason", False),
+        })
+    return out
+
+
 def _fetch_pollen():
+    """Today's and tomorrow's pollen, one call: {"today": [...], "tomorrow": [...]}."""
     api_key = os.environ.get("GOOGLE_POLLEN_API_KEY", "")
     if not api_key:
-        return []
+        return {"today": [], "tomorrow": []}
     # Hard deadline: DNS stalls on pollen.googleapis.com have been observed at ~30s
     # even with requests timeout set — that blocked the whole /api/context response.
     data = _call_with_deadline(_fetch_pollen_raw, HOME_LAT, HOME_LON, api_key, deadline_s=5, default=None)
     daily = (data or {}).get("dailyInfo") or []
     if not daily:
         raise RuntimeError("Google Pollen did not answer")
-    pollen_list = []
-    for ptype in daily[0].get("pollenTypeInfo", []):
-        index_info = ptype.get("indexInfo", {})
-        pollen_list.append({
-            "name": ptype.get("displayName", "Unknown"),
-            "level": index_info.get("category", "None"),
-            "index": index_info.get("value", 0),
-            "in_season": ptype.get("inSeason", False),
-        })
-    return pollen_list
+    return {"today": _pollen_types(daily[0]), "tomorrow": _pollen_types(daily[1]) if len(daily) > 1 else []}
 
 
-def get_pollen_data(lat=None, lon=None):
-    """Today's pollen from Google (a daily forecast), cached per local day."""
+def get_pollen_days():
+    """{"today": [...], "tomorrow": [...]} from Google (a daily forecast), cached per local day."""
     try:
         value, _ = cached("pollen:" + local_now().strftime("%Y-%m-%d"), _fetch_pollen, ttl=3 * 3600, swr=12 * 3600,
                           keep=24 * 3600, force=_force(), force_floor=600, wait=7)
-        return value
+        return value if isinstance(value, dict) else {"today": value or [], "tomorrow": []}
     except Exception:
-        return []
+        return {"today": [], "tomorrow": []}
+
+
+def get_pollen_data(lat=None, lon=None):
+    """Today's pollen from Google: [{name, level, index, in_season}, ...]."""
+    return get_pollen_days()["today"]
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -615,13 +651,40 @@ def get_wind_cardinal(degrees):
     return dirs[round(degrees / 22.5) % 16]
 
 
+def hourly_forecast(weather, air):
+    """The next 12 hours (13 entries from the current local hour), for Coming up and the model's LATER facts:
+    rain, temperature, dew point, UV, the model's outdoor PM2.5, and whether the wind carries BQE exhaust here."""
+    hourly = weather.get("hourly") or {}
+    times = hourly.get("time") or []
+    now_key = local_now().strftime("%Y-%m-%dT%H:00")
+    start = next((k for k, t in enumerate(times) if t >= now_key), len(times))
+    def col(name, k):
+        vals = hourly.get(name) or []
+        return vals[k] if k < len(vals) else None
+    return [{
+        "time": times[k],
+        "pop": col("precipitation_probability", k),
+        "precip": col("precipitation", k),
+        "code": col("weather_code", k),
+        "temp": col("temperature_2m", k),
+        "dew": col("dew_point_2m", k),
+        "wind_dir": col("wind_direction_10m", k),
+        "uv": col("uv_index", k),
+        "pm25": air.get(times[k]),   # the air-quality model's outdoor PM2.5 for that hour
+        # whether that hour's wind carries the BQE's exhaust here (None without a wind direction)
+        "bqe_toward": None if col("wind_direction_10m", k) is None else
+        predict_bqe_traffic(int(times[k][11:13]), col("wind_direction_10m", k))["wind_impact"] == "Blowing toward Greenpoint",
+    } for k in range(start, min(start + 13, len(times)))]
+
+
 @app.route("/api/context")
 def context():
     """Return external data sources (weather, pollen, BQE, smoke) as structured JSON."""
     # Fetch independents in parallel; pollen has its own hard deadline inside get_pollen_data.
     weather_fut = _CONTEXT_POOL.submit(get_open_meteo_data, HOME_LAT, HOME_LON)
     smoke_fut = _CONTEXT_POOL.submit(smoke_status)
-    pollen_fut = _CONTEXT_POOL.submit(get_pollen_data, HOME_LAT, HOME_LON)
+    pollen_fut = _CONTEXT_POOL.submit(get_pollen_days)
+    air_fut = _CONTEXT_POOL.submit(get_air_forecast)
 
     try:
         weather = weather_fut.result(timeout=12)
@@ -632,9 +695,14 @@ def context():
     except Exception:
         smoke = {"checked": False, "detected": False, "density": None, "date": None}
     try:
-        pollen = pollen_fut.result(timeout=6)
+        pollen_days = pollen_fut.result(timeout=6)
     except Exception:
-        pollen = []
+        pollen_days = {"today": [], "tomorrow": []}
+    pollen, pollen_tomorrow = pollen_days["today"], pollen_days["tomorrow"]
+    try:
+        air = air_fut.result(timeout=12)
+    except Exception:
+        air = {}
 
     cur = weather.get("current", {})
     wind_speed = cur.get("wind_speed_10m")
@@ -668,6 +736,8 @@ def context():
     else:
         visibility_status = "Unknown"
 
+    forecast = hourly_forecast(weather, air)
+
     # BQE traffic
     current_hour = local_now().hour
     bqe = predict_bqe_traffic(current_hour, wind_direction)
@@ -694,7 +764,9 @@ def context():
             "current_hour": current_hour
         },
         "smoke": smoke,
-        "pollen": pollen
+        "pollen": pollen,
+        "pollen_tomorrow": pollen_tomorrow,
+        "forecast": forecast
     })
 
 
@@ -982,6 +1054,48 @@ def rule_run(outdoor_pm, smoke, rush, wind_toward, hour):
     return verdict("Fine", "good", f"{base} Fine for a run, and for the toddler outside.")
 
 
+def forecast_facts(fc, t_in, rh, pm_out, wind_toward):
+    """What Coming up will show later, as plain lines for the model's DATA, so its why line can't contradict them.
+    Same rules as weatherAgenda() and forecastAgenda() in static/app.js; change both together.
+    Returns (lines, best_air_hour)."""
+    lines, best = [], None
+    if len(fc) < 3:
+        return lines, best
+    hr = lambda h: int(h["time"][11:13])
+    # Best time to air: a damp room, and an hour (not now) when the outdoor dew point is 5 °C or more under the
+    # indoor one, skipping BQE rush hours whose wind blows toward Greenpoint (that hour's wind, else the wind now).
+    d_in = dew_point_c(t_in, rh)
+    if rh is not None and rh > RH_DAMP and d_in is not None:
+        dry = lambda h: h["dew"] is not None and d_in - h["dew"] >= 5
+        def in_rush(h):
+            toward = h["bqe_toward"] if isinstance(h.get("bqe_toward"), bool) else wind_toward
+            return toward and any(a <= hr(h) < e for a, e, _ in RUSH_WINDOWS)
+        if not dry(fc[0]):
+            k = next((n for n in range(1, len(fc)) if dry(fc[n]) and not in_rush(fc[n])), None)
+            if k is not None:
+                best = hr(fc[k])
+                lines.append(f"Later: from {fmt_hour(best)} the outside air gets much drier (best time to air).")
+    # Rain or snow starting, or stopping when it's already falling
+    wet = lambda h: (h["precip"] or 0) >= 0.2 or (h["pop"] or 0) >= 60
+    k = next((n for n in range(1, len(fc)) if wet(fc[n]) != wet(fc[0])), None)
+    if k is not None:
+        lines.append(f"Later: rain or snow {'stops' if wet(fc[0]) else 'starts'} around {fmt_hour(hr(fc[k]))}.")
+    # Outdoor PM2.5 from the air-quality model, read as a change against its own value now (it can be biased)
+    p0 = fc[0].get("pm25")
+    now_pm = pm_out if pm_out is not None else p0
+    if p0 is not None and now_pm is not None:
+        if now_pm <= PM_FINE:
+            k = next((n for n in range(1, len(fc)) if (fc[n].get("pm25") is not None and fc[n]["pm25"] > PM_FINE
+                                                         and fc[n]["pm25"] - p0 >= 5)), None)
+            if k is not None:
+                lines.append(f"Later: haze from {fmt_hour(hr(fc[k]))}; the outside air gets dirtier.")
+        elif p0 > PM_FINE:
+            k = next((n for n in range(1, len(fc)) if fc[n].get("pm25") is not None and fc[n]["pm25"] <= PM_FINE), None)
+            if k is not None:
+                lines.append(f"Later: the outside air clears from {fmt_hour(hr(fc[k]))}.")
+    return lines, best
+
+
 READ_SYSTEM = """You explain an air summary for one household in Greenpoint, Brooklyn: a toddler, sinus and allergy sensitivity, and a runner.
 Rules have already decided every action and every verdict. You only write short explanations.
 
@@ -992,6 +1106,7 @@ For every sentence:
 - Say why, not what to do; the action is already written.
 - Simple everyday English: short sentences and common words a ten-year-old knows. No jargon (no "particulates", "respiratory", "ventilation", "airway", "pathogens").
 - No exclamation marks, no emoji. Never mention rules or instructions.
+- Do not contradict the LATER facts in DATA; you may mention them.
 
 Output one JSON object and nothing else:
 - "why": one sentence, at most 16 words, under the HEADLINE: how the NEEDS fit together today (for example, stale and damp inside, clean but damper outside). No numbers; the cards show them.
@@ -1207,6 +1322,9 @@ def build_air_read(payload, force=False):
     if out_dp is None:
         out_dp = fnum(weather.get("dew_point_2m"))
     adds_moisture = in_dp is not None and out_dp is not None and out_dp - in_dp > 1
+    # what Coming up will say later (rain, haze, best time to air), so the model's line agrees with it
+    later, best_air = forecast_facts(hourly_forecast(get_open_meteo_data(HOME_LAT, HOME_LON), get_air_forecast()),
+                                     t_in, rh, pm_out, wind_toward)
 
     pts_in = history_points(payload.get("indoor_location_id"), now)
     pts_out = history_points(payload.get("outdoor_location_id"), now)
@@ -1344,7 +1462,7 @@ def build_air_read(payload, force=False):
     }
 
     signature = json.dumps([headline, [n["action"] for n in needs], [c["state"] for c in cards],
-                            None if co2 is None else round(co2 / 50), None if rh is None else round(rh / 3), now.hour])
+                            None if co2 is None else round(co2 / 50), None if rh is None else round(rh / 3), now.hour, best_air])
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         result["note"] = "No API key, so these lines come from the rules."
@@ -1366,8 +1484,11 @@ def build_air_read(payload, force=False):
             f"Indoor CO2: {fmt_num(co2, 0)} ppm (limit {CO2_OPEN}; 1000 feels stuffy; 1500 is above building codes). {c_fact}.",
             f"Indoor humidity: {fmt_num(rh, 0)}% (comfortable 30–50; mold and mites above 60). {h_fact}.",
             f"Outdoor humidity: {fmt_num(rh_out, 0)}%. Airing {'adds' if adds_moisture else 'does not add'} moisture.",
+            *([f"Airing now: the outside air holds " + ("more water than" if out_dp - in_dp > 1 else "less water than" if in_dp - out_dp > 1 else "about the same water as")
+               + f" inside (dew point {fmt_num(out_dp)} vs {fmt_num(in_dp)} °C)."] if in_dp is not None and out_dp is not None else []),
             f"Outdoor PM2.5: {fmt_num(pm_out)} µg/m³ (aim under {PM_FINE}; {PM_HIGH} is unhealthy). {p_fact}.",
             f"BQE rush hours: 7 to 10 AM and 4 to 8 PM; wind {'toward' if wind_toward else 'not toward'} Greenpoint.",
+            *later,
             "",
             f"HEADLINE: {headline} Fact: {why}",
             "NEEDS:",
@@ -1380,9 +1501,11 @@ def build_air_read(payload, force=False):
             else:
                 usage = None
         except Exception as e:  # network, HTTP, JSON: keep the rule lines
-            raise RuntimeError(f"The model call failed ({type(e).__name__}), so these lines come from the rules.") from e
+            app.logger.warning("read model call failed: %s: %s", type(e).__name__, e)   # the error type goes to the log, not the page
+            raise RuntimeError("Claude didn't answer, so these lines come from the rules.") from e
         if not isinstance(out, dict):
-            raise RuntimeError("The model did not return JSON, so these lines come from the rules.")
+            app.logger.warning("read model answer was not JSON")
+            raise RuntimeError("Claude didn't answer, so these lines come from the rules.")
 
         nums = _numbers(data_text)
         def ok(text, max_words):
@@ -1406,7 +1529,7 @@ def build_air_read(payload, force=False):
     try:
         value, info = cached(key, write_with_model, ttl=READ_CACHE_SECONDS, force=force, force_floor=10, wait=40)
     except Exception as e:
-        result["note"] = str(e) if isinstance(e, RuntimeError) else f"The model call failed ({type(e).__name__}), so these lines come from the rules."
+        result["note"] = str(e) if isinstance(e, RuntimeError) else "Claude didn't answer, so these lines come from the rules."
         return result
     return {**value, "cached": True} if info["state"] != "miss" else value
 

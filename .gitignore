@@ -19,3 +19,6 @@ CLAUDE.local.md
 
 # Design captures from the browse tool (local only)
 .gstack/
+
+# Build log (private notes for posts)
+build-log/

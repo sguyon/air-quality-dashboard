@@ -72,7 +72,7 @@ var SKY = (() => {
     else out.push(`<span class="cap-i cap-live${live.fresh ? '' : ' cached'}" title="${live.fresh ? 'Live: weather from Open-Meteo, updated now' : 'Last known weather; live data is loading'}"><i></i>${live.fresh ? '' : 'Last known · '}${label(nyMinutes())}</span>`);
     out.push(seg(ic(elev > 6 ? ICO.sun : elev > -6 ? (morning ? ICO.rise : ICO.set) : ICO.moon), phase, elev > 6 ? 'sun' : elev > -6 ? 'dusk' : 'night', 1));
     out.push(v.thunder ? seg(ic(ICO.bolt), 'Thunderstorm', 'storm') : (v.rain || 0) > .05 ? seg(ic(ICO.rain), (v.rain > .65 ? 'Heavy rain' : v.rain > .4 ? 'Rain' : 'Drizzle'), 'rainy') : seg(ic(ICO.cloud), skyW, '', 2));
-    if (!preview && has(live.temp)) out.push(seg(ic(ICO.therm), `${Math.round(live.temp * 9 / 5 + 32)}°F`, '', 3));
+    if (!preview && has(live.temp)) out.push(seg(ic(ICO.therm), fmtTemp(live.temp, { tight: true }), '', 3));   // the viewer's unit (fmtTemp is in app.js)
     out.push((v.spd || 0) < 2 ? seg(ic(ICO.arrow, ' style="opacity:.4"'), 'Calm')
       : seg(ic(ICO.arrow, ` style="transform:rotate(${(v.dir + 180) % 360}deg)"`), `${card(v.dir)} ${v.spd} km/h`, 'wind', 0, `Wind from the ${card(v.dir)}${v.dir >= 80 && v.dir <= 200 ? ', carrying BQE exhaust this way' : ''}`));
     if (air[1] !== 'good') out.push(seg(ic(ICO.alert), air[0], 'air ' + air[1]));   // only when the outside air is not clean
@@ -387,6 +387,7 @@ var SKY = (() => {
       live.thunder = code >= 95;
       live.rain = !has(code) ? 0 : code >= 95 ? 1 : code >= 80 ? .7 : code >= 61 ? (code >= 65 ? .9 : .6) : code >= 51 ? .3 : 0;
       remember(); paint(); kick(); },
+    units() { paint(); },   // °C / °F switched in the Home menu
     pm(v) { if (has(v)) live.pm = Math.round(v * 2) / 2; if (live.loaded) remember(); paint(); },
     // A theme switch jumps straight to the new sky colors; the page-wide cross-fade does the easing.
     theme() { cur.top = null; paint(); const r = a => a.map(Math.round).join(','); $('sky-grad').style.background = `linear-gradient(180deg, rgb(${r(cur.top)}) 0%, rgb(${r(cur.hor)}) 100%)`; },

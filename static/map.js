@@ -38,7 +38,7 @@ var NBMAP = (() => {
     map.addLayer({ id: 'bqe', type: 'line', source: 'bqe', paint: { 'line-color': dark ? '#a1a1aa' : '#71717a', 'line-width': 4 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
     map.addLayer({ id: 'bqe-label', type: 'symbol', source: 'bqe', layout: { 'symbol-placement': 'line', 'text-field': 'BQE', 'text-size': 11, 'text-font': ['Noto Sans Bold'], 'symbol-spacing': 500 },
       paint: { 'text-color': dark ? '#d4d4d8' : '#52525b', 'text-halo-color': halo, 'text-halo-width': 2 } });
-    map.addSource('mons', { type: 'geojson', data: fc(data.others.map(n => ({ type: 'Feature', id: n.id, properties: { pm: n.pm02, label: (Math.round(n.pm02 * 10) / 10).toFixed(1) }, geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] } }))) });
+    map.addSource('mons', { type: 'geojson', data: fc(data.others.map(n => ({ type: 'Feature', id: n.id, properties: { pm: n.pm02, label: (Math.round(n.pm02 * 10) / 10 >= 10 ? String(Math.round(n.pm02)) : n.pm02.toFixed(1)) }, geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] } }))) });
     map.addLayer({ id: 'mons', type: 'circle', source: 'mons', paint: {
       'circle-radius': ['+', 6, ['min', 10, ['*', ['get', 'pm'], .9]]],
       'circle-color': ['case', ['>', ['get', 'pm'], PM_FINE], '#f59e0b', '#22a55a'], 'circle-opacity': .9,
@@ -49,7 +49,7 @@ var NBMAP = (() => {
     if (data.you) {
       map.addSource('you', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'Point', coordinates: [data.you.longitude, data.you.latitude] } } });
       map.addLayer({ id: 'you', type: 'circle', source: 'you', paint: { 'circle-radius': 9, 'circle-color': '#3a5fc8', 'circle-stroke-color': halo, 'circle-stroke-width': 3 } });
-      map.addLayer({ id: 'you-label', type: 'symbol', source: 'you', layout: { 'text-field': 'You · ' + (Math.round(data.you.pm02 * 10) / 10).toFixed(1), 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'text-offset': [0, 1.5], 'text-allow-overlap': true },
+      map.addLayer({ id: 'you-label', type: 'symbol', source: 'you', layout: { 'text-field': 'You · ' + (Math.round(data.you.pm02 * 10) / 10 >= 10 ? String(Math.round(data.you.pm02)) : data.you.pm02.toFixed(1)), 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'text-offset': [0, 1.5], 'text-allow-overlap': true },
         paint: { 'text-color': dark ? '#9db4ff' : '#3a5fc8', 'text-halo-color': halo, 'text-halo-width': 2.5 } });
     }
   }
@@ -99,7 +99,7 @@ var NBMAP = (() => {
     map.getSource('plume').setData(plume(data.wind));
     map.setPaintProperty('plume', 'fill-color', '#f59e0b');
     map.setPaintProperty('plume', 'fill-opacity', ['*', ['get', 'op'], toward ? 1.15 : .75]);
-    map.getSource('mons').setData(fc(data.others.map(n => ({ type: 'Feature', id: n.id, properties: { pm: n.pm02, label: (Math.round(n.pm02 * 10) / 10).toFixed(1) }, geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] } }))));
+    map.getSource('mons').setData(fc(data.others.map(n => ({ type: 'Feature', id: n.id, properties: { pm: n.pm02, label: (Math.round(n.pm02 * 10) / 10 >= 10 ? String(Math.round(n.pm02)) : n.pm02.toFixed(1)) }, geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] } }))));
   }
   function theme_() { if (map) { map.setStyle(STYLE[theme()]); } }
   return { update, highlight, theme: theme_ };

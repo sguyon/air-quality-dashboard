@@ -519,6 +519,11 @@ svg.ts .ts-guide { stroke: var(--warn-fill); stroke-dasharray: 5 4; stroke-width
 .pg h4 { margin: 0 0 6px; font: 600 11.5px/1 Inter, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .pg .view { margin-top: 4px !important; gap: 6px; }
 .pg .view .chip { padding: 5px 4px 5px 9px !important; font-size: 13.5px !important; }
+/* Household settings in the Home panel: one compact row under the place (temperature unit) */
+/* temperature units: in the Weather & theme menu, under Theme, same look */
+.dsp-pop .temp-seg { display: grid !important; grid-template-columns: repeat(2, 1fr); width: 100%; margin-top: 2px; }
+.dsp-pop .temp-seg button { display: inline-flex; align-items: center; justify-content: center; }
+.temp-seg button.on, .temp-seg button[aria-checked="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(16, 24, 40, .12); }
 .plist { list-style: none; margin: 0; padding: 0; }
 .pr { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 10px; }
 .pr + .pr { border-top: 1px solid var(--line); border-radius: 0; }
@@ -645,9 +650,9 @@ html.sky-on { background: #0e1626; }
 html.sky-dark .bar .site, html.sky-dark h2, html.sky-dark .sechead h2 { color: #f2f6fb; }
 html.sky-dark h2 span, html.sky-dark .lead { color: rgba(236, 242, 250, .78) !important; }
 html.sky-dark .lead b { color: #fff; }
-html.sky-dark .seg:not(.theme-seg) { background: rgba(255, 255, 255, .14); }
-html.sky-dark .seg:not(.theme-seg) button { color: rgba(240, 245, 252, .85); }
-html.sky-dark .seg:not(.theme-seg) button.on { color: var(--ink); }
+html.sky-dark .seg:not(.theme-seg):not(.temp-seg) { background: rgba(255, 255, 255, .14); }
+html.sky-dark .seg:not(.theme-seg):not(.temp-seg) button { color: rgba(240, 245, 252, .85); }
+html.sky-dark .seg:not(.theme-seg):not(.temp-seg) button.on { color: var(--ink); }
 html.sky-on .card, html.sky-on .custom-top, html.sky-on .maplink { box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 10px 30px rgba(0, 0, 0, .10); }
 /* Display section in the Home panel */
 .theme-seg { margin-top: 2px; }
@@ -1777,13 +1782,8 @@ html.outside-dark:not(.outside-night) { --win-lit: #fde7b0; }
   .ai .n-card { padding: 20px 18px 22px !important; }
   .s-top > .s-ag { margin-top: 16px !important; }
 }
-/* narrow need cards: the chip moves above the answer so the answer stays on one line */
-.ai .n-card { container-type: inline-size; }
-@container (max-width: 330px) {
-  .n-top { flex-wrap: wrap !important; row-gap: 10px !important; }
-  .n-top .n-chip { order: 0 !important; margin-left: 0 !important; }
-  .n-top .n-answer { order: 1 !important; flex-basis: 100% !important; }
-}
+/* narrow need cards: the reading row measures itself (not the card, which shares rows with its neighbours) to drop "Last 24 h" and "Outdoor" */
+.ai .n-card > .n-ev { container-type: inline-size; }
 /* ── One anatomy for the main card and the need cards: title + need chip, the line under it, then the reading and its picture ── */
 .s-head { align-items: flex-start !important; }
 .s-chips { display: flex; gap: 6px; margin-left: auto; padding-top: 6px; flex: none; }
@@ -1791,10 +1791,8 @@ html.outside-dark:not(.outside-night) { --win-lit: #fde7b0; }
 .n-card .s-means.n-sub { margin: 6px 0 0 !important; padding: 0 !important; font-size: 13.5px !important; line-height: 1.45 !important; color: var(--soft) !important; }
 .n-card .n-ev { margin-top: 14px; }
 .ai .s-cards[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-@media (max-width: 760px) {
-  .ai .s-cards[data-count="2"] { grid-template-columns: 1fr !important; }
-  .s-chips { padding-top: 4px; }
-}
+@media (max-width: 700px) { .ai .s-cards[data-count="2"] { grid-template-columns: 1fr !important; } }
+@media (max-width: 760px) { .s-chips { padding-top: 4px; } }
 /* ── Coming up: a short list read top to bottom: icon, the event, its time on the right, the detail under ── */
 .s-ag h3 { font: 500 13px/1.3 Inter, sans-serif !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--soft) !important; margin: 0 0 12px !important; }
 .s-ag .ag.ag2 { display: grid !important; gap: 12px; margin: 0; padding: 0; list-style: none; }
@@ -2108,7 +2106,7 @@ html.sky-dark .wx-b { color: #f2f6fb; }
 html.wx-full .now-line .dsp-pop { position: fixed !important; top: 84px !important; right: 16px !important; left: auto !important; width: 340px !important; max-height: calc(100dvh - 104px); overflow: auto; overscroll-behavior: contain; }
 @media (max-width: 700px) {
   html.wx-full .now-line .dsp-pop { top: auto !important; bottom: 8px !important; left: 8px !important; right: 8px !important; width: auto !important; max-height: 48dvh; }
-  html.wx-full .dsp-pop .pg > .theme-seg, html.wx-full .dsp-pop .pg > h4, html.wx-full .dsp-pop .fx-list, html.wx-full .dsp-pop .pop-head p { display: none !important; }
+  html.wx-full .dsp-pop .pg > .theme-seg, html.wx-full .dsp-pop .pg > .temp-seg, html.wx-full .dsp-pop .pg > h4, html.wx-full .dsp-pop .fx-list, html.wx-full .dsp-pop .pop-head p { display: none !important; }
   .wx-exit span { display: none; }
   .wx-b.wx-exit { padding: 0; width: 32px; }
 }
@@ -2522,7 +2520,7 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 .n-card .n-ev { margin-top: 12px !important; }
 /* three equal cards */
 .ai .s-cards[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-@media (max-width: 900px) { .ai .s-cards[data-count="3"] { grid-template-columns: minmax(0, 1fr) !important; } }
+@media (max-width: 700px) { .ai .s-cards[data-count="3"] { grid-template-columns: minmax(0, 1fr) !important; } }
 /* monitor headers about a third shorter */
 .mc > .mc-head { padding-top: 10px !important; padding-bottom: 10px !important; min-height: 0 !important; }
 .mc-hw { width: 60px !important; height: 60px !important; border-radius: 16px !important; } .mc-hw svg { width: 54px !important; height: 54px !important; }
@@ -2547,3 +2545,34 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 .n-card .s-lab { left: 0 !important; right: auto !important; padding: 1px 4px 1px 0 !important; }
 .n-card .n-ev { width: 100%; box-sizing: border-box; }
 .n-ev .n-span:empty { display: none; }
+.n-span.over { color: var(--warn) !important; }
+.s-xh i.over { background: var(--warn-fill) !important; }
+.n-ev .n-span { white-space: nowrap; }
+.n-ev:has(.n-span:not(:empty)) .n-word { display: none; }
+/* hovering a chart: the readout takes the number row (like a stock chart), so it never wraps or shifts the chart */
+.n-card .n-ev { min-height: 24px; align-items: center !important; flex-wrap: nowrap !important; }
+.n-ev:has(.n-span:not(:empty)) > *:not(.n-span) { display: none !important; }
+.n-ev .n-span:not(:empty) { margin-left: 0 !important; font: 500 13px/1.2 Inter, sans-serif !important; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+/* the number row never wraps (so hovering can't move the chart); "Last 24 h" gives way when a card is narrow */
+.n-card .n-ev > * { white-space: nowrap; flex: none; }
+@container (max-width: 360px) { .n-card .n-ev .n-cap { display: none; } }
+@container (max-width: 360px) { .n-card .n-ev .n-out { display: none; } }
+
+/* temperature comfort scale: same height and place as the other bars, a band for 68–76 °F, this side's dot, the other side's ring */
+.t-scale { position: relative; margin-top: 9px; height: 4px; border-radius: 99px; background: var(--meter); }
+.t-scale .t-band { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: color-mix(in srgb, var(--good-fill) 45%, var(--meter)); }
+.t-scale i { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; }
+.t-scale .ts-me { width: 10px; height: 10px; background: var(--ink); box-shadow: 0 0 0 2px var(--card); }
+.t-scale .ts-o { width: 8px; height: 8px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--soft); }
+/* humidity picture: the higher marker's label runs right */
+.h-pin.right b { left: 3px; }
+/* need cards breathe: the three cards share rows (answer, reading, chart, pollen, meaning), so a two-line answer doesn't put one card out of step */
+.ai .s-cards { row-gap: 0 !important; }
+.ai .s-cards .n-card { display: grid !important; grid-row: span 5; grid-template-rows: subgrid; align-content: start; padding: 26px 28px 30px !important; }
+.ai .n-card > * { min-width: 0; }
+.ai .n-card > .n-top { grid-row: 1; }
+.ai .n-card > .n-ev { grid-row: 2; margin-top: 18px !important; align-self: end; }
+.ai .n-card > .s-spark { grid-row: 3; margin: 16px 0 14px !important; }
+.ai .n-card > .n-pollen { grid-row: 4; margin: 0 0 14px !important; }
+.ai .n-card > .s-means { grid-row: 5; margin: 0 !important; align-self: start; }
+@media (max-width: 760px) { .ai .s-cards .n-card { padding: 22px 18px 24px !important; } }
