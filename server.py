@@ -551,6 +551,19 @@ def manifest():
     return resp
 
 
+@app.route("/apple-touch-icon.png")
+@app.route("/apple-touch-icon-precomposed.png")
+@app.route("/favicon.ico")
+def root_icon():
+    """The icons iOS and browsers ask for at the root, whatever the page declares; with the DEV / PREVIEW set where it applies."""
+    env = icon_env()
+    name = "favicon-32.png" if request.path == "/favicon.ico" else "apple-touch-icon.png"
+    path = Path(__file__).parent / "static" / "icons" / (f"{env}/" if env else "") / name
+    resp = send_file(path, mimetype="image/png")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
 @app.route("/sw.js")
 def service_worker():
     return send_file(Path(__file__).parent / "sw.js", mimetype="application/javascript")
