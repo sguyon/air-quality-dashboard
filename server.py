@@ -3,6 +3,7 @@
 Deployed on Railway with Anthropic API integration for AI analysis.
 """
 
+import base64
 import hashlib
 import json
 import math
@@ -490,10 +491,23 @@ def tag_env(html):
     return html
 
 
+def inline_touch_icon(html):
+    """Put the 180 px home-screen icon in the page itself. Safari's Add to Home Screen sheet loads icons on its own
+    and can fail on a network URL, which leaves a letter tile."""
+    m = re.search(r'(<link rel="apple-touch-icon"[^>]*href=")(/static/icons/[\w./-]+\.png)(?:\?v=\w+)?"', html)
+    if not m:
+        return html
+    try:
+        data = base64.b64encode((Path(__file__).parent / m.group(2).lstrip("/")).read_bytes()).decode()
+    except OSError:
+        return html
+    return html[:m.start()] + f'{m.group(1)}data:image/png;base64,{data}"' + html[m.end():]
+
+
 @app.route("/")
 def index():
     html_path = Path(__file__).parent / "index.html"
-    html = tag_env(version_assets(html_path.read_text()))
+    html = inline_touch_icon(tag_env(version_assets(html_path.read_text())))
 
     # Inject build info into a data attribute on the body
     build_info = get_build_info()
@@ -555,6 +569,8 @@ def manifest():
 
 @app.route("/apple-touch-icon.png")
 @app.route("/apple-touch-icon-precomposed.png")
+@app.route("/apple-touch-icon-180x180.png")
+@app.route("/apple-touch-icon-180x180-precomposed.png")
 @app.route("/favicon.ico")
 def root_icon():
     """The icons iOS and browsers ask for at the root, whatever the page declares; with the DEV / PREVIEW set where it applies."""
