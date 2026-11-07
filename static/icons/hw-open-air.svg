@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#eef1f5"/><stop offset=".35" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe4ea"/></linearGradient>
+    <linearGradient id="shellTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".5"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d8ee6"/><stop offset="1" stop-color="#1f62c4"/></linearGradient>
+    <radialGradient id="shadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#0f172a" stop-opacity=".22"/><stop offset="1" stop-color="#0f172a" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="24" cy="42.6" rx="18" ry="2.4" fill="url(#shadow)"/><g transform="translate(0 2.6)">
+  <!-- cable, drawn behind the base so it comes out from underneath -->
+  <path d="M27.6 37.5c0 3 1.6 4.6 5 6.4" stroke="#8e98a3" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M27.6 37.5c0 3 1.6 4.6 5 6.4" stroke="#d6dce3" stroke-width=".8" fill="none" stroke-linecap="round" transform="translate(-.35 -.2)"/>
+  <rect x="7.6" y="31" width="32.8" height="7.6" rx="3.3" fill="url(#base)"/>
+  <rect x="9" y="32.2" width="30" height="1.2" rx=".6" fill="#ffffff" opacity=".28"/>
+  <path d="M8.2 31.2V15.5C8.2 11 11 8 15.5 8h17C37 8 39.8 11 39.8 15.5v15.7c0 .5-.4.8-.9.8h-1.6c-.8 0-1.3-.4-1.6-1.1-.4-.9-1.1-1.5-2.1-1.5H14.4c-1 0-1.7.6-2.1 1.5-.3.7-.8 1.1-1.6 1.1H9c-.5 0-.8-.3-.8-.8z"
+        fill="url(#shell)" stroke="#c6ced7" stroke-width=".8" stroke-linejoin="round"/>
+  <path d="M9.4 15.3C9.4 11.8 11.8 9.3 15.5 9.3h17c3.7 0 6.1 2.5 6.1 6v3H9.4z" fill="url(#shellTop)"/>
+  <path d="M12.5 9.6h23" stroke="#ffffff" stroke-width="1" stroke-linecap="round" opacity=".95"/>
+  <!-- logo -->
+  <g fill="none" stroke="#8d949c" stroke-linecap="round"><path d="M18.16 23.85A1.86 1.86 0 1 0 18.16 26.97" stroke-width="0.45"/><path d="M17.61 24.39A1.15 1.15 0 1 0 17.61 26.43" stroke-width="0.27" opacity=".8"/></g><text x="16.60" y="26.40" font-family="Inter, Helvetica, Arial, sans-serif" font-size="3.00" fill="#8d949c" letter-spacing="-.04"><tspan font-weight="700" fill="#7b828a">air</tspan><tspan font-weight="500">gradient</tspan></text>
+</g></svg>

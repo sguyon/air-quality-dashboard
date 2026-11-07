@@ -2,6 +2,10 @@
 
 This document defines how Claude Code should work on this project. Updated: August 11, 2026.
 
+`CLAUDE.md` is a symlink to this file, so Claude Code, Codex, and Cursor read the same rules.
+
+**Local rules:** if `CLAUDE.local.md` exists in the repo root, read it too. It is untracked and holds the roadmap process (`research/ROADMAP.md` is the source of truth for work streams) and the rules for dispatching subagents.
+
 ## Testing & Verification
 
 **Before asking the user to test anything:**
