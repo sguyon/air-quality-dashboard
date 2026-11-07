@@ -924,6 +924,7 @@ function reveal() {
 
 // why: 'offline' or 'failed' when this is an earlier summary shown in place of a new one.
 function renderRead(r, stale, why) {
+  const changed = shownSig !== null && readSig(r) !== shownSig;
   shownSig = readSig(r);
   if (!r.headline) return;                      // a summary saved in the old format
   // in front of the headline: an alert triangle when there's something to do, a check when all is fine
@@ -964,7 +965,7 @@ function renderRead(r, stale, why) {
   // the byline says who wrote the advice: Claude, or the rules when the model is off
   $('s-by').textContent = r.source === 'model' ? '' : '· by the rules,';
   $('s-tag-t').textContent = r.source === 'model' ? 'AI summary' : 'Summary';
-  if (!stale && !busyCount) aiRipple('once');   // a fresh summary landed: the dot sends one ripple
+  if (!stale && changed && !rippleTimer) aiRipple('once');   // the summary's content changed: the dot sends one ripple
   if ($('s-ago')) { $('s-ago').dataset.at = Date.parse(r.generated_at) || Date.now(); agoTick(); }
   if ($('s-src')) $('s-src').dataset.when = r.clock ? `Written ${r.clock} ·\u00a0` : '';   // the banner's status line: when, then the sources
   const swaps = (r.replaced || []).length;
@@ -1031,7 +1032,8 @@ function setPhase(p) {
 function setBusy(on) {
   busyCount = Math.max(0, busyCount + (on ? 1 : -1));
   const busy = busyCount > 0;
-  aiRipple(busy ? 'on' : 'off');
+  aiRipple(busy && manualBusy ? 'on' : 'off');   // the writing ripple only for a refresh the viewer asked for
+  if (!busy) manualBusy = false;
   for (const el of [document.querySelector('section.ai'), $('read-refresh')]) el.setAttribute('aria-busy', String(busy));
   busy ? startSpin() : stopSpin();
   if (!busy) setPhase(null);
@@ -1088,6 +1090,7 @@ let inFlight = null, lastRefresh = 0;
 function refresh({ manual = false, busy = false } = {}) {
   if (inFlight) return inFlight;
   const showBusy = manual || busy;
+  if (manual) manualBusy = true;
   if (showBusy) setBusy(true);
   if (manual) revealNext = true;
   inFlight = (async () => {
@@ -1318,7 +1321,7 @@ setInterval(agoTick, 30000);
 
 // The AI dot's ripple: rings spread from it when a fresh summary lands (once), and keep spreading while it's writing.
 // Event-driven on purpose: the only continuous pulse on the page is the green "live" dot.
-var rippleTimer = null;   // var: setBusy can call aiRipple during startup, before this line runs
+var rippleTimer = null, manualBusy = false;   // var: setBusy can call aiRipple during startup, before this line runs
 function aiRipple(mode) {
   const rings = [...document.querySelectorAll('.s-tag-mark .rip')]; if (!rings.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const wave = () => rings.forEach((c, k) => setTimeout(() => c.querySelectorAll('animate').forEach(a => { try { a.beginElement(); } catch (e) {} }), k * 300));

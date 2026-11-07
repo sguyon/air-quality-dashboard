@@ -104,6 +104,7 @@ var SKY = (() => {
     rs.setProperty('--sky-tint', pastel(top, 90)); rs.setProperty('--sky-tint2', pastel(hor, 93));
     // the header scenes follow the sky in the page's soft palette: same hue, lighter; a little deeper at night
     rs.setProperty('--scene-top', pastel(top, elev > -2 ? 84 : 72)); rs.setProperty('--scene-hor', pastel(hor, elev > -2 ? 90 : 80));
+    rs.setProperty('--mark-top', pastel(top, elev > -2 ? 70 : 62)); rs.setProperty('--mark-hor', pastel(hor, elev > -2 ? 74 : 66));   // the logo's panes: same sky, richer
     document.documentElement.classList.toggle('outside-dark', outLum < 140);
     document.documentElement.classList.toggle('outside-night', elev < -6);
     // the header scenes follow the weather too (rain on the glass, clouds, light behind the doors at night)

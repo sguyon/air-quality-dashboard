@@ -2501,3 +2501,6 @@ html.wx-full .now-bar { left: 0 !important; right: 0 !important; margin: 0 auto 
 button.add { border: 1px dashed var(--line-strong) !important; background: transparent !important; color: var(--soft) !important; border-radius: 10px; }
 button.add:disabled { opacity: .7 !important; cursor: not-allowed; }
 button.add svg.i { width: 15px; height: 15px; }
+/* logo: the top panes are the sky from its top to its horizon, so dawn and dusk show their warm band */
+.site svg.mark .mk-sky { fill: url(#mk-g) !important; opacity: .85 !important; }
+html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5 !important; }
