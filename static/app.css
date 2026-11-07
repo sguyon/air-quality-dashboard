@@ -2573,3 +2573,29 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
    (they used to be a banner background at a fixed 37 px, which missed the dot on phones) */
 :root[data-theme="dark"] .s-tag-mark .halo { opacity: .8; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .s-tag-mark .halo { opacity: .8; } }
+/* monitor headers on phones: a larger device drawing and scene; the device name on one line, the room beside the status */
+.mc-loc2 { display: none; }
+@media (max-width: 560px) {
+  .mc > .mc-head { padding-top: 14px !important; padding-bottom: 14px !important; }
+  .mc-head .mc-id { gap: 12px !important; padding-right: 96px !important; }
+  .mc-hw { width: 64px !important; height: 64px !important; margin: -4px 0 -4px -4px !important; }
+  .mc-hw svg { width: 60px !important; height: 60px !important; }
+  .mc-scene { width: 100px !important; height: 74px !important; right: 6px !important; }
+  .mc-kind { font-size: 12px; }
+  .mc-name { margin-top: 5px !important; font-size: 16px !important; line-height: 1.25 !important; white-space: nowrap; }
+  .mc-loc { display: none; }
+  .mc-loc2 { display: inline; font-weight: 500; color: var(--muted); }
+  .mc-head .mc-status { margin-top: 5px !important; }
+}
+/* source labels: room for descenders ("Google" was clipped), and the link arrow right after the text */
+.grid4 .card-top .k-link .srcl { line-height: 1.35; }
+.grid4 .card-top .k-link .k-arr { margin-left: -4px; }
+/* monitor headers: the name block may shrink, so a long name never widens the card */
+.mc-head .mc-id > div { min-width: 0; }
+@media (max-width: 380px) {
+  .mc-name { font-size: 15px !important; overflow: hidden; text-overflow: ellipsis; }
+  .mc-scene { width: 84px !important; height: 62px !important; }
+  .mc-head .mc-id { padding-right: 80px !important; }
+}
+/* iOS: no double-tap zoom (it zoomed a card to the screen width and left the page cut off); pinch-zoom still works */
+html { touch-action: manipulation; }
