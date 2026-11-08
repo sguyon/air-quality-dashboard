@@ -18,6 +18,8 @@ from pathlib import Path
 from flask import Flask, Response, g, jsonify, request, send_file
 import requests
 
+import summary as summary_rules
+
 # One shared pool for short-lived upstream calls (weather / smoke / pollen).
 _UPSTREAM_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="upstream")
 
@@ -261,6 +263,9 @@ def _fetch_weather():
             "current": "temperature_2m,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,visibility,uv_index,cloud_cover",
             "hourly": "wind_direction_10m,wind_speed_10m,precipitation_probability,precipitation,weather_code,temperature_2m,dew_point_2m,uv_index",
             "forecast_hours": 24,
+            "past_hours": 4,   # the summary chart starts before now
+            "daily": "sunrise,sunset",
+            "forecast_days": 2,
             "timezone": "America/New_York"
         },
         timeout=10
@@ -289,7 +294,8 @@ def _fetch_air_forecast():
     r = requests.get(
         "https://air-quality-api.open-meteo.com/v1/air-quality",
         params={"latitude": HOME_LAT, "longitude": HOME_LON, "hourly": "pm2_5",
-                "forecast_hours": 24, "timezone": "America/New_York"},
+                "forecast_hours": 24, "past_hours": 24,   # the past day calibrates the forecast to the backyard monitor
+                "timezone": "America/New_York"},
         timeout=10
     )
     r.raise_for_status()
@@ -627,7 +633,7 @@ def history_rows(location_id, hours, force=False):
 
 @app.route("/api/history/<int:location_id>")
 def history(location_id):
-    chart_keep = ("timestamp", "pm02", "pm02_corrected", "rco2", "rco2_corrected")
+    chart_keep = HIST_KEEP   # PM2.5, CO2 and humidity: the three History charts
     try:
         frm, to = _iso(request.args["from"]), _iso(request.args["to"])
         hours = round((to - frm).total_seconds() / 3600)
@@ -1009,6 +1015,8 @@ def determine_health_status(indoor_pm25, indoor_co2, indoor_humidity, dew_point,
 # and falls back to the rule sentences when it is missing or breaks a rule.
 
 # Haiku 5.5 thinks by default, and thinking counts toward max_tokens: keep effort low and leave room.
+# The summary card is written by rules; set SUMMARY_AI=on to let the model write its explanations again.
+SUMMARY_AI = os.environ.get("SUMMARY_AI", "off").lower() == "on"
 READ_MODEL = "claude-haiku-5-5"
 READ_EFFORT = "low"
 READ_MODEL_NAME = "Claude Haiku 5.5"
@@ -1016,7 +1024,7 @@ READ_CACHE_SECONDS = 20 * 60
 
 # Peak hours as predict_bqe_traffic() counts them: [start, end).
 RUSH_WINDOWS = [(7, 10, "morning"), (16, 20, "evening")]
-PM_FINE = 12
+PM_FINE = 15   # Sacha's line for any hour (WHO's 15 is a 24-hour average)
 PM_HIGH = 35
 CO2_OPEN = 800
 RH_LOW, RH_HIGH, RH_DAMP = 30, 50, 60
@@ -1332,6 +1340,43 @@ def build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run
     return out
 
 
+def _local(ts, tz):
+    """'2026-11-08T16:00' (Open-Meteo, local) as an aware datetime."""
+    return datetime.fromisoformat(ts).replace(tzinfo=tz)
+
+
+def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now):
+    """Gather what summary.build_summary needs from the caches the page already fills."""
+    tz = now.tzinfo
+    weather = get_open_meteo_data(HOME_LAT, HOME_LON)
+    hw, daily = weather.get("hourly") or {}, weather.get("daily") or {}
+    col = lambda name, k: (hw.get(name) or [None] * (k + 1))[k] if k < len(hw.get(name) or []) else None
+    hourly = [{"t": _local(t, tz), "temp": col("temperature_2m", k), "pop": col("precipitation_probability", k),
+               "mm": col("precipitation", k), "uv": col("uv_index", k), "wind_dir": col("wind_direction_10m", k)}
+              for k, t in enumerate(hw.get("time") or [])]
+    cams = sorted((_local(t, tz), v) for t, v in (get_air_forecast() or {}).items())
+    sun = [{"t": _local(t, tz), "kind": kind} for key, kind in (("sunrise", "Sunrise"), ("sunset", "Sunset"))
+           for t in daily.get(key) or [] if t]
+    days = get_pollen_days()
+    top = lambda types: max(types, key=lambda q: q.get("index") or 0) if types else None
+    rush = summary_rules.rush_windows(hourly, now, RUSH_WINDOWS, BQE_TOWARD)
+    return {"r": {"co2": co2, "rh": rh, "rh_out": rh_out, "t_in": t_in, "t_out": t_out, "pm_now": pm_out},
+            "cams": cams, "hourly": hourly,
+            "co2_pts": [(t, co2_of(x)) for t, x in pts_in], "rh_pts": [(t, rh_in_of(x)) for t, x in pts_in],
+            "pm_past": [(t, pm_of(x)) for t, x in pts_out], "smoke": get_smoke_data(),
+            "pollen_today": top(days.get("today")), "pollen_tomorrow": top(days.get("tomorrow")),
+            "rush": rush, "sun": sun, "now": now}
+
+
+def safe_summary(inputs, means=None):
+    """The new card, or None (logged) if the rules fail on odd data: the page then keeps its previous card."""
+    try:
+        return summary_rules.build_summary(**inputs, means=means)
+    except Exception as e:  # never let the card take the whole read down
+        app.logger.warning("summary failed: %s: %s", type(e).__name__, e)
+        return None
+
+
 def build_air_read(payload, force=False):
     now = local_now()
     co2 = fnum(payload.get("indoor_co2"))
@@ -1491,9 +1536,14 @@ def build_air_read(payload, force=False):
         "needs": needs, "relief": relief_line(pollen, now), "relief_short": relief_short(pollen, now),
         "source": "rules", "model": None, "model_name": None, "note": None, "replaced": [],
     }
+    # the new card: items, needs and the day chart, all from the rules (summary.py)
+    summary_in = summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now)
+    result["summary"] = safe_summary(summary_in)
 
     signature = json.dumps([headline, [n["action"] for n in needs], [c["state"] for c in cards],
                             None if co2 is None else round(co2 / 50), None if rh is None else round(rh / 3), now.hour, best_air])
+    if not SUMMARY_AI:
+        return result   # the summary is written by the rules; the model path below stays wired for later
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         result["note"] = "No API key, so these lines come from the rules."
@@ -1553,6 +1603,8 @@ def build_air_read(payload, force=False):
                 c["means"] = means[c["id"]].strip()
             elif c["num"] is not None:
                 replaced.append(c["id"])
+        accepted = {c["id"]: c["means"] for c in cards if c["id"] in means and c["id"] not in replaced and c.get("means")}
+        result["summary_means"] = accepted   # kept with the cached read; the card itself is redrawn on every read
         result.update(source="model", model=READ_MODEL, model_name=READ_MODEL_NAME, usage=usage, replaced=replaced)
         return result
 
@@ -1562,6 +1614,8 @@ def build_air_read(payload, force=False):
     except Exception as e:
         result["note"] = str(e) if isinstance(e, RuntimeError) else "Claude didn't answer, so these lines come from the rules."
         return result
+    # the card follows the readings now, even when the model's lines come from the cache
+    value = {**value, "summary": safe_summary(summary_in, means=value.get("summary_means") or None)}
     return {**value, "cached": True} if info["state"] != "miss" else value
 
 
