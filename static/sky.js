@@ -378,7 +378,6 @@ var SKY = (() => {
   if (window.__wx) { live.loaded = true; const w = window.__wx; if (has(w.temperature)) live.temp = w.temperature; if (has(w.wind_direction)) live.dir = w.wind_direction; if (has(w.wind_speed)) live.spd = Math.round(w.wind_speed * 2) / 2; if (has(w.cloud_cover)) live.cloud = w.cloud_cover; }
   if (state.outdoor) { const v = reading(state.outdoor, false).pm; if (has(v)) live.pm = Math.round(v * 2) / 2; }
   resize(); paint(); kick();
-  setTimeout(() => { if (typeof state !== 'undefined' && state.read && typeof renderAgenda === 'function') renderAgenda(state.read); }, 0);   // the agenda's sunrise needs the sky
   setInterval(() => { if (!preview) paint(); }, 60000);
   return {
     sunEl: m => sunPos(m).el,

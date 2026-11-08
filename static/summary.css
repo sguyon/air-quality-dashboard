@@ -1,0 +1,102 @@
+/* Home Air Quality: the summary card (static/summary.js). Page tokens only, so the dark theme works.
+   Visual reference: research/design-archive/49-summary-needs-row.html */
+.sx { position: relative; padding: 14px 20px 12px; container-type: inline-size; }
+
+.sx-kick { position: relative; display: flex; justify-content: space-between; align-items: center; min-height: 22px;
+  font: 600 12px/1.4 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.sx-none { color: var(--muted); font-size: 14px; margin: 6px 0 10px; }
+
+.sx-row { position: relative; padding: 10px 0 12px; border-bottom: 1px solid var(--line); }
+.sx-items .sx-row:last-child { border-bottom: 0; }
+.sx-lab { display: flex; justify-content: space-between; align-items: center; min-height: 20px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.sx-fct { color: var(--warn); font-weight: 600; }
+.sx-key { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.sx-key.in { width: 12px; height: 3px; border-radius: 2px; background: #6f8194; vertical-align: 3px; }
+.sx-key.out { width: 8px; height: 8px; border-radius: 2px; background: rgba(127, 147, 166, .45); }
+.sx-num { font-size: 32px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; white-space: nowrap; color: var(--warn); font-feature-settings: 'tnum' 1; }
+.sx-num small { font-size: 14px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-left: 4px; }
+.sx-fcn { text-decoration: underline dashed var(--warn-fill); text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.sx-ctx { margin-top: 3px; font-size: 13px; color: var(--muted); }
+.sx-do { margin-top: 6px; font-size: 16.5px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+.sx-when { color: var(--muted); font-weight: 500; white-space: nowrap; }
+
+/* the why: an (i) at the end of the label row, opening over what's below, so it takes no space */
+.sx-why summary { list-style: none; cursor: pointer; }
+.sx-why summary::-webkit-details-marker { display: none; }
+.sx-lab .sx-why summary { display: grid; place-items: center; width: 22px; height: 22px; margin: -2px -3px -2px 0; border-radius: 50%; color: var(--faint); }
+.sx-lab .sx-why summary:hover, .sx-lab .sx-why[open] summary { color: var(--ink); background: var(--tile); }
+.sx-why summary svg { width: 16px; height: 16px; }
+.sx-why p { position: absolute; left: -10px; right: -10px; top: 34px; z-index: 6; margin: 0; padding: 12px 14px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 12px 30px var(--shadow); font-size: 13.5px; font-weight: 400; line-height: 1.5; color: var(--soft); text-align: left; }
+.sx-why p strong { color: var(--ink); font-weight: 600; }
+.sx-nl { display: block; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+
+.sx-also { padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+.sx-clear { padding: 8px 0 12px; }
+.sx-clear .sx-big { font-size: 32px; font-weight: 600; letter-spacing: -.02em; color: var(--good); line-height: 1.1; }
+.sx-clear .sx-sub { margin-top: 4px; font-size: 15px; color: var(--muted); }
+
+/* the household's needs, always there but quiet: three icons in the header line, the dot is the state */
+.sx-nh { display: flex; align-items: center; gap: 12px; text-transform: none; letter-spacing: 0; }
+.sx-nh .sx-why { position: static; }
+.sx-nh .sx-why p { top: calc(100% + 8px); left: auto; right: -10px; width: min(380px, calc(100% + 20px)); }
+.sx-nh-i { display: block; padding: 2px; margin: -2px; }
+.sx-nh-i i { position: relative; display: block; width: 18px; height: 18px; color: var(--muted); }
+.sx-nh-i i b { position: absolute; right: -2px; bottom: -1px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--card); background: var(--good-fill); }
+.sx-nh-i.warn i { color: var(--warn); }
+.sx-nh-i.warn i b { background: var(--warn-fill); }
+.sx-nh-i.muted i b { background: var(--faint); }
+.sx-nh-i svg, .sx-nchip svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* on an item: its need's icon and state, plain amber, in the (i)'s place */
+.sx-lab .sx-why summary.sx-nchip { display: inline-flex; align-items: center; gap: 5px; width: auto; height: auto; margin: 0; border-radius: 0;
+  background: none; font: 600 13px/1.2 Inter, sans-serif; color: var(--warn); white-space: nowrap; }
+.sx-lab .sx-why summary.sx-nchip:hover, .sx-lab .sx-why[open] summary.sx-nchip { background: none; color: var(--warn); }
+.sx-lab .sx-why summary.sx-nchip.ok, .sx-lab .sx-why summary.sx-nchip.muted { color: var(--muted); }
+.sx-nchip svg { width: 15px; height: 15px; stroke-width: 1.9; }
+
+/* the day chart and its readout */
+.sx-tl { position: relative; padding-top: 12px; margin-top: 2px; border-top: 1px solid var(--line); touch-action: pan-y; }
+.sx-tl svg text { font-family: Inter, system-ui, sans-serif; }
+.sx-tip { position: absolute; top: 2px; z-index: 4; display: none; width: 196px; padding: 10px 12px 9px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 12px 28px var(--shadow); font-size: 12.5px; line-height: 1.3; color: var(--soft); pointer-events: none; }
+.sx-tip .sx-tt { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+.sx-tip .sx-tt b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.sx-tip .sx-chip { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--soft); background: var(--tile); border: 1px dashed var(--line-strong); border-radius: 99px; padding: 2px 7px; }
+.sx-tip .sx-chip.now { border-style: solid; }
+.sx-tip .sx-r { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 7px; padding: 2px 0; }
+.sx-tip .sx-lb { color: var(--muted); white-space: nowrap; }
+.sx-tip .sx-v { font-weight: 600; color: var(--ink); white-space: nowrap; text-align: right; }
+.sx-tip .sx-v small { font-size: 11px; font-weight: 500; color: var(--faint); margin-left: 2px; }
+.sx-tip .sx-v.over, .sx-tip .sx-v.over small { color: var(--warn); }
+.sx-tip .sx-ev { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 7px; color: var(--muted); }
+.sx-ic { display: block; width: 16px; height: 16px; }
+.sx-sw-co2 { display: block; width: 14px; height: 3px; border-radius: 2px; background: #6f8194; margin: 0 1px; }
+.sx-sw-rh { display: block; width: 14px; height: 2px; border-radius: 2px; background: #a3aeb9; margin: 0 1px; }
+.sx-sw-pm { display: block; width: 12px; height: 12px; border-radius: 3px; margin: 0 2px; background: rgba(127, 147, 166, .45); }
+.sx-sw-pm.fc { background: repeating-linear-gradient(45deg, rgba(127, 147, 166, .55) 0 1.4px, transparent 1.4px 4px); box-shadow: inset 0 0 0 1px rgba(127, 147, 166, .35); }
+.sx-sw-pm.over { background: rgba(217, 138, 28, .55); }
+.sx-sw-pm.fc.over { background: repeating-linear-gradient(45deg, rgba(217, 138, 28, .8) 0 1.4px, rgba(217, 138, 28, .12) 1.4px 4px); box-shadow: none; }
+/* phones: one line docked over the hour labels it repeats, so the finger and the dot stay clear */
+.sx-tip.dock { left: 0 !important; right: 0; width: auto; top: auto; bottom: -2px; padding: 8px 10px; border-radius: 10px; }
+.sx-tip.dock .sx-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sx-tip.dock .sx-whn { display: flex; flex-direction: column; line-height: 1.15; white-space: nowrap; }
+.sx-tip.dock .sx-whn b { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.sx-tip.dock .sx-whn em { font-style: normal; font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
+.sx-tip.dock .sx-c { display: flex; align-items: center; gap: 4px; font-weight: 600; color: var(--ink); white-space: nowrap; font-size: 13px; }
+.sx-tip.dock .sx-c small { font-size: 10.5px; font-weight: 500; color: var(--faint); margin-left: 1px; }
+.sx-tip.dock .sx-c.over { color: var(--warn); }
+
+@media (min-width: 900px) { .sx { padding: 18px 32px 16px; } }
+/* the layout follows the card's own width, so a narrow card on a wide screen stays stacked */
+@container (min-width: 760px) {
+  .sx-items { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 2px; }
+  .sx-items.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sx-items.n1 { grid-template-columns: 1fr; }
+  .sx-items .sx-row { border-bottom: 0; padding: 8px 28px 14px; border-left: 1px solid var(--line); }
+  .sx-items .sx-row:first-child { padding-left: 0; border-left: 0; }
+  .sx-items .sx-row:last-child { padding-right: 0; }
+  .sx-num { font-size: 38px; }
+  .sx-clear { display: flex; align-items: baseline; gap: 24px; }
+  .sx-clear .sx-big { font-size: 38px; }
+  .sx-clear .sx-sub { margin: 0; font-size: 17px; }
+}
