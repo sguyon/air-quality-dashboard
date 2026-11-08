@@ -131,8 +131,7 @@ button.add:disabled, button.x:disabled { opacity: .4; }
 .coach { font: 600 15px/1 Inter, sans-serif; color: var(--ink); }
 .updated { color: var(--soft); font-size: 13px; white-space: nowrap; }
 .ai { margin-top: 22px; position: relative; background: var(--ai-bg); border: 1px solid var(--ai-line); border-radius: 22px; padding: 16px 16px 14px; }
-.spark { display: grid; place-items: center; color: var(--accent); flex: none; }
-.spark svg.i { width: 22px; height: 22px; display: block; fill: none; stroke: currentColor; stroke-width: 2.2; }
+
 /* Left: what the section is. Right, pinned to the edge: status and the action. */
 .updated.stale { color: var(--warn); }
 /* Refresh reads as a button: border, label, pointer. */
@@ -158,8 +157,7 @@ svg.ts text { fill: var(--soft); font: 11px Inter, sans-serif; }
 .n small { font-size: 13px; font-weight: 500; color: var(--soft); margin-left: 3px; }
 .s { margin: 8px 0 0; font-size: 13px; line-height: 1.4; color: var(--soft); font-weight: 450; }
 .s b { color: var(--ink); font-weight: 650; }
-.v svg.sparkline { display: block; width: 100%; height: 34px; margin-top: 10px; }
-.v svg.sparkline path { fill: none; stroke: var(--c, var(--good)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
 h2 { margin: 32px 0 12px; font: 600 14px/1 Inter, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--soft); display: flex; align-items: center; gap: 8px; }
 .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -306,44 +304,9 @@ h2 span { font: 400 13.5px/1.2 Inter, sans-serif !important; color: var(--muted)
 .mc-status .live { width: 7px; height: 7px; }
 /* ── Summary (board 18) ── */
 .ai { padding: 18px 22px 0; overflow: hidden; }
-.s-do { margin: 16px 0 2px; font: 680 26px/1.2 Inter, sans-serif; letter-spacing: -.02em; text-transform: none; color: var(--ink); display: block; }
-.s-do.warn { color: var(--warn); }
-.s-do.bad { color: var(--bad); }
-.s-do.good { color: var(--good); }
-.s-why { margin: 0 0 4px; font-size: 16px; color: var(--soft); max-width: 72ch; }
-.s-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 16px -22px 0; border-top: 1px solid var(--line); }
-.s-c { padding: 16px 22px 18px; display: flex; flex-direction: column; min-width: 0; }
-.s-c + .s-c { border-left: 1px solid var(--line); }
-.s-k { display: flex; align-items: center; gap: 9px; font: 600 13px/1.2 Inter, sans-serif; color: var(--soft); }
-.s-tile { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; flex: none; background: var(--meter); color: var(--muted); }
-.s-tile svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.s-tile .s-txt { font: 700 9.5px/1 Inter, sans-serif; }
-.s-c.warn .s-tile { background: var(--ico-warn); color: var(--warn); }
-.s-c.bad .s-tile { background: color-mix(in srgb, var(--bad) 14%, var(--card)); color: var(--bad); }
+
 .s-src { margin-left: auto; font-weight: 500; font-size: 11.5px; color: var(--muted); }
-.s-num { margin-top: 12px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.s-num b { font: 700 32px/1 Inter, sans-serif; letter-spacing: -.03em; color: var(--ink); font-feature-settings: 'tnum' 1; }
-.s-c.warn .s-num b { color: var(--warn); }
-.s-c.bad .s-num b { color: var(--bad); }
-.s-u { font-size: 14px; color: var(--muted); }
-.s-limt { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
-.s-limt strong { color: var(--ink); font-weight: 600; }
-.s-st { margin-top: 6px; font-size: 13.5px; }
-.s-st b { font-weight: 650; color: var(--soft); }
-.s-c.good .s-st b::before { content: "✓ "; color: var(--good); }
-.s-c.warn .s-st b { color: var(--warn); }
-.s-c.bad .s-st b { color: var(--bad); }
-.s-st span { color: var(--soft); }
-.s-spark { position: relative; margin: 14px 0 14px; padding-right: 34px; }
-.s-spark svg { display: block; width: 100%; height: 44px; overflow: visible; }
-.s-lim { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
-.s-base { fill: none; stroke: var(--faint); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: .7; }
-.s-hot { fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.s-c.good .s-hot { display: none; }
-.s-means { margin-top: auto; padding-top: 6px; font-size: 13px; color: var(--soft); }
-@media (max-width: 760px) {
-  .s-c + .s-c { border-left: 0; border-top: 1px solid var(--line); }
-}
+
 /* Crossing label sits under the limit line, where the line is not */
 @media (min-width: 701px) {
   /* Avatar row on top, next to v1 and theme; needs and sources hang under it */
@@ -876,30 +839,7 @@ html.theme-swap *, html.theme-swap *::before, html.theme-swap *::after { transit
 /* Need chips explain themselves on hover; removing a need isn't built yet, so only the x stays inert. */
 .custom .view .chip[data-tip] { pointer-events: auto; cursor: help; }
 .custom .view .chip[data-tip] .x, .custom .view .chip[data-tip] button { pointer-events: none; }
-/* Summary v3: one card per need. The action leads, then the number and its chart. */
-.n-card .s-k { color: var(--ink); font-size: 13.5px; }
-.n-metric { margin-left: auto; font: 500 12px/1 Inter, sans-serif; color: var(--muted); }
-.n-card .s-num { margin-top: 14px; align-items: center; }
-.n-card .s-num b { font-size: 30px; }
-.n-card .s-num b { color: var(--ink) !important; }
-.n-card .s-spark { margin-top: 10px; }
-/* pollen: three rows of five pips, 0 to 5 */
-.n-pollen { margin-top: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
-.n-pl { font-weight: 600; color: var(--soft); }
-.pb { display: inline-flex; align-items: center; gap: 2px; }
-.pb em { font-style: normal; margin-right: 4px; }
-.pb i { width: 6px; height: 10px; border-radius: 2px; background: var(--meter); }
-.pb.lo i.on { background: var(--good-fill); }
-.pb.hi i.on { background: var(--warn-fill); }
-.n-card .s-means { padding-top: 10px; color: var(--muted); font-size: 12.5px; }
-/* The action's icon in front of the headline (no label above it) */
-.s-head { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
-.s-head .s-do { margin: 0 !important; }
-.s-act { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--good-fill) 14%, var(--card)); color: var(--good); }
-.s-act[hidden] { display: none; }
-.s-act svg.i { width: 22px; height: 22px; stroke-width: 2; }
-.s-act.warn { background: var(--ico-warn); color: var(--warn); }
-.s-act.bad { background: color-mix(in srgb, var(--bad) 14%, var(--card)); color: var(--bad); }
+
 /* Home panel rows: subtitles stay on one line */
 .pr-t b, .pr-t em { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* ── Airy pass (2026-11-06), from comparing with production ──
@@ -917,84 +857,22 @@ html.theme-swap *, html.theme-swap *::before, html.theme-swap *::after { transit
   --line: #26272d; --line-strong: #3a3b42; --meter: #24252b; --track: #24252b; --grid: #26272d; --tile: #1f2025;
   --warn: #fbbf24; --warn-fill: #f59e0b; --ico-warn: #3a2c12;
 }
-/* 2 · weights: numbers stay bold; words step down; tone lives in icons and pills */
-.s-do, .s-do.warn, .s-do.bad, .s-do.good { font-weight: 600 !important; color: var(--ink) !important; letter-spacing: -.015em; }
-.n-card .s-k { font-weight: 500; }
+
 /* 4 · section titles: small, tracked, light gray caps */
 h2, .sechead h2 { font: 500 12.5px/1 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 h2 span { text-transform: none !important; }
 /* 5 · more room */
 .card { padding: 22px 24px; }
-.s-c { padding: 22px 24px 24px; }
+
 .sechead, h2 { margin-top: 48px; }
-.s-why, .s-means { line-height: 1.55; }
-.s-head + .s-why { margin-left: 54px; }
+
 /* ── Right now: title, live weather line and Refresh float on the sky, right above the summary card ── */
 .now-bar { margin: 28px 0 12px; }
-.ai > .s-top { margin-top: 0; }
-/* Right now: headline on the left, Coming up on the right */
-.s-top { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 32px; align-items: start; }
-.s-top:has(.s-ag[hidden]) { grid-template-columns: 1fr; }
-.s-ag[hidden] { display: none; }
-.s-ag { margin-top: 14px; }
-.s-ag h3 { margin: 0 0 10px; font: 500 12.5px/1 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.ag { list-style: none; margin: 0; padding: 0; position: relative; }
-.ag::before { content: ""; position: absolute; left: 91px; top: 10px; bottom: 10px; width: 2px; background: var(--line); }
-.ag li { display: grid; grid-template-columns: 82px 14px minmax(0, 1fr) auto; gap: 0 10px; align-items: start; padding: 5px 0; }
-.ag-t { font: 500 12.5px/1.35 Inter, sans-serif; color: var(--soft); text-align: right; font-feature-settings: 'tnum' 1; }
-.ag-d { width: 12px; height: 12px; margin-top: 2px; border-radius: 50%; background: var(--card); border: 2.5px solid var(--line-strong); position: relative; z-index: 1; }
-.ag li.good .ag-d { border-color: var(--good-fill); }
-.ag li.warn .ag-d { border-color: var(--warn-fill); }
-.ag li.bad .ag-d { border-color: var(--bad); }
-.ag li.sun .ag-d { border-color: #f2b544; background: #ffe7a8; }
-.ag-x b { display: block; font: 500 14px/1.35 Inter, sans-serif; color: var(--ink); }
-.ag li.good .ag-x b { color: var(--good); }
-.ag li.warn .ag-x b { color: var(--warn); }
-.ag li.bad .ag-x b { color: var(--bad); }
-.ag-x em { display: block; font-style: normal; font-size: 12.5px; color: var(--muted); }
-.ag-n { display: flex; gap: 5px; color: var(--muted); padding-top: 2px; }
-.ag-n svg.i { width: 15px; height: 15px; }
-@media (max-width: 760px) {
-  .s-top { grid-template-columns: 1fr; gap: 8px; }
-}
-/* Cards hold the evidence only; the meaning is behind the ⓘ */
-.n-card .n-metric { margin-left: 4px; }
-.n-card .s-num { margin-top: 14px; }
+
 /* The row belongs to the card: much closer to it than to the header, and aligned to its edges */
 .now-bar { margin: 40px 0 8px; }
 .now-bar + .ai { margin-top: 0; }
-/* The meaning line is visible at the bottom of each card */
-.n-card .s-means { margin-top: auto; padding-top: 14px; font-size: 13px; line-height: 1.5; color: var(--soft); }
-/* Limit line: the bad side is a faint warm band with words, so above vs below is obvious */
-.n-card .s-spark { padding-right: 58px; }
-.n-card .s-spark svg { height: 56px; }
-/* When there's something to do, the headline itself is amber (the only amber text in the summary); red when it's bad */
-.s-main.alert .s-do { color: var(--warn) !important; }
-.s-main.alert.bad .s-do { color: var(--bad) !important; }
-/* Coming up, compact: one line per moment, detail in gray after the title; both columns share a height */
-.s-top { align-items: stretch; }
-.ag li { padding: 4px 0; align-items: center; }
-.ag::before { top: 12px; bottom: 12px; }
-.ag-d { margin-top: 0; }
-.ag-x { display: flex; align-items: baseline; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; }
-.ag-x b { display: inline; flex: none; }
-.ag-x em { display: inline; overflow: hidden; text-overflow: ellipsis; }
-.ag-x em::before { content: "· "; }
-.ag-n { padding-top: 0; }
-.s-ag h3 { margin-bottom: 8px; }
-@media (max-width: 560px) {
-  .ag-x { flex-direction: column; gap: 0; white-space: normal; }
-  .ag-x em::before { content: none; }
-}
-/* Headline mark: a plain icon at the headline's size, no tile */
-.s-act, .s-act.warn, .s-act.bad { width: auto; height: auto; background: none !important; border-radius: 0; }
-.s-act svg.i { width: 26px; height: 26px; stroke-width: 2.2; }
-.s-act.warn { color: var(--warn-fill); }
-.s-act.bad { color: var(--bad); }
-.s-act.good { color: var(--good-fill); }
-.s-head { gap: 10px; }
-.s-head + .s-why { margin-left: 36px; }
-/* ── Subtraction pass (2026-11-06): one accent for "needs attention", fewer devices ── */
+
 /* Right now: a heading with the live weather under it, floating on the sky */
 .now-bar { margin: 44px 0 12px; }
 .now-h { margin: 0 !important; font: 600 20px/1.2 Inter, sans-serif !important; letter-spacing: -.01em !important; text-transform: none !important; color: var(--ink) !important; transition: color 1.2s ease; }
@@ -1006,23 +884,7 @@ html.sky-dark .now-h { color: #f2f6fb !important; }
 .s-tools { position: absolute; top: 16px; right: 18px; display: flex; align-items: center; gap: 8px; z-index: 2; font-size: 12.5px; color: var(--muted); }
 .s-tools .updated:empty { display: none; }
 .s-tools .q .bubble { left: auto; right: 0; transform: none; }
-.s-main { padding-right: 8px; }
-.s-ag { margin-top: 44px; }
-/* headline: amber words, no icon */
-.s-head + .s-why { margin-left: 0; }
-/* cards: plain icon, state as a word, meaning under the chart */
-.n-card .s-k { gap: 8px; }
-.n-card .n-metric { margin-left: auto; font-weight: 400; }
-.n-word { font: 500 13px/1 Inter, sans-serif; color: var(--muted); }
-.n-word.warn { color: var(--warn); }
-.n-word.bad { color: var(--bad); }
-.n-card .s-means { margin-top: 0; padding-top: 4px; font-size: 13px; color: var(--soft); }
-.n-card .n-pollen { margin-top: 14px; }
-/* charts: no bands; the limit's number and one word sit in the right gutter */
-.n-card .s-spark { padding-right: 52px; margin: 14px 0 22px; }
-/* agenda: ink titles; color only on the dot */
-.ag li.good .ag-x b, .ag li.warn .ag-x b, .ag li.bad .ag-x b { color: var(--ink); }
-.ag li { cursor: default; }
+
 /* Home monitors: the range control sits with the charts it changes */
 .chart-bar { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 10px; }
 .chart-bar > span { font: 500 12.5px/1 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -1039,42 +901,24 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); }
 .s-by b { font-weight: 600; color: var(--ink); white-space: nowrap; }
 .s-by #s-by { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .s-bar .s-tools { position: static; }
-.s-ag { margin-top: 14px; }
+
 @media (max-width: 560px) {
   .s-by #s-by { display: none; }
 }
-/* Coming up as a horizontal timeline under the headline (full width); a vertical list on phones */
-.s-top, .s-top:has(.s-ag[hidden]) { grid-template-columns: 1fr; gap: 0; }
-.s-ag { margin-top: 20px; }
-@media (min-width: 561px) {
-  .ag { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0 16px; }
-  .ag::before { left: 6px; right: 20%; top: 27px; bottom: auto; width: auto; height: 2px; }
-  .ag li { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; padding: 0; grid-template-columns: none; }
-  .ag-t { text-align: left; order: 0; }
-  .ag-d { order: 1; margin: 0; }
-  .ag-x { order: 2; white-space: normal; }
-}
-/* Coming up, loading: placeholder rows at full size */
-.ag-skel i { display: block; height: 10px; border-radius: 5px; background: var(--meter); animation: skel 1.4s ease-in-out infinite; }
-.ag-skel .ag-t i { width: 54px; }
-.ag-skel .ag-x i { width: 90px; height: 12px; margin-top: 2px; }
-.ag-skel .ag-d { border-color: var(--line); }
+
+/* loading pulse (the History range button) */
+
 @keyframes skel { 50% { opacity: .45; } }
-@media (prefers-reduced-motion: reduce) {
-  .ag-skel i { animation: none; }
-}
+
 /* Refresh while busy: blue pill, "Updating…", a stronger light along the card's top edge */
 .icon-btn.pill[aria-busy="true"] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
 .ai::before { height: 3px; top: -1.5px; background: linear-gradient(90deg, transparent, var(--accent) 45%, #22c3d6 55%, transparent) no-repeat; background-size: 30% 100%; }
-.s-ag { margin-bottom: 20px; }
+
 /* Byline sources: overlapping round icons, like a shared doc's people */
 .s-src { display: inline-flex; align-items: center; margin-left: 4px; cursor: default; }
 /* Top section, tightened: no line under the byline, no "24 h" line under the charts, the timeline runs to the edge */
 .s-bar { border-bottom: 0; padding-bottom: 6px; margin-bottom: 0; }
-.n-card .s-spark { margin-bottom: 12px; }
-@media (min-width: 561px) {
-  .ag::before { right: -24px; background: linear-gradient(90deg, var(--line) 85%, transparent); }
-}
+
 /* Source stack: gray at rest; on hover the icons take their colors and fan out, and a card lists each source's status */
 .s-src { position: relative; padding: 2px 4px; border-radius: 8px; outline: none; }
 .s-src:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
@@ -1089,96 +933,33 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); }
 .s-src-row em.warn { color: #f5b041; opacity: 1; }
 .s-src-row em.bad { color: #ff8a80; opacity: 1; }
 /* Linked hover: a vertical line at the same moment on every chart; the legend line shows the time and values */
-.s-spark { cursor: crosshair; }
-.s-xh { position: absolute; top: 0; height: 56px; width: 0; border-left: 1px solid var(--soft); opacity: .55; pointer-events: none; }
-.s-xh i { position: absolute; left: -4px; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--card); opacity: 1; }
-.n-card .s-spark { --gut: 52px; }
-.n-metric { font-feature-settings: 'tnum' 1; }
+
 svg.ts { cursor: crosshair; }
 svg.ts .ts-xh { stroke: var(--soft); stroke-width: 1; opacity: .55; }
 svg.ts .ts-hd { stroke: var(--card); stroke-width: 2; }
 svg.ts .ts-hd.in { fill: var(--series-in); }
 svg.ts .ts-hd.out { fill: var(--series-out); }
 .chart-head .who { font-feature-settings: 'tnum' 1; }
-/* Coming up reads as time moving forward: a solid "now" dot that pulses, and a line that fades into an arrowhead */
-@media (min-width: 561px) {
-  .ag { padding-right: 18px; }
-  .ag::before { right: 0; background: linear-gradient(90deg, var(--soft) 0, var(--line-strong) 30%, color-mix(in srgb, var(--line-strong) 40%, transparent) 100%); height: 2px; }
-  .ag::after { content: ""; position: absolute; right: 0; top: 23px; width: 0; height: 0; border-left: 9px solid color-mix(in srgb, var(--line-strong) 70%, transparent);
-    border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
-}
-.ag li:first-child .ag-d { background: var(--good-fill); border-color: var(--good-fill); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good-fill) 18%, transparent); }
-.ag li.warn:first-child .ag-d { background: var(--warn-fill); border-color: var(--warn-fill); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn-fill) 18%, transparent); }
-.ag li:first-child .ag-d::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid currentColor; color: var(--good-fill); opacity: 0; animation: live-ping 2.4s cubic-bezier(.2, .7, .2, 1) infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .ag li:first-child .ag-d::after { animation: none; }
-}
+
 /* Google's G fills its viewBox edge to edge: give it room so nothing is cut */
 .s-src-ic .brand.g svg { width: 13px !important; height: 13px !important; }
 .s-src-ic .brand.g { overflow: visible; }
-/* Summary cards: what the chart shows sits next to who it's for, at the same size */
-.n-card .s-k { font-size: 14px; }
-.n-card .n-metric { margin-left: 0; font: 500 14px/1.2 Inter, sans-serif; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.n-card .n-metric::before { content: "· "; color: var(--muted); }
+
 /* Right now: text on the left, the Weather pill at the end of the weather line */
 .now-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .now-text { min-width: 0; flex: 1 1 auto; }
 .now-bar .dsp { flex: none; }
 .now-bar .dsp-pop { top: calc(100% + 10px); right: 0; left: auto; }
-/* Headline on the left, the why-picture on the right; Coming up spans both */
-.s-top { grid-template-columns: minmax(0, 1fr) minmax(0, 400px) !important; column-gap: 40px !important; }
-.s-top:has(.s-vis[hidden]) { grid-template-columns: 1fr !important; }
-.s-vis[hidden] { display: none; }
-.s-ag { grid-column: 1 / -1; }
-.s-vis { margin-top: 14px; align-self: start; }
-.v-head { font: 500 12.5px/1 Inter, sans-serif; color: var(--muted); margin-bottom: 10px; }
-.v-bars { display: grid; gap: 8px; }
-.v-row { display: grid; grid-template-columns: 58px 1fr 52px; align-items: center; font-size: 12.5px; color: var(--soft); }
-.v-track { position: relative; display: block; height: 10px; }
-.v-track i { display: block; height: 10px; border-radius: 5px; background: var(--line-strong); min-width: 4px; }
-.v-track i.over { background: var(--warn-fill); }
-.v-row:not(.v-axis) .v-track::after { content: ""; position: absolute; left: var(--lim); top: -3px; bottom: -3px; border-left: 1.5px dashed var(--muted); }
-.v-axis .v-track { height: 12px; }
-.v-axis em { position: absolute; left: var(--lim); transform: translateX(-50%); font: 500 10.5px/1 Inter, sans-serif; font-style: normal; color: var(--muted); white-space: nowrap; }
-.v-axis b { font: 500 10.5px/1 Inter, sans-serif !important; color: var(--muted) !important; }
-.v-row b { text-align: right; font: 600 13px/1 Inter, sans-serif; color: var(--ink); font-feature-settings: 'tnum' 1; }
-.v-note { margin: 10px 0 0; font-size: 13px; line-height: 1.5; color: var(--soft); }
-@media (max-width: 760px) {
-  .s-top { grid-template-columns: 1fr !important; }
-}
+
 .now-bar { position: relative; z-index: 6; }
 /* the Weather dropdown opens over the summary card */
 .now-bar .dsp-pop { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
-/* The why-picture sits right under the headline: bars and the history note side by side */
-.s-top, .s-top:has(.s-vis[hidden]) { grid-template-columns: 1fr !important; }
-.s-main .s-vis { margin-top: 18px; display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 340px); gap: 10px 40px; align-items: center; }
-.s-main .s-vis[hidden] { display: none; }
-.s-main .v-note { margin: 0; padding-left: 16px; border-left: 2px solid var(--line); }
-@media (max-width: 860px) {
-  .s-main .s-vis { grid-template-columns: 1fr; }
-  .s-main .v-note { padding-left: 0; border-left: 0; }
-}
-.s-main .s-vis + .s-ag, .s-top > .s-ag { margin-top: 26px; }
+
 /* Links into the Home panel: the need name and the source icons */
 .s-src { cursor: pointer; }
 .s-src-card::after { content: "Click to change sources"; display: block; margin-top: 2px; opacity: .6; font-size: 11.5px; }
 .blocks section.pg { border-radius: 10px; }
-/* Loading placeholders that you can actually see, at the final size */
-.ag-skel i, .v-skel i { background: color-mix(in srgb, var(--line-strong) 70%, transparent) !important; }
-.ag-skel .ag-d { background: var(--card) !important; border-color: var(--line-strong) !important; box-shadow: none !important; }
-.ag-skel .ag-d::after { display: none; }
-.v-skel .v-track i { width: 70%; animation: skel 1.4s ease-in-out infinite; }
-.v-skel .v-row + .v-row .v-track i { width: 30%; }
-.v-skel .v-axis .v-track { height: 12px; }
-.v-note.v-skel i { display: block; height: 10px; border-radius: 5px; margin: 6px 0; animation: skel 1.4s ease-in-out infinite; }
-.v-note.v-skel i + i { width: 60%; }
-/* Three groups in the card: the advice, the plan (Coming up), the evidence (cards); a hairline between each, full width */
-.s-top > .s-ag, .s-main .s-vis + .s-ag { margin: 22px -22px 0; padding: 18px 22px 22px; border-top: 1px solid var(--line); }
-.s-ag { margin-bottom: 0 !important; }
-/* placeholders take the exact height of the real lines, so nothing moves when they're replaced */
-.ag-skel .ag-t, .ag-skel .ag-x { display: flex; align-items: center; }
-.ag-skel .ag-t { height: 16.9px; }
-.ag-skel .ag-x { height: 18.9px; }
+
 /* History loading: the picked range pulses and the charts dim until the new data draws */
 .chart-bar.loading #ranges button.on { animation: skel 1s ease-in-out infinite; }
 .grid2 .card.loading svg.ts { opacity: .45; transition: opacity .2s ease; }
@@ -1209,9 +990,7 @@ svg.ts .ts-hd.out { fill: var(--series-out); }
 }
 /* the shimmer spans the text itself, not the full card width */
 .ai[data-phase="write"] #lead, .ai[data-phase="write"] #why { width: fit-content; max-width: 100%; }
-/* Latest reading: a dot at the end of each summary chart line */
-.s-end { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--soft)); box-shadow: 0 0 0 2px var(--card); transform: translate(-50%, -50%); pointer-events: none; }
-.v-track i { transform-origin: left center; }
+
 /* Right now: the sky control sits right after the weather line */
 .now-line { display: flex; align-items: center; gap: 10px; min-width: 0; margin-top: 4px; }
 .now-line .sky-cap { margin: 0; flex: 0 1 auto; min-width: 0; }
@@ -1310,12 +1089,12 @@ html.sky-dark .devbar button { color: #b9ccff; }
 .now-bar { margin-top: 18px !important; margin-bottom: 10px !important; }
 .ai { padding-top: 14px !important; }
 .s-bar { padding-bottom: 2px !important; }
-.s-head { margin-top: 8px !important; }
+
 /* Tighter rhythm between sections: 32px above each section title, 10px from title to its content */
 .sechead, h2:not(.now-h):not(.s-do) { margin-top: 32px !important; }
 .sechead { margin-bottom: 10px !important; }
 .sechead h2 { margin-top: 0 !important; }
-.chart-bar { margin: 16px 0 8px !important; }
+.chart-bar { margin: 32px 0 8px !important; }   /* History is its own section now, under Local conditions */
 .grid4 { margin-top: 10px !important; }
 .sechead h2:not(.now-h):not(.s-do) { margin-top: 0 !important; }
 .devbar { margin: 32px 0 28px !important; }
@@ -1391,28 +1170,9 @@ html.sky-dark .devbar a.prev { color: #b9ccff; }
 .nbt th.nbbar { padding-bottom: 12px; }
 .scale-h { padding-bottom: 0; }
 .scale-k { transform: translateY(1px); }
-/* Summary charts: soft fill under the line (amber past the limit), the limit's number and word inside the chart at its right end,
-   the state as a soft pill */
-.n-card .s-spark { --gut: 0px; padding-right: 0 !important; margin: 14px 0 12px !important; }
-.n-card .s-spark svg { height: 64px !important; }
-.s-fill-a { stop-color: var(--soft); stop-opacity: .10; }
-.s-fill-b { stop-color: var(--soft); stop-opacity: 0; }
-.s-warn-a { stop-color: var(--warn-fill); stop-opacity: .30; }
-.s-warn-b { stop-color: var(--warn-fill); stop-opacity: .06; }
-.s-lab { position: absolute; right: 2px; font: 500 10.5px/1 Inter, sans-serif; color: var(--muted); white-space: nowrap; pointer-events: none;
-  text-shadow: 0 0 3px var(--card), 0 0 3px var(--card), 0 0 3px var(--card); }
-.s-lab.up { transform: translateY(calc(-100% - 3px)); }
-.s-lab.down { transform: translateY(4px); }
-.s-lab b { font-weight: 600; color: var(--soft); }
-.s-lab em { font-style: normal; }
-.n-card.warn .s-lab em, .n-card.bad .s-lab em { color: var(--warn); }
-.n-word { padding: 4px 9px; border-radius: 99px; font: 600 12px/1 Inter, sans-serif !important; background: var(--meter); color: var(--soft); }
-.n-word.good { background: color-mix(in srgb, var(--good-fill) 14%, var(--card)); color: var(--good); }
-.n-word.warn { background: color-mix(in srgb, var(--warn-fill) 18%, var(--card)); color: var(--warn); }
-.n-word.bad { background: color-mix(in srgb, var(--bad) 14%, var(--card)); color: var(--bad); }
-.n-card .s-end { margin-left: 0; }
+
 /* Charts on touch: no text selection or copy menu; vertical swipes scroll the page, sideways drags scrub */
-.s-spark, svg.ts { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+ svg.ts { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
 /* ── Weather line and sky control: bigger, easier to tap; the dropdown stays on screen ── */
 .now-bar .sky-cap { font-size: 14.5px !important; height: 26px !important; line-height: 26px !important;
   padding-left: 6px !important; margin-left: -6px !important; }
@@ -1431,19 +1191,7 @@ html.sky-dark .devbar a.prev { color: #b9ccff; }
   .now-line .dsp { position: static !important; }
   .now-line .dsp-pop { position: absolute !important; left: 0 !important; right: 0 !important; width: auto !important; top: calc(100% + 8px) !important; }
 }
-/* Coming up: the first row's dot takes that row's own color (amber for a rush blowing this way, gray for a neutral one) */
-.ag li:first-child:not(.good) .ag-d { background: var(--card); box-shadow: none; }
-.ag li.warn:first-child .ag-d { background: var(--warn-fill); border-color: var(--warn-fill); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn-fill) 18%, transparent); }
-.ag li:first-child:not(.good):not(.warn) .ag-d::after { display: none; }
-.ag li.warn:first-child .ag-d::after { color: var(--warn-fill); }
-/* Coming up: the line runs exactly through the dots' centers.
-   Vertical list: time column 82px + 10px gap + half the 12px dot = 98px → a 2px line at 97px.
-   Horizontal timeline: time label (12.5px × 1.35 ≈ 17px) + 7px gap + half the dot = 30px → a 2px line at 29px. */
-.ag::before { left: 97px; }
-@media (min-width: 561px) {
-  .ag::before { left: 6px; top: 29px; }
-  .ag::after { top: 25px; }
-}
+
 /* Monitor cards: the hardware illustration next to Indoor / Outdoor */
 .mc-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .mc-hw { flex: none; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 14px; background: var(--meter); }
@@ -1523,48 +1271,7 @@ html.sky-on.sky-dark .now-bar .sky-cap, html.sky-on.sky-dark .now-h { text-shado
 .lg-plume { background: color-mix(in srgb, #f59e0b 45%, transparent) !important; }
 /* the drawings carry their own shadow; a CSS filter would turn them into blurry bitmaps */
 .mc-hw svg, .vhw svg, .pr-ic > svg { filter: none !important; }
-/* ── Summary, compact (2026-11-07) ── */
-/* Coming up sits on the right of the headline: one band less */
-.s-top, .s-top:has(.s-ag[hidden]) { grid-template-columns: minmax(0, 1fr) minmax(0, 330px) !important; column-gap: 32px !important; align-items: start; }
-.s-top:has(.s-ag[hidden]) { grid-template-columns: 1fr !important; }
-.s-top > .s-ag, .s-main .s-vis + .s-ag { grid-column: auto !important; margin: 10px 0 0 !important; padding: 2px 0 4px 24px !important; border-top: 0 !important; border-left: 1px solid var(--line); }
-.s-ag h3 { margin-bottom: 10px !important; }
-/* always the vertical list (the horizontal timeline is gone) */
-.s-ag .ag { display: block !important; padding-right: 0 !important; }
-.s-ag .ag::after { display: none !important; }
-.s-ag .ag::before { left: 75px !important; top: 9px !important; bottom: 14px !important; right: auto !important; width: 2px !important; height: auto !important;
-  background: linear-gradient(180deg, var(--line-strong), color-mix(in srgb, var(--line-strong) 30%, transparent)) !important; }
-.s-ag .ag li { display: grid !important; grid-template-columns: 60px 14px minmax(0, 1fr) !important; gap: 0 10px !important; align-items: start !important; padding: 0 0 12px !important; flex-direction: initial !important; }
-.s-ag .ag li:last-child { padding-bottom: 0 !important; }
-.s-ag .ag-t { text-align: right !important; font-size: 12.5px; line-height: 18px !important; padding-top: 0; }
-.s-ag .ag-d { margin-top: 3px !important; }
-.s-ag .ag-x { display: block !important; white-space: normal !important; overflow: visible !important; }
-.s-ag .ag-x b { display: block !important; font: 500 14px/18px Inter, sans-serif !important; }
-.s-ag .ag-x em { display: block !important; margin-top: 1px; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
-.s-ag .ag-x em::before { content: none !important; }
-.ag-skel .ag-t { justify-content: flex-end; }
-@media (max-width: 760px) {
-  .s-top, .s-top:has(.s-ag[hidden]) { grid-template-columns: 1fr !important; }
-  .s-top > .s-ag { border-left: 0; padding: 16px 0 0 !important; margin-top: 16px !important; border-top: 1px solid var(--line) !important; }
-}
-/* the line under the headline sits closer to it */
-.s-top { padding-bottom: 18px; }
-/* Need cards: number and state on the left, chart on the right, meaning below */
-.n-card .s-means { padding-top: 6px; }
-/* the healthy range as a pale green band, labeled "good" */
-.s-good { fill: var(--good-fill); opacity: .09; }
-.s-goodlbl { position: absolute; left: 4px; transform: translateY(-50%); font: 600 10px/1 Inter, sans-serif; letter-spacing: .04em; color: var(--good); opacity: .75; pointer-events: none; }
-.s-lab em { display: none; }
-.s-lim { opacity: .55; }
-.s-ends { position: absolute; left: 0; right: 0; bottom: -15px; display: flex; justify-content: space-between; font: 500 10.5px/1 Inter, sans-serif; color: var(--muted); pointer-events: none; }
-/* (an older rule for the CO₂ picture forced one column when that picture is hidden; this one wins) */
-.ai > .s-top:not(:has(.s-ag[hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 330px) !important; }
-@media (max-width: 760px) {
-  .ai > .s-top:not(:has(.s-ag[hidden])) { grid-template-columns: 1fr !important; }
-}
-/* chart limit numbers sit in a small right margin, clear of the line's end */
-.n-card .s-spark { padding-right: 24px !important; --gut: 24px; }
-.n-card .s-lab { right: 0; transform: translateY(-50%) !important; }
+
 /* ── Indoor vs outdoor: the outdoor header shows the live sky; the indoor one is a lit room with a window onto it ── */
 .mc-head { position: relative; overflow: hidden; isolation: isolate; }
 .mc-head > *:not(.mc-window):not(.mc-stars) { position: relative; z-index: 1; }
@@ -1607,30 +1314,12 @@ html.outside-dark .mc-out .mc-status { color: var(--good); }
 /* outdoor header and the window: the sky's hue as a light tint */
 .mc-out .mc-head { background: linear-gradient(100deg, var(--card) 10%, var(--sky-tint, #dbe9f7) 65%, var(--sky-tint2, #e8f1fa) 100%) !important; }
 :root[data-theme="dark"] .mc-out .mc-head { background: linear-gradient(100deg, var(--card) 10%, color-mix(in srgb, var(--sky-top, #1a2a44) 70%, var(--card)) 100%) !important; }
-/* ── Polish pass 2 ── */
-/* humidity picture: one 0–100% scale, the good range as a band, two labeled markers */
-.h-scale { position: relative; height: 12px; margin: 30px 0 4px; border-radius: 6px; background: var(--meter); }
-.h-band { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: color-mix(in srgb, var(--good-fill) 24%, var(--card)); }
-.h-band em { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 600 9.5px/1 Inter, sans-serif; font-style: normal; letter-spacing: .04em; color: var(--good); }
-.h-pin { position: absolute; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; }
-.h-pin i { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); background: var(--soft); }
-.h-pin.warn i { background: var(--warn-fill); }
-.h-pin.ok i { background: var(--good-fill); }
-.h-pin.out i { background: #94a3b8; }
-.h-pin b { position: absolute; bottom: calc(100% + 4px); white-space: nowrap; font: 600 12px/1 Inter, sans-serif; color: var(--ink); }
-.h-pin.warn b { color: var(--warn); }
-.h-pin.below b { bottom: auto; top: calc(100% + 4px); }
-.h-ticks { position: relative; height: 14px; font: 500 10.5px/1 Inter, sans-serif; color: var(--muted); }
-.h-ticks span { position: absolute; transform: translateX(-50%); }
-.h-ticks span:first-child { transform: none; }
-.h-ticks span:last-child { transform: translateX(-100%); }
-.s-vis:has(.h-scale) .h-ticks { margin-bottom: 4px; }
+
 /* monitor headers: tints only, no window or stars */
 .mc-in .mc-status { margin-right: 0 !important; }
 .mc-wifi { margin-left: 6px; font-weight: 500; color: var(--muted); }
 /* PM2.5 headline: a quiet panel instead of a solid green block */
 .mc-hero.good, .mc-hero.muted { background: color-mix(in srgb, var(--meter) 55%, var(--card)) !important; }
-/* tinted only when it needs attention */
 /* the other six readings: one compact row of small values */
 .mc-pm { display: grid !important; grid-template-columns: repeat(6, minmax(0, 1fr)) !important; gap: 10px 8px !important; text-align: left !important; }
 .mc-pm > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -1643,39 +1332,10 @@ html.outside-dark .mc-out .mc-status { color: var(--good); }
   .mc-pm { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
 }
 @media (max-width: 560px) {
-  .h-pin.out b { bottom: auto; top: calc(100% + 4px); }
-  /* outside label under the scale, so the two never collide */
-  .h-ticks { visibility: hidden; height: 18px; }
   /* the "good" band carries the scale on phones */
   .mc-wifi { display: none; }
 }
-/* ── Need cards: chip (as in the Home menu) → the answer → the evidence → what it means ── */
-.n-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px 5px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--card);
-  font: 500 13.5px/1.2 Inter, sans-serif; color: var(--ink); cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
-.n-chip svg.i { width: 16px; height: 16px; color: var(--soft); }
-.n-chip:hover, .n-chip:focus-visible { border-color: var(--accent-line); background: var(--accent-soft); outline: none; }
-.n-answer { margin-top: 12px; display: flex; align-items: flex-start; gap: 8px; }
-.n-answer b { font: 600 17px/1.3 Inter, sans-serif; color: var(--ink); letter-spacing: -.01em; }
-.n-answer svg.i { flex: none; width: 18px; height: 18px; margin-top: 2px; stroke-width: 2.4; }
-.n-answer.good svg.i { color: var(--good-fill); }
-.n-answer.warn svg.i { color: var(--warn-fill); }
-.n-answer.bad svg.i { color: var(--bad); }
-.n-answer.warn b { color: var(--warn); }
-.n-answer.bad b { color: var(--bad); }
-.n-ev { margin-top: 14px; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
-.n-ev .n-metric { margin: 0 2px 0 0 !important; font: 500 13px/1 Inter, sans-serif !important; color: var(--soft) !important; }
-.n-ev .n-metric::before { content: none !important; }
-.n-num { font: 700 20px/1 Inter, sans-serif; color: var(--ink); letter-spacing: -.01em; font-feature-settings: 'tnum' 1; }
-.n-ev .s-u { font-size: 12px; }
-.n-ev .n-word { margin-left: 4px; padding: 3px 8px !important; font-size: 11.5px !important; }
-.n-span { margin-left: auto; font: 500 11.5px/1 Inter, sans-serif; color: var(--muted); font-feature-settings: 'tnum' 1; }
-.n-card > .s-spark { margin: 8px 0 18px !important; }
-.n-card > .s-spark svg { height: 48px !important; }
-.n-card .s-means { margin-top: 2px; padding-top: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
-.n-card .n-chip { align-self: flex-start; width: auto; }
-.n-card > .s-spark { align-self: stretch; width: 100%; box-sizing: border-box; }
-.n-ev .n-metric { line-height: 1.35 !important; }
-.n-card .s-means { margin-top: 6px; }
+
 /* Monitor headers: a small scene on the right — the window seen from inside; the rowhouse seen from the street */
 .mc-scene { position: absolute; right: 18px; bottom: 0; width: 120px; height: 84px; z-index: 0; pointer-events: none; }
 .mc-head { min-height: 104px; }
@@ -1693,9 +1353,7 @@ html.outside-dark:not(.outside-night) { --win-lit: #fde7b0; }
   .mc-head .mc-status { display: none; }
 }
 /* Need cards: the need chip and its answer on one line */
-.n-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.n-top .n-answer { margin-top: 0; }
-.n-top .n-answer b { font-size: 16px; }
+
 .mc-head > .mc-scene { position: absolute !important; z-index: 0 !important; }
 /* status under the name; the text keeps clear of the scene on the right */
 .mc-head .mc-status { margin: 6px 0 0 !important; display: inline-flex !important; font-size: 12.5px; }
@@ -1705,50 +1363,14 @@ html.outside-dark:not(.outside-night) { --win-lit: #fde7b0; }
   .mc-head .mc-status { display: inline-flex !important; }
 }
 /* the answer starts at the card's edge; the need chip sits on the right */
-.n-top { flex-wrap: nowrap; align-items: flex-start; }
-.n-top .n-answer { order: 1; flex: 1 1 auto; min-width: 0; }
-.n-top .n-chip { order: 2; flex: none; margin-left: auto; }
+
 .mc-scene { height: 88px; bottom: 0; }
 @media (max-width: 560px) {
   .mc-scene { width: 84px; height: 62px; }
 }
 /* Scenes fill their box: fade the edges into the header tint */
 .mc-scene { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 30%, #000 88%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 30%, #000 88%, transparent 100%); }
-/* ── AI card balance pass (2026-11-07) ── */
-/* humidity picture: the note sits under the scale, so the top reads as two columns (advice | Coming up) */
-.s-main .s-vis:has(.h-scale) { grid-template-columns: minmax(0, 520px) !important; gap: 12px !important; }
-.s-main .s-vis:has(.h-scale) .v-note { padding-left: 0; border-left: 0; max-width: 520px; color: var(--muted); }
-/* close markers: the lower one's label sits to the left of its pin */
-.h-pin.left b { right: 3px; }
-/* Coming up: times stay on one line */
-.s-ag .ag li { grid-template-columns: 68px 14px minmax(0, 1fr) !important; }
-.s-ag .ag::before { left: 83px !important; }
-.s-ag .ag-t { white-space: nowrap; }
-/* need cards: a lighter chip leaves the answer room for one line */
-.n-chip { gap: 6px; padding: 4px 9px 4px 7px; font-size: 12.5px; }
-.n-chip svg.i { width: 14px; height: 14px; }
-.n-top .n-answer b { font-size: 15.5px; }
-/* ── Coming up as a side note: a quiet panel, each line read left to right (time, then what) ── */
-.s-top > .s-ag, .s-main .s-vis + .s-ag { margin: 4px 0 0 !important; padding: 14px 16px 16px !important; border: 0 !important; border-radius: 14px;
-  background: color-mix(in srgb, var(--meter) 50%, var(--card)); align-self: start; }
-.s-ag h3 { margin: 0 0 10px !important; }
-.s-ag .ag::before, .s-ag .ag li .ag-d::after { display: none !important; }
-.s-ag .ag li { grid-template-columns: 62px minmax(0, 1fr) !important; gap: 0 10px !important; padding: 0 0 10px !important; }
-.s-ag .ag li .ag-d { display: none !important; }
-.s-ag .ag-t { text-align: left !important; font: 500 12.5px/18px Inter, sans-serif !important; color: var(--muted); font-variant-numeric: tabular-nums; }
-.s-ag .ag-x b { font: 500 13.5px/18px Inter, sans-serif !important; color: var(--ink) !important; }
-.s-ag .ag-x em { font-size: 12px; margin-top: 1px; }
-.s-ag .ag li.good .ag-x b::before, .s-ag .ag li.warn .ag-x b::before, .s-ag .ag li.bad .ag-x b::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 7px 1px 0; border-radius: 50%; background: var(--good-fill); vertical-align: middle; }
-.s-ag .ag li.warn .ag-x b::before { background: var(--warn-fill); }
-.s-ag .ag li.bad .ag-x b::before { background: var(--bad); }
-.s-ag .ag li.good .ag-x em, .s-ag .ag li.warn .ag-x em, .s-ag .ag li.bad .ag-x em { padding-left: 13px; }
-.ag-skel .ag-t { justify-content: flex-start; }
-@media (max-width: 760px) {
-  .s-top > .s-ag { margin-top: 14px !important; padding: 14px 16px 16px !important; border-top: 0 !important; }
-}
-/* every row of Coming up gets a dot (gray when neutral), so the titles line up */
-.s-ag .ag li .ag-x b::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 7px 1px 0; border-radius: 50%; background: var(--line-strong); vertical-align: middle; }
-.s-ag .ag li .ag-x em { padding-left: 13px; }
+
 /* scenes: now and then, a faint signal over the monitor (it measures and sends) */
 .mc-scene .sig path { opacity: 0; animation: scene-sig 9s ease-out infinite; }
 .mc-scene .sig path + path { animation-delay: .3s; }
@@ -1764,55 +1386,15 @@ html.outside-dark:not(.outside-night) { --win-lit: #fde7b0; }
 @media (max-width: 560px) {
   .mc-hero { padding: 4px 0 16px; }
 }
-/* ── AI card spacing: one 28px gutter for the whole card; the advice fills its column; Coming up matches its height ── */
+/* ── Summary card spacing ── */
 .ai { padding: 20px 28px 0 !important; }
-.ai .s-cards { margin: 0 -28px !important; }
-.ai .n-card { padding: 22px 28px 26px !important; }
-.ai > .s-top { column-gap: 40px !important; align-items: stretch !important; padding-bottom: 26px !important; }
-.ai > .s-top > .s-main { padding-right: 0 !important; }
-.s-main .s-vis:has(.h-scale) { grid-template-columns: minmax(0, 1fr) !important; }
-.s-main .s-vis:has(.h-scale) .v-note { max-width: none; }
-.s-top > .s-ag, .s-main .s-vis + .s-ag { align-self: stretch !important; margin: 8px 0 0 !important; padding: 16px 18px !important; background: color-mix(in srgb, var(--meter) 42%, var(--card)); }
-.s-ag h3 { margin: 0 0 12px !important; }
-.s-ag .ag li { grid-template-columns: 58px minmax(0, 1fr) !important; padding: 0 0 12px !important; }
-.s-ag .ag li:last-child { padding-bottom: 0 !important; }
+/* the summary card (static/summary.css) sits inside the box, which already gives it side padding */
+.ai > .sx { padding: 8px 0 16px; }
+
 @media (max-width: 760px) {
   .ai { padding: 16px 18px 0 !important; }
-  .ai .s-cards { margin: 0 -18px !important; }
-  .ai .n-card { padding: 20px 18px 22px !important; }
-  .s-top > .s-ag { margin-top: 16px !important; }
 }
-/* narrow need cards: the reading row measures itself (not the card, which shares rows with its neighbours) to drop "Last 24 h" and "Outdoor" */
-.ai .n-card > .n-ev { container-type: inline-size; }
-/* ── One anatomy for the main card and the need cards: title + need chip, the line under it, then the reading and its picture ── */
-.s-head { align-items: flex-start !important; }
-.s-chips { display: flex; gap: 6px; margin-left: auto; padding-top: 6px; flex: none; }
-.s-chips:empty { display: none; }
-.n-card .s-means.n-sub { margin: 6px 0 0 !important; padding: 0 !important; font-size: 13.5px !important; line-height: 1.45 !important; color: var(--soft) !important; }
-.n-card .n-ev { margin-top: 14px; }
-.ai .s-cards[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-@media (max-width: 700px) { .ai .s-cards[data-count="2"] { grid-template-columns: 1fr !important; } }
-@media (max-width: 760px) { .s-chips { padding-top: 4px; } }
-/* ── Coming up: a short list read top to bottom: icon, the event, its time on the right, the detail under ── */
-.s-ag h3 { font: 500 13px/1.3 Inter, sans-serif !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--soft) !important; margin: 0 0 12px !important; }
-.s-ag .ag.ag2 { display: grid !important; gap: 12px; margin: 0; padding: 0; list-style: none; }
-.s-ag .ag.ag2 li { display: grid !important; grid-template-columns: 18px minmax(0, 1fr) auto !important; column-gap: 10px !important; row-gap: 1px; align-items: baseline !important; padding: 0 !important; }
-.s-ag .ag2 .ag-i { grid-row: 1; align-self: center; display: grid; place-items: center; color: var(--muted); }
-.s-ag .ag2 .ag-i svg.i { width: 16px; height: 16px; stroke-width: 1.8; }
-.s-ag .ag2 li.good .ag-i { color: var(--good-fill); }
-.s-ag .ag2 li.warn .ag-i { color: var(--warn-fill); }
-.s-ag .ag2 li.bad .ag-i { color: var(--bad); }
-.s-ag .ag2 li.sun .ag-i { color: #e0a43a; }
-.s-ag .ag2 .ag-n { font: 500 13.5px/1.35 Inter, sans-serif; color: var(--ink); min-width: 0; }
-.s-ag .ag2 .ag-n::before { content: none !important; }
-.s-ag .ag2 .ag-w { font: 500 12.5px/1.35 Inter, sans-serif; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.s-ag .ag2 .ag-s { grid-column: 2 / -1; font-style: normal; font-size: 12px; line-height: 1.4; color: var(--muted); padding: 0 !important; }
-.s-ag .ag.ag2 { grid-auto-flow: row !important; grid-auto-columns: auto !important; grid-template-columns: minmax(0, 1fr) !important; }
-.s-ag .ag.ag2 li { flex-direction: initial !important; }
-.s-ag .ag2 .ag-i, .s-ag .ag2 .ag-n, .s-ag .ag2 .ag-w { grid-row: 1; }
-.s-ag .ag2 .ag-s { grid-row: 2; }
-/* Coming up sizes to its rows */
-.s-top > .s-ag, .s-main .s-vis + .s-ag { align-self: start !important; }
+
 /* scenes: radar rings from the monitor (longer and a little more visible), and the weather */
 .mc-scene .sig path { display: none; }
 .mc-scene .sig circle { fill: none; stroke: #4f86d6; stroke-width: .6; transform-box: fill-box; transform-origin: center; opacity: 0; animation: scene-radar 7s ease-out infinite; }
@@ -1830,19 +1412,7 @@ html.outside-night .mc-scene .wx-n { display: inline; opacity: .38; }
 @media (prefers-reduced-motion: reduce) {
   .mc-scene .sig circle, .mc-scene .wx-r path { animation: none; }
 }
-/* Coming up: no background; the timeline line returns, with the icons as its points */
-.s-top > .s-ag, .s-main .s-vis + .s-ag { background: none !important; border-radius: 0 !important; border-left: 1px solid var(--line) !important; padding: 2px 0 2px 24px !important; margin-top: 6px !important; }
-.s-ag .ag.ag2 { position: relative; gap: 14px; }
-.s-ag .ag.ag2::before { content: "" !important; display: block !important; position: absolute; left: 11px !important; top: 12px !important; bottom: 12px !important; width: 1.5px !important; right: auto !important; height: auto !important;
-  background: linear-gradient(180deg, var(--line-strong), color-mix(in srgb, var(--line-strong) 25%, transparent)) !important; }
-.s-ag .ag.ag2 li { grid-template-columns: 23px minmax(0, 1fr) auto !important; position: relative; }
-.s-ag .ag2 .ag-i { position: relative; z-index: 1; width: 23px; height: 23px; border-radius: 50%; background: var(--card); border: 1px solid var(--line); align-self: start; margin-top: -2px; }
-.s-ag .ag2 .ag-i svg.i { width: 13px; height: 13px; }
-.s-ag .ag2 li.good .ag-i { border-color: color-mix(in srgb, var(--good-fill) 45%, var(--line)); }
-.s-ag .ag2 li.warn .ag-i { border-color: color-mix(in srgb, var(--warn-fill) 50%, var(--line)); }
-@media (max-width: 760px) {
-  .s-top > .s-ag { border-left: 0 !important; border-top: 1px solid var(--line) !important; padding: 16px 0 0 !important; }
-}
+
 /* scenes: time of day and better rain */
 .mc-scene .wx-dark, .mc-scene .wx-lit { display: none; }
 html.outside-night .mc-scene .wx-dark { display: inline; opacity: .32; }
@@ -1863,18 +1433,7 @@ html.outside-night .mc-scene .wx-dark { opacity: .42; }
 html.outside-night .mc-scene .wx-dark { opacity: .16; fill: #4a5488; }
 html.outside-night .mc-scene .wx-n { opacity: .8; fill: #f8e6bf; }
 .s-pollen:empty { display: none; }
-.s-pollen .n-pollen { margin-top: 14px; }
-@media (max-width: 560px) {
-  .s-head { flex-wrap: wrap; row-gap: 8px; }
-  .s-chips { order: -1; margin-left: 0; width: 100%; padding-top: 0; }
-}
-/* Coming up: a quiet right column, narrower and secondary */
-.ai > .s-top { grid-template-columns: minmax(0, 1fr) 250px !important; }
-.s-top > .s-ag { padding-left: 20px !important; }
-.s-ag .ag2 .ag-n { font-size: 12.5px; font-weight: 500; color: var(--soft); }
-.s-ag .ag2 .ag-w { font-size: 12px; }
-.s-ag .ag2 .ag-s { font-size: 11.5px; }
-.s-ag h3 { font-size: 12px !important; }
+
 /* Local conditions: the card title is the link (↗), no separate link row */
 .grid4 .card-top .k-link { display: inline-flex; align-items: center; gap: inherit; color: inherit; text-decoration: none; border-radius: 6px; }
 .grid4 .card-top .k-link .k-arr { width: 12px; height: 12px; margin-left: 2px; color: var(--muted); opacity: .7; transition: transform .15s ease, opacity .15s ease, color .15s ease; }
@@ -1891,15 +1450,11 @@ html.outside-night .mc-scene .wx-n { opacity: .8; fill: #f8e6bf; }
 .grid4 .card-top .k-link .srcl { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .grid4 .card-top .q { flex: none; }
 .s-trend { margin-top: 18px; max-width: 620px; position: relative; }
-.s-trend .v-head { display: block; margin-bottom: 6px; }
-.s-trend .s-spark { margin-bottom: 16px; }
-.s-trend .s-spark { padding-right: 24px !important; --gut: 24px; margin: 8px 0 18px !important; }
-.s-trend .s-spark svg { height: 48px !important; }
+
 /* narrow condition cards: the source name hides instead of being cut (it stays in the link's tooltip) */
 .grid4 > .card { container-type: inline-size; }
 @container (max-width: 270px) { .grid4 .card-top .k-link .srcl { display: none; } }
-.s-trend .s-spark { margin-bottom: 26px !important; }
-.s-trend .s-ends { bottom: -21px; }
+
 /* the second row: two labeled groups (Gases, Particles) */
 .mc-pm.mc-groups { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; gap: 0 !important; }
 .mc-groups .mc-g { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -1922,38 +1477,15 @@ html.outside-night .mc-scene .wx-n { opacity: .8; fill: #f8e6bf; }
 .vsum-1 { gap: 10px !important; }
 .vsum-1 svg.i { width: 19px !important; height: 19px !important; }
 /* main card, denser: the note right under the scale, a shorter 24 h line without its own heading */
-.s-main .s-vis:has(.h-scale) { gap: 6px !important; margin-top: 14px !important; }
-.s-vis .h-scale { margin-top: 26px; }
+
 .s-trend { margin-top: 14px !important; max-width: none !important; }
-.s-trend .s-spark { margin: 0 0 22px !important; }
-.s-trend .s-spark svg { height: 38px !important; }
-.ai > .s-top:not(:has(.s-ag[hidden])) { grid-template-columns: minmax(0, 1fr) 250px !important; }
-@media (max-width: 760px) {
-  .ai > .s-top:not(:has(.s-ag[hidden])) { grid-template-columns: minmax(0, 1fr) !important; }
-}
+
 /* radar rings now animate their radius in the SVG itself (CSS scale on SVG circles didn't apply) */
 .mc-scene .sig circle { animation: none !important; transform: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .mc-scene .sig { display: none; }
 }
-/* main card, shorter: on wide screens the humidity picture (now) and the 24 h line sit side by side */
-@media (min-width: 900px) {
-  .s-main:has(.s-pollen:not(:empty)) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; align-items: start; }
-  .s-main:has(.s-pollen:not(:empty)) > * { grid-column: 1 / -1; }
-  .s-main:has(.s-pollen:not(:empty)) > .s-vis { grid-column: 1; }
-  .s-main:has(.s-pollen:not(:empty)) > .s-pollen { grid-column: 2; margin-top: 14px; }
-  .s-main:has(.s-pollen:not(:empty)) > .s-pollen .s-trend { margin-top: 22px !important; }
-}
-/* the 24 h line gets the same structure as the scale beside it: caption, chart, one note */
-.s-trend .v-head { display: block; margin: 0 0 4px; }
-.s-trend .v-note { margin: 0; }
-@media (min-width: 900px) {
-  .s-main:has(.s-pollen:not(:empty)) > .s-pollen .s-trend { margin-top: 0 !important; }
-  .s-main:has(.s-pollen:not(:empty)) > .s-pollen { margin-top: 12px; }
-}
-.s-main .s-trend .v-note { padding-left: 0 !important; border-left: 0 !important; color: var(--muted); }
-.s-vis:has(.h-scale) .v-head { margin-bottom: 0; }
-.s-vis .h-scale { margin-top: 24px; }
+
 /* Byline: a small "AI summary" tag, then "· 6 sources" (the list on hover) */
 .s-by .s-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font: 600 12px/1.2 Inter, sans-serif; white-space: nowrap; }
 .s-by .s-tag svg.i { width: 14px; height: 14px; }
@@ -2478,12 +2010,9 @@ html.wx-full .now-bar { left: 0 !important; right: 0 !important; margin: 0 auto 
 .dsp-pop .fx-presets .fx-rand[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent-line); }
 .dsp-pop .fx-presets .fx-rand::before { content: none !important; }
 
-/* answer icons: the same color as the answer's text (green, orange-brown, red), sized to the line they lead */
-.s-act { align-self: center; color: var(--good) !important; margin-right: -2px; }
-.s-act.warn { color: var(--warn) !important; } .s-act.bad { color: var(--bad) !important; }
-.s-act svg.i { width: 28px !important; height: 28px !important; stroke-width: 2.1 !important; }
-.n-answer.good svg.i { color: var(--good) !important; } .n-answer.warn svg.i { color: var(--warn) !important; } .n-answer.bad svg.i { color: var(--bad) !important; }
-.n-answer svg.i { stroke-width: 2.1 !important; }
+ 
+
+  
 
 /* Home panel "Add" buttons: read as buttons (disabled until the editor exists), full width for sources */
 .plist .pr.pr-add { display: block !important; padding: 10px 0 0 !important; border: 0 !important; }
@@ -2495,60 +2024,12 @@ button.add svg.i { width: 15px; height: 15px; }
 .site svg.mark .mk-sky { fill: url(#mk-g) !important; opacity: .85 !important; }
 html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5 !important; }
 
-/* ── Simplification pass (from the earlier page): three equal need cards, a label instead of a chip,
-   quieter charts (only the limit), the meaning line last, shorter monitor headers ── */
-/* need label: a small icon + name above the answer, no border */
-.n-card .n-top { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; flex-wrap: nowrap !important; }
-.n-card .n-top .n-chip { order: -1 !important; margin: 0 !important; }
-.n-chip, .s-chips .n-chip { padding: 0 !important; border: 0 !important; background: none !important; gap: 6px; font: 500 12.5px/1.2 Inter, sans-serif !important; color: var(--muted) !important; }
-.n-chip svg.i { width: 15px !important; height: 15px !important; color: var(--muted) !important; }
-.n-chip:hover, .n-chip:focus-visible { background: none !important; color: var(--ink) !important; text-decoration: underline; text-underline-offset: 3px; }
-.n-card .n-top .n-answer b { font-size: 16px !important; }
-/* charts: only the limit is labeled */
-.n-card .s-goodlbl, .n-card .s-ends { display: none !important; }
-.n-card .s-spark, .n-card > .s-spark { margin: 10px 0 12px !important; }
-/* the meaning line comes last, after the number and chart */
-.n-card .s-means.n-sub { margin: 2px 0 0 !important; color: var(--muted) !important; font-size: 13px !important; }
-.n-card .n-ev { margin-top: 12px !important; }
-/* three equal cards */
-.ai .s-cards[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-@media (max-width: 700px) { .ai .s-cards[data-count="3"] { grid-template-columns: minmax(0, 1fr) !important; } }
 /* monitor headers about a third shorter */
 .mc > .mc-head { padding-top: 10px !important; padding-bottom: 10px !important; min-height: 0 !important; }
 .mc-hw { width: 60px !important; height: 60px !important; border-radius: 16px !important; } .mc-hw svg { width: 54px !important; height: 54px !important; }
 .mc-scene { width: 92px !important; height: 68px !important; }
 .mc-head .mc-id { padding-right: 112px !important; }
 @media (max-width: 560px) { .mc-hw { width: 48px !important; height: 48px !important; } .mc-hw svg { width: 42px !important; height: 42px !important; } .mc-scene { width: 72px !important; height: 53px !important; } .mc-head .mc-id { padding-right: 84px !important; } }
-.s-main .s-vis:has(.h-scale) { max-width: 620px; }
-/* need-card charts: the line and its dashed limit only (no green "good" band) */
-.n-card .s-good { display: none !important; }
-
-/* need-card charts say what they show: the span on the number row ("Last 24 h", replaced by the hover readout),
-   and the limit's meaning on its dashed line ("stale ↑ 800", "dry ↓ 30"), inside the plot */
-.n-ev .n-cap { margin-left: auto; font: 400 12px/1 Inter, sans-serif; color: var(--muted); }
-.n-ev:has(.n-span:not(:empty)) .n-cap { display: none; }
-.n-ev .n-span:not(:empty) { margin-left: auto; }
-.n-card .s-spark, .n-card > .s-spark { padding-right: 0 !important; --gut: 0px !important; }
-.n-card .s-lab { right: 0 !important; font: 500 10.5px/1 Inter, sans-serif; color: var(--muted); background: color-mix(in srgb, var(--card) 80%, transparent); padding: 1px 0 1px 4px; border-radius: 3px; }
-.n-card .s-lab.up { transform: translateY(calc(-100% - 3px)) !important; }
-.n-card .s-lab.down { transform: translateY(3px) !important; }
-.n-card .s-lab em { display: inline !important; }
-.n-card .s-lab b { color: var(--soft); }
-.n-card .s-lab { left: 0 !important; right: auto !important; padding: 1px 4px 1px 0 !important; }
-.n-card .n-ev { width: 100%; box-sizing: border-box; }
-.n-ev .n-span:empty { display: none; }
-.n-span.over { color: var(--warn) !important; }
-.s-xh i.over { background: var(--warn-fill) !important; }
-.n-ev .n-span { white-space: nowrap; }
-.n-ev:has(.n-span:not(:empty)) .n-word { display: none; }
-/* hovering a chart: the readout takes the number row (like a stock chart), so it never wraps or shifts the chart */
-.n-card .n-ev { min-height: 24px; align-items: center !important; flex-wrap: nowrap !important; }
-.n-ev:has(.n-span:not(:empty)) > *:not(.n-span) { display: none !important; }
-.n-ev .n-span:not(:empty) { margin-left: 0 !important; font: 500 13px/1.2 Inter, sans-serif !important; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-/* the number row never wraps (so hovering can't move the chart); "Last 24 h" gives way when a card is narrow */
-.n-card .n-ev > * { white-space: nowrap; flex: none; }
-@container (max-width: 360px) { .n-card .n-ev .n-cap { display: none; } }
-@container (max-width: 360px) { .n-card .n-ev .n-out { display: none; } }
 
 /* temperature comfort scale: same height and place as the other bars, a band for 68–76 °F, this side's dot, the other side's ring */
 .t-scale { position: relative; margin-top: 9px; height: 4px; border-radius: 99px; background: var(--meter); }
@@ -2556,18 +2037,6 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 .t-scale i { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; }
 .t-scale .ts-me { width: 10px; height: 10px; background: var(--ink); box-shadow: 0 0 0 2px var(--card); }
 .t-scale .ts-o { width: 8px; height: 8px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--soft); }
-/* humidity picture: the higher marker's label runs right */
-.h-pin.right b { left: 3px; }
-/* need cards breathe: the three cards share rows (answer, reading, chart, pollen, meaning), so a two-line answer doesn't put one card out of step */
-.ai .s-cards { row-gap: 0 !important; }
-.ai .s-cards .n-card { display: grid !important; grid-row: span 5; grid-template-rows: subgrid; align-content: start; padding: 26px 28px 30px !important; }
-.ai .n-card > * { min-width: 0; }
-.ai .n-card > .n-top { grid-row: 1; }
-.ai .n-card > .n-ev { grid-row: 2; margin-top: 18px !important; align-self: end; }
-.ai .n-card > .s-spark { grid-row: 3; margin: 16px 0 14px !important; }
-.ai .n-card > .n-pollen { grid-row: 4; margin: 0 0 14px !important; }
-.ai .n-card > .s-means { grid-row: 5; margin: 0 !important; align-self: start; }
-@media (max-width: 760px) { .ai .s-cards .n-card { padding: 22px 18px 24px !important; } }
 
 /* the AI dot's still rings live in its own SVG (.halo), so they stay centered on the dot at every width
    (they used to be a banner background at a fixed 37 px, which missed the dot on phones) */
@@ -2599,3 +2068,8 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 }
 /* iOS: no double-tap zoom (it zoomed a card to the screen width and left the page cut off); pinch-zoom still works */
 html { touch-action: manipulation; }
+
+/* the summary box doesn't clip, so the Summary panel and the card's sentences can open past its bottom edge;
+   the bar keeps the box's rounded top corners itself (the halo stays inside them) */
+.ai { overflow: visible !important; z-index: 5; }
+.ai > .s-bar { border-radius: 21px 21px 0 0; }

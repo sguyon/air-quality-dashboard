@@ -4,7 +4,7 @@ const ICONS = {"toddler":"<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"t
 let svgCopy = 0;
 const uniq = svg => { const n = ++svgCopy; return svg.replace(/id="([^"]+)"/g, `id="$1-${n}"`).replace(/url\(#([^)]+)\)/g, `url(#$1-${n})`); };
 const TZ = 'America/New_York';
-const PM_FINE = 12, PM_HIGH = 35, CO2_OPEN = 800;
+const PM_FINE = 15, PM_HIGH = 35, CO2_OPEN = 800;
 const RH_LOW = 30, RH_HIGH = 50, RH_DAMP = 60;   // same as server.py
 // Peak hours as the server's BQE estimate counts them: [start, end).
 const RUSH = [[7, 10, 'morning'], [16, 20, 'evening']];
@@ -196,7 +196,6 @@ function updateStatus() {
 
 function renderMonitors() {
   $('monitors').innerHTML = monitorCard(state.indoor, true) + monitorCard(state.outdoor, false);
-  if (state.read) { renderAgenda(state.read); renderActionVis(state.read); }
   if (typeof SKY !== 'undefined' && SKY) SKY.pm(reading(state.outdoor, false).pm);
   updateStatus();
   const stamps = [state.indoor, state.outdoor].filter(m => m && m.timestamp).map(m => new Date(m.timestamp));
@@ -273,7 +272,7 @@ function contextStatus(ctx) {
 function renderContext(ctx) {
   state.ctx = ctx;   // kept so a unit switch can redraw without a reload
   const w = ctx.weather || {}, b = ctx.bqe || {}, pollen = ctx.pollen || [];
-  window.__wx = w; window.__bqe = b; window.__fc = Array.isArray(ctx.forecast) ? ctx.forecast : []; window.__pollenT = Array.isArray(ctx.pollen_tomorrow) ? ctx.pollen_tomorrow : []; if (state.read) renderAgenda(state.read);
+  window.__wx = w; window.__bqe = b; window.__fc = Array.isArray(ctx.forecast) ? ctx.forecast : []; window.__pollenT = Array.isArray(ctx.pollen_tomorrow) ? ctx.pollen_tomorrow : [];
   if (state.neighbors && state.neighbors.length) renderNeighborhood();
   if (typeof SKY !== 'undefined' && SKY) SKY.weather(w);
   if (has(w.wind_speed)) {
@@ -581,6 +580,9 @@ async function loadCharts({ fresh = false, quiet = false } = {}) {
     { limit: PM_FINE, word: 'polluted', floor: 0, minSpan: 2, unit: 'µg/m³', noteId: 'pm-note', fmt: v => pmNum(v) });
   draw('chart-co2', bucket(ih, from, to, n, co2), bucket(oh, from, to, n, co2), times, range,
     { limit: CO2_OPEN, word: 'stale', floor: 0, minSpan: 100, unit: 'ppm', noteId: 'co2-note', fmt: v => Math.round(v).toLocaleString() });
+  const rh = row => pick(row, 'rhum_corrected', 'rhum');
+  draw('chart-rh', bucket(ih, from, to, n, rh), bucket(oh, from, to, n, rh), times, range,
+    { limit: RH_DAMP, word: 'damp', floor: 0, minSpan: 10, unit: '%', noteId: 'rh-note', fmt: v => Math.round(v) + '%' });
 }
 
 // Run fn once when el is at least a third on screen (right away if it already is).
@@ -643,20 +645,6 @@ function broadcastHover(t) {
     }
   }
 }
-// After the summary cards render: give each 24-hour chart its time scale and a crosshair.
-function wireSparks() {
-  document.querySelectorAll('#s-cards .n-card').forEach(card => {
-    const sp = card.querySelector('.s-spark'); if (!sp) return;
-    const t1 = Number(card.dataset.t1), readout = card.querySelector('.n-span');   // hovering a chart shows the time and value here
-    sp.insertAdjacentHTML('beforeend', '<span class="s-xh" style="display:none"><i></i></span>');
-    sp.__hover = { kind: 'spark', t0: t1 - 24 * 3600e3, t1, series: JSON.parse(sp.dataset.series), lo: Number(sp.dataset.lo), hi: Number(sp.dataset.hi),
-      mark: sp.querySelector('.s-xh'), readout, label: readout.textContent, unit: card.dataset.unit, metric: card.dataset.metric };
-    linkHover(sp);
-  });
-}
-
-// ── The summary ──────────────────────────────────────────
-
 function readPayload() {
   const i = reading(state.indoor, true), o = reading(state.outdoor, false);
   return {
@@ -673,435 +661,24 @@ function readKey(p) {
   return [r(p.indoor_co2, 50), r(p.indoor_humidity, 3), r(p.outdoor_pm25, 1), homeHour()].join('|');
 }
 
-
-
-
-// zone: words for the side above the limit (e.g. "Stale"), drawn as a faint tinted band so it's clear which side is bad.
-// Chart: the line, its limit line, and in the right gutter the limit's number with one word for the bad side ("stale ↑").
-// limit null: no upper limit (a dry-only humidity chart). low: { limit, word } for a second bad side below.
-// good: [lo, hi] of the healthy range, drawn as a pale band; the scale always includes it, so a line that's all outside reads as outside.
-function sparkline(series, limit, tone, cross, word, low, good) {
-  const pts = series.map((v, i) => [i, v]).filter(p => has(p[1]));
-  if (pts.length < 2) return '';
-  const top = limit != null, W = 260, H = 56, vals = [...pts.map(p => p[1]), ...(top ? [limit] : []), ...(low ? [low.limit] : []), ...(good || [])];
-  let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * .2 || 1; lo -= pad; hi += pad;
-  const n = series.length - 1, x = i => i / n * W, y = v => H - (v - lo) / (hi - lo) * H;
-  const d = pts.map((p, k) => (k && has(series[p[0] - 1]) ? 'L' : 'M') + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1)).join('');
-  const id = 'sp-' + String(limit) + '-' + (word || ''), col = tone === 'bad' ? 'var(--bad)' : 'var(--warn-fill)';   // past the limit is always colored, even if it's fine now
-  const pct = v => (y(v) / H * 100).toFixed(1);
-  const lim = v => `<line class="s-lim" x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" vector-effect="non-scaling-stroke"/>`;
-  // soft fill under the line: gray, and amber where the line is past a limit
-  const x0 = x(pts[0][0]).toFixed(1), x1 = x(pts[pts.length - 1][0]).toFixed(1), area = `${d}L${x1},${H}L${x0},${H}Z`;
-  return `<div class="s-spark" data-lo="${lo}" data-hi="${hi}" data-series="${esc(JSON.stringify(series))}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs>
-    <linearGradient id="${id}g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" class="s-fill-a"/><stop offset="1" class="s-fill-b"/></linearGradient>
-    <linearGradient id="${id}w" x1="0" x2="0" y1="0" y2="1"><stop offset="0" class="s-warn-a"/><stop offset="1" class="s-warn-b"/></linearGradient>
-    ${top ? `<clipPath id="${id}"><rect x="0" y="-10" width="${W}" height="${y(limit) + 10}"/></clipPath>` : ''}
-    ${low ? `<clipPath id="${id}l"><rect x="0" y="${y(low.limit)}" width="${W}" height="${H - y(low.limit) + 10}"/></clipPath>` : ''}</defs>
-    ${good ? `<rect class="s-good" x="0" y="${y(good[1]).toFixed(1)}" width="${W}" height="${(y(good[0]) - y(good[1])).toFixed(1)}"/>` : ''}
-    <path d="${area}" fill="url(#${id}g)"/>
-    ${top ? `<path d="${d}L${x1},${y(limit)}L${x0},${y(limit)}Z" fill="url(#${id}w)" clip-path="url(#${id})"/>` : ''}
-    ${top ? lim(limit) : ''}${low ? lim(low.limit) : ''}
-    <path class="s-base" d="${d}" vector-effect="non-scaling-stroke"/>
-    ${top ? `<path class="s-hot" d="${d}" stroke="${col}" clip-path="url(#${id})" vector-effect="non-scaling-stroke"/>` : ''}
-    ${low ? `<path class="s-hot" d="${d}" stroke="${col}" clip-path="url(#${id}l)" vector-effect="non-scaling-stroke"/>` : ''}</svg>
-    ${top ? `<span class="s-lab up" style="top:${pct(limit)}%">${word ? `<em>${esc(word)} ↑</em> ` : ''}<b>${limit.toLocaleString()}</b></span>` : ''}
-    ${low ? `<span class="s-lab down" style="top:${pct(low.limit)}%"><b>${low.limit}</b> <em>${esc(low.word)} ↓</em></span>` : ''}
-    ${good ? `<span class="s-goodlbl" style="top:${pct((good[0] + good[1]) / 2)}%">good</span>` : ''}<span class="s-ends"><span>24 h ago</span><span>now</span></span>${(() => { const lp = pts[pts.length - 1]; return `<span class="s-end" style="left:calc((100% - var(--gut, 52px)) * ${(x(lp[0]) / W).toFixed(4)});top:${pct(lp[1])}%;--c:${{ warn: 'var(--warn-fill)', bad: 'var(--bad)' }[tone] || 'var(--soft)'}"></span>`; })()}</div>`;
-}
-
-const CARD_ICON = { co2: '<span class="s-txt">CO₂</span>', humidity: null, pm: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="8" r="1.6"/><circle cx="15" cy="6" r="1.2"/><circle cx="17" cy="14" r="1.8"/><circle cx="9" cy="16" r="1.3"/><circle cx="12" cy="11" r="1"/></svg>' };
-
-function summaryCard(c) {
-  const icon = c.id === 'humidity' ? ICONS.drop : CARD_ICON[c.id];
-  const num = c.num == null ? '—' : (c.id === 'pm' ? pmNum(Number(c.num)) : Number(c.num).toLocaleString());
-  return `<div class="s-c ${c.tone}">
-    <div class="s-k"><span class="s-tile">${icon}</span>${esc(c.name)}<span class="s-src">${esc(c.src)}</span></div>
-    <div class="s-num"><b>${num}</b><span class="s-u">${esc(c.unit)}</span><span class="s-limt">${esc(c.limit_label)} <strong>${c.limit}</strong></span></div>
-    <div class="s-st"><b>${esc(c.state)}</b>${c.fact ? ` <span>· ${esc(c.fact)}</span>` : ''}</div>
-    ${sparkline(c.series || [], c.limit, c.tone, c.cross)}
-  </div>`;
-}
-
-// A need paired with the card that holds its evidence: the action first, then the number and its chart.
-const TONE_ICON = {   // the answer marks: a check or an exclamation, each in a circle (a calm pair, colored like the answer's text)
-  good: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="m8 12.3 2.7 2.7L16.2 9.5"/></svg>',
-  warn: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v5.2"/><path d="M12 16.4h.01"/></svg>',
-};
-TONE_ICON.bad = TONE_ICON.warn;
-// small marks for Coming up rows that aren't a need: the BQE, sunrise, sunset
-const AG_ICON = {
-  road: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 21M16 3l4 18M12 4v3M12 11v3M12 18v2"/></svg>',
-  sunrise: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 18a5 5 0 0 0-10 0M12 3v6M9 6l3-3 3 3M3 18h18M5.6 12.6l1.4 1.4M18.4 12.6 17 14"/></svg>',
-  sunset: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 18a5 5 0 0 0-10 0M12 9V3M9 6l3 3 3-3M3 18h18M5.6 12.6l1.4 1.4M18.4 12.6 17 14"/></svg>',
-  rain: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2M16 14v6M8 14v6M12 16v6"/></svg>',
-  snow: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2M8 15h.01M8 19h.01M12 17h.01M12 21h.01M16 15h.01M16 19h.01"/></svg>',
-  temp: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>',
-  air: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.8 19.6A2 2 0 1 0 14 16H2M17.5 8a2.5 2.5 0 1 1 2 4H2M9.8 4.4A2 2 0 1 1 11 8H2"/></svg>',
-  haze: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5.2 6.2 1.4 1.4M2 13h2M20 13h2M17.4 7.6l1.4-1.4M22 17H2M22 21H2M16 13a4 4 0 0 0-8 0M12 5V2.5"/></svg>',
-  sun: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg>',
-  pollen: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5M12 7.5V9M7.5 12H9M16.5 12H15M12 16.5V15M8 8l1.9 1.9M14.1 9.9 16 8M8 16l1.9-1.9M14.1 14.1 16 16"/></svg>',
-  drop: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>',
-  ice: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h20M12 2v20M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4"/></svg>',
-};
-const NEED_ICON = { toddler: 'toddler', sinus: 'sinus', runner: 'runner' };
-
-function pollenBars(list, short, relief) {
-  if (!list || !list.length) return '';
-  if (list.every(p => !p.index && !p.in_season)) return '';   // nothing in the air: Local conditions already says so
-  const order = ['Tree', 'Grass', 'Weed'], items = [...list].sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
-  return `<div class="n-pollen" title="Google Pollen, 0 to 5${relief ? ' · ' + esc(relief) : ''}"><span class="n-pl">Pollen</span>${items.map(p =>
-    `<span class="pb${p.index >= 3 ? ' hi' : p.index ? ' lo' : ''}"><em>${esc(p.name)}</em>${[1, 2, 3, 4, 5].map(k => `<i${k <= p.index ? ' class="on"' : ''}></i>`).join('')}</span>`).join('')}</div>
-`;
-}
-
-// Humidity has two bad sides. Shade each only when the line comes within 10 points of it (the damp side by default),
-// so a dry winter day shows "Too dry below" and the chart isn't squashed the rest of the time.
-// Each chart shows its healthy range as a band: CO₂ up to 800 (from the ~420 of fresh outdoor air), humidity 30–60%, PM2.5 up to 12.
-function humidityAware(c) {
-  const word = { co2: 'stale', humidity: 'damp', pm: 'polluted' }[c.id];
-  if (c.id === 'co2') return sparkline(c.series || [], c.limit, c.tone, c.cross, word, null, [420, c.limit]);
-  if (c.id === 'pm') return sparkline(c.series || [], c.limit, c.tone, c.cross, word, null, [0, c.limit]);
-  return sparkline(c.series || [], c.limit, c.tone, c.cross, word, { limit: RH_LOW, word: 'dry' }, [RH_LOW, c.limit]);
-}
-
-// A need card reads top-down: for whom (the same chip as in the Home menu), the answer for that need,
-// the evidence (the reading and its 24 h chart), then what it means, quieter.
-function needCard(n, c, r) {
-  const num = c.num == null ? '—' : (c.id === 'pm' ? pmNum(Number(c.num)) : Number(c.num).toLocaleString());
-  const tone = n.tone === 'muted' ? 'muted' : n.tone, metric = c.name.replace(/\s*\(.*\)$/, '').replace('Room air', 'CO₂').replace('Outside air', 'Outdoor PM2.5');
-  // the card that carries the headline doesn't repeat it: it says what the reading is instead ("Too damp inside")
-  const norm = t => String(t || '').toLowerCase().replace(/[^a-z]+/g, ' ').trim();
-  const dup = !!(r.headline && norm(n.action) === norm(r.headline.text)) && c.state && c.num != null;
-  const answer = dup ? `${c.state} ${c.id === 'pm' ? 'outside' : 'inside'}` : n.action;
-  const tip = { toddler: 'Toddler: outdoor time and the air at sleep time get called out.', sinus: 'Sinus & allergy: humidity, pollen and dry air, explained for sensitive sinuses.', runner: 'Runner: when the outdoor air and BQE traffic make a run worth it.' }[n.id] || '';
-  return `<div class="s-c n-card ${c.tone}" data-need="${n.id}" data-t1="${Date.parse(r.generated_at) || Date.now()}" data-unit="${esc(c.unit)}" data-metric="${c.id}">
-    <div class="n-top"><button type="button" class="n-chip" data-open-home="needs" data-tip="${esc(tip)}">${ICONS[NEED_ICON[n.id]] || ''}${esc(n.name)}</button>
-    <div class="n-answer ${tone}">${TONE_ICON[tone] || ''}<b>${esc(answer)}</b></div></div>
-    <div class="n-ev"><span class="n-metric">${esc(metric).replace(/^Outdoor /, '<span class="n-out">Outdoor </span>')}</span><b class="n-num">${num}</b><span class="s-u">${esc(c.unit)}</span>${dup || (c.state && norm(answer).includes(norm(c.state))) ? '' : `<span class="n-word ${c.tone}">${esc(c.state)}</span>`}<span class="n-cap">Last 24 h</span><span class="n-span"></span></div>
-    ${humidityAware(c)}
-    ${n.id === 'sinus' ? pollenBars(n.pollen, r.relief_short, r.relief) : ''}
-    ${c.means ? `<p class="s-means n-sub">${esc(c.means)}</p>` : ''}
-  </div>`;
-}
-
-// ── Next to the headline: why, as a picture from the readings ──
-// For "open a window": inside vs outside CO₂ on one scale with the limit, plus the last big CO₂ drop in the past 24 h
-// (how fast the room clears). Hidden for other headlines until they have an honest picture.
-// For "dry the air": humidity inside vs outside on one 0–100% scale with the 30–60% good range, and whether airing would help,
-// judged by dew point (how much water the air actually holds), not by the two percentages.
-function renderHumidityVis(r, box) {
-  const i = state.indoor ? reading(state.indoor, true) : {}, o = state.outdoor ? reading(state.outdoor, false) : {};
-  if (!has(i.rh) || !has(o.rh)) { box.hidden = true; box.innerHTML = ''; return; }
-  const dp = (t, rh) => { if (!has(t) || !has(rh) || rh <= 0) return null; const g = Math.log(rh / 100) + 17.62 * t / (243.12 + t); return 243.12 * g / (17.62 - g); };
-  const di = dp(i.t, i.rh), dout = dp(o.t, o.rh), wetter = has(di) && has(dout) && dout - di > 1, drier = has(di) && has(dout) && di - dout > 1;
-  const firstReal = !box.dataset.real && !revealNext; box.dataset.real = '1';
-  box.hidden = false;
-  const pin = (label, v, cls, side) => `<span class="h-pin ${cls}${side ? ' ' + side : ''}" style="left:${Math.max(0, Math.min(100, v))}%"><i></i><b>${label} ${Math.round(v)}%</b></span>`;
-  // close markers: the lower one's label runs left, the higher one's runs right; on top of each other, the outside one goes under the scale
-  const gap = Math.abs(i.rh - o.rh), near = gap < 25, same = gap < 2;
-  const iSide = same || !near ? '' : i.rh < o.rh ? 'left' : 'right', oSide = same ? 'below' : !near ? '' : o.rh < i.rh ? 'left' : 'right';
-  box.innerHTML = `<div class="v-left"><div class="v-head">Inside vs outside · now</div>
-    <div class="h-scale"><span class="h-band" style="left:${RH_LOW}%;width:${RH_DAMP - RH_LOW}%"><em>good</em></span>
-      ${pin('Inside', i.rh, i.rh > RH_DAMP || i.rh < RH_LOW ? 'warn' : 'ok', iSide)}${pin('Outside', o.rh, 'out', oSide)}</div>
-    <div class="h-ticks"><span>0</span><span style="left:${RH_LOW}%">${RH_LOW}</span><span style="left:${RH_DAMP}%">${RH_DAMP}</span><span style="left:100%">100%</span></div></div>
-    <p class="v-note" title="${has(di) && has(dout) ? `Dew point ${fmtTemp(di, { digits: tempUnit() === 'C' ? 1 : 0 })} inside, ${fmtTemp(dout, { digits: tempUnit() === 'C' ? 1 : 0 })} outside` : ''}">${wetter ? 'The outside air holds more water than inside, so opening windows would add moisture.'
-      : drier ? 'The outside air holds less water than inside, so airing for a while also helps.'
-      : 'Inside and outside hold about the same water, so airing won\'t change much.'}</p>`;
-  if (firstReal && !reduceMotion.matches) box.querySelectorAll('.h-pin').forEach((p, k) =>
-    p.animate([{ opacity: 0, transform: 'translate(-50%, 4px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { duration: 600, delay: 200 + k * 180, easing: 'cubic-bezier(.2, .7, .2, 1)', fill: 'backwards' }));
-}
-
-function renderActionVis(r) {
-  const box = $('s-vis'); if (!box) return;
-  const key = r && r.headline && r.headline.key, inC = state.indoor ? reading(state.indoor, true).co2 : null, outC = state.outdoor ? reading(state.outdoor, false).co2 : null;
-  if (key === 'humidity') return renderHumidityVis(r, box);
-  if (key !== 'window') { box.hidden = true; box.innerHTML = ''; return; }
-  if (!has(inC) || !has(outC)) {   // readings still loading: same size, placeholder bars
-    box.hidden = false; delete box.dataset.real;
-    box.innerHTML = `<div class="v-left"><div class="v-head">CO₂ inside vs outside</div><div class="v-bars v-skel" aria-hidden="true">
-      <div class="v-row"><span>Inside</span><span class="v-track"><i></i></span><b></b></div>
-      <div class="v-row"><span>Outside</span><span class="v-track"><i></i></span><b></b></div>
-      <div class="v-row v-axis"><span></span><span class="v-track"></span><b></b></div></div></div><p class="v-note v-skel"><i></i><i></i></p>`;
-    return;
-  }
-  const max = Math.max(inC, CO2_OPEN) * 1.12, w = v => (v / max * 100).toFixed(1);
-  // the last big drop: at least 120 ppm within an hour (two half-hour steps), most recent first
-  const card = (r.cards || []).find(c => c.id === 'co2'), ser = card ? card.series : [], t1 = Date.parse(r.generated_at) || Date.now();
-  let drop = null;
-  for (let i = ser.length - 2; i >= 0 && !drop; i--) for (const k of [1, 2]) {
-    const a = ser[i], b = ser[i + k]; if (has(a) && has(b) && a - b >= 120) { drop = { from: a, to: b, mins: k * 30, at: t1 - 24 * 3600e3 + i * 30 * 60e3 }; break; }
-  }
-  box.hidden = false;
-  const firstReal = !box.dataset.real && !revealNext;   // first real numbers animate in, unless the card's intro is about to
-  box.dataset.real = '1';
-  box.innerHTML = `<div class="v-left"><div class="v-head">CO₂ inside vs outside</div>
-    <div class="v-bars" style="--lim:${w(CO2_OPEN)}%">
-      <div class="v-row"><span>Inside</span><span class="v-track"><i class="${inC > CO2_OPEN ? 'over' : ''}" style="width:${w(inC)}%"></i></span><b>${Math.round(inC).toLocaleString()}</b></div>
-      <div class="v-row"><span>Outside</span><span class="v-track"><i style="width:${w(outC)}%"></i></span><b>${Math.round(outC).toLocaleString()}</b></div>
-      <div class="v-row v-axis"><span></span><span class="v-track"><em>limit ${CO2_OPEN}</em></span><b>ppm</b></div>
-    </div></div>
-    <p class="v-note">${drop ? `Last big drop: ${esc(atLabel(drop.at))}, from ${Math.round(drop.from).toLocaleString()} to ${Math.round(drop.to).toLocaleString()} ppm in ${drop.mins} min. Opening up works fast.` : 'Opening a window swaps the inside air for the outside air.'}</p>`;
-
-  if (firstReal && !reduceMotion.matches) {
-    const out = 'cubic-bezier(.2, .7, .2, 1)';
-    box.querySelectorAll('.v-track i').forEach((bar, k) =>
-      bar.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 1100, delay: 150 + k * 180, easing: out, fill: 'backwards' }));
-    box.querySelectorAll('.v-row:not(.v-axis) b').forEach(b => { const to = parseFloat(b.textContent.replace(/,/g, '')); if (Number.isFinite(to)) rollNumber(b, to, 0, 0); });
-    box.querySelectorAll('.v-axis, .v-note').forEach(el => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 700, easing: out, fill: 'backwards' }));
-  }}
-
-// ── Coming up: an agenda of the next moments, built from the rules' needs, the BQE clock, the wind and the sun ──
-const nyMinutes = () => { const p = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(new Date()); return (Number(p.find(x => x.type === 'hour').value) % 24) * 60 + Number(p.find(x => x.type === 'minute').value); };
-const minLabel = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), mm = m % 60; return `${h % 12 || 12}${mm ? ':' + String(mm).padStart(2, '0') : ''} ${h < 12 ? 'AM' : 'PM'}`; };
-const hourRange = (a, b) => { const x = minLabel(a * 60), y = minLabel(b * 60); return x.split(' ')[1] === y.split(' ')[1] ? `${x.split(' ')[0]}–${y}` : `${x}–${y}`; };
-
-function buildAgenda(r) {
-  const out = [], now = nyMinutes(), h0 = Math.floor(now / 60), ahead = h => ((h * 60 - now) % 1440 + 1440) % 1440;
-  const needs = Object.fromEntries((r.needs || []).map(n => [n.id, n])), key = r.headline && r.headline.key;
-  const toward = (window.__bqe || {}).wind_impact === 'Blowing toward Greenpoint';
-  const pm = state.outdoor ? reading(state.outdoor, false).pm : null;
-  // the second half of tonight's headline, when airing has to be followed by drying
-  if (key === 'window' && needs.sinus && /dry/i.test(needs.sinus.action)) out.push({ at: 1, time: 'After airing', title: 'Dry the room', sub: 'The outside air is wetter', tone: 'warn', needs: ['sinus'] });
-  // the BQE rush windows in the next 12 hours
-  // A rush happening now uses the wind now; a later one, the forecast wind at its first hour (the wind now if missing).
-  let nextToward = null;
-  for (const [a, e] of RUSH) {
-    const inNow = h0 >= a && h0 < e, at = inNow ? 0 : ahead(a);
-    if (at > 12 * 60) continue;
-    const f = inNow ? null : (window.__fc || []).find((h, i) => i > 0 && h && h.time && Number(h.time.slice(11, 13)) === a);
-    const later = f && typeof f.bqe_toward === 'boolean', tw = later ? f.bqe_toward : toward;
-    if (tw && (nextToward == null || at < nextToward.at)) nextToward = { at, a, e, inNow };
-    out.push({ at: at || 0, time: inNow ? `Now–${minLabel(e * 60)}` : hourRange(a, e), title: 'BQE rush hour',
-      sub: tw ? 'The wind blows the traffic fumes here' : later ? 'The wind keeps the fumes off the block'
-        : (window.__bqe || {}).wind_impact === 'Blowing away' ? 'The wind blows the fumes away' : 'The wind carries the fumes past the block',
-      tone: tw ? 'warn' : '', needs: tw ? ['runner', 'toddler'] : ['runner'] });
-  }
-  // the run window, unless the headline is already about running
-  if (key !== 'run' && has(pm)) {
-    // (a plain "fine / short / skip" right now is the Runner card's job; only a window with an end or a start goes here)
-    if (pm > PM_FINE) { /* the Runner card says it */ }
-    else if (nextToward && nextToward.inNow) out.push({ at: ahead(nextToward.e), time: `From ${minLabel(nextToward.e * 60)}`, title: 'Good time to run', sub: 'Clean air, rush over', tone: 'good', needs: ['runner'] });
-    else if (nextToward) out.push({ at: 0, time: `Now–${minLabel(nextToward.a * 60)}`, title: 'Good time to run', sub: 'Clean air, light traffic', tone: 'good', needs: ['runner'] });
-  }
-  // sunrise or sunset in the next 12 hours
-  const el = m => (typeof SKY !== 'undefined' && SKY && SKY.sunEl) ? SKY.sunEl(((m % 1440) + 1440) % 1440) : null;
-  if (el(now) != null) for (let m = now + 5; m < now + 12 * 60; m += 5) {
-    const e0 = el(m - 5), e1 = el(m);
-    if ((e0 < 0) !== (e1 < 0)) { out.push({ at: m - now, time: minLabel(Math.round(m / 5) * 5 - 5), title: e1 >= 0 ? 'Sunrise' : 'Sunset', sub: '', tone: 'sun', needs: [] }); break; }
-  }
-  // the weather in the next 12 hours (Open-Meteo hourly): rain or snow starting or stopping, a big temperature swing,
-  // and when the outside air turns drier than the damp room, so airing would dry it
-  out.push(...weatherAgenda(needs, toward, ahead));
-  // what the forecasts add: haze coming or clearing, tomorrow's pollen, a dry night, strong sun
-  out.push(...forecastAgenda(pm, ahead, out.some(o => o.title === 'Best time to air')));
-  // airing before the toddler's bedtime
-  if (needs.toddler && needs.toddler.tone !== 'good' && needs.toddler.tone !== 'muted' && h0 >= 12 && h0 < 20)
-    out.push({ at: ahead(20), time: '8 PM', title: 'Open a window before sleep', sub: `If CO₂ is still over ${CO2_OPEN}`, tone: '', needs: ['toddler'] });
-  // a rush happening now that doesn't blow this way is the reason the run is fine: say it once
-  const rushNow = out.find(o => o.title === 'BQE rush hour' && o.at === 0 && o.tone !== 'warn'), runNow = out.find(o => o.needs.includes('runner') && o.title !== 'BQE rush hour' && o.at === 0);
-  if (rushNow && runNow) { runNow.sub = `Rush hour until ${rushNow.time.replace('Now–', '')}, but ${rushNow.sub.charAt(0).toLowerCase() + rushNow.sub.slice(1)}`; out.splice(out.indexOf(rushNow), 1); }
-  // dedupe: no row repeats what the headline or a need card already says now
-  const said = s => /moisture/i.test(s || ''), runAct = (needs.runner || {}).action || '', runBad = /short|skip/i.test(runAct);
-  const pollenToday = Math.max(0, ...((needs.sinus || {}).pollen || []).map(p => p.index || 0));
-  const dup = o => (o.title === 'Best time to air' && key === 'window')                      // the headline already says open a window
-    || (/^Dry air/.test(o.title) && (said((needs.sinus || {}).action) || said((r.headline || {}).text)))   // already says add moisture
-    || (o.title === 'Haze' && (o.at === 0 || runBad))          // the Runner card already says the air is bad
-    || (o.title === 'Air clears' && (o.at === 0 || (runAct && !runBad)))   // the Runner card already says the air is fine
-    || (o.title === 'High pollen' && key === 'pollen' && o.top <= pollenToday);   // today's headline already says it, no worse tomorrow
-  for (let k = out.length - 1; k >= 0; k--) if (dup(out[k])) out.splice(k, 1);
-  // at most four, in time order; with more, sunrise or sunset goes first, then a plain temperature swing, then the latest
-  let list = out.sort((x, y) => x.at - y.at);
-  if (list.length > 4) list = list.filter(o => o.tone !== 'sun');
-  if (list.length > 4) list = list.filter(o => !o.minor);
-  return list.slice(0, 4);
-}
-
-function weatherAgenda(needs, toward, ahead) {
-  const fc = (window.__fc || []).filter(h => h && h.time), out = [];
-  if (fc.length < 3) return out;
-  const hr = h => Number(h.time.slice(11, 13)), at = h => ahead(hr(h)), label = h => minLabel(hr(h) * 60);
-  const wet = h => (h.precip ?? 0) >= 0.2 || (h.pop ?? 0) >= 60, snowy = h => (h.code >= 71 && h.code <= 77) || h.code === 85 || h.code === 86;
-  // rain or snow: when it starts, or when it stops if it's already falling
-  if (!wet(fc[0])) {
-    const k = fc.findIndex((h, i) => i > 0 && wet(h));
-    if (k > 0) {
-      const end = fc.findIndex((h, i) => i > k && !wet(h)), span = fc.slice(k, end > 0 ? end : fc.length), snow = span.some(snowy);
-      const pop = Math.max(...span.map(h => h.pop ?? 0)), runOk = needs.runner && needs.runner.tone === 'good';
-      out.push({ at: at(fc[k]), time: end > 0 ? hourRange(hr(fc[k]), hr(fc[end])) : `From ${label(fc[k])}`, title: snow ? 'Snow' : 'Rain', ic: snow ? 'snow' : 'rain',
-        sub: [pop ? `${pop}% chance` : '', runOk ? 'run before it' : ''].filter(Boolean).join(', ').replace(/^./, c => c.toUpperCase()), tone: '', needs: runOk ? ['runner'] : [] });
-    }
-  } else {
-    const k = fc.findIndex((h, i) => i > 0 && !wet(h));
-    if (k > 0) out.push({ at: at(fc[k]), time: label(fc[k]), title: `${fc.slice(0, k).some(snowy) ? 'Snow' : 'Rain'} stops`, ic: 'rain', sub: '', tone: '', needs: [] });
-  }
-  // icy paths: it freezes within a few hours after (or while) rain or snow falls
-  const t0 = fc[0].temp, temps = fc.filter(h => has(h.temp));
-  const fz = has(t0) && t0 > 0 ? fc.findIndex(h => has(h.temp) && h.temp <= 0) : -1;
-  const icy = fz > 0 && fc.slice(Math.max(0, fz - 4), fz + 1).some(wet);
-  if (icy) out.push({ at: at(fc[fz]), time: `From ${label(fc[fz])}`, title: 'Icy paths', ic: 'ice', sub: 'Careful on an early run', tone: 'warn', needs: ['runner'] });
-  // a swing of 5 °C (9 °F) or more: when it gets there (minor: the first to go when the list is full)
-  if (has(t0) && temps.length) {
-    const lo = temps.reduce((a, b) => b.temp < a.temp ? b : a), hi = temps.reduce((a, b) => b.temp > a.temp ? b : a);
-    const pick = t0 - lo.temp >= 5 ? lo : hi.temp - t0 >= 5 ? hi : null;
-    if (pick) {
-      const reach = temps.find(h => Math.abs(h.temp - pick.temp) <= 1) || pick, freeze = pick === lo && lo.temp <= 0 && t0 > 0;
-      if (!(freeze && icy)) out.push({ at: at(reach), time: `By ${label(reach)}`, title: freeze ? 'Below freezing' : `${pick === lo ? 'Down' : 'Up'} to ${fmtTemp(pick.temp)}`, ic: 'temp',
-        sub: `${fmtTemp(t0)} now`, tone: '', needs: [], minor: true });
-    }
-  }
-  // a damp room: when the outside air holds clearly less water than inside (dew point 5 °C lower), airing dries it.
-  // Only when that's still ahead, and not into a BQE rush that blows this way.
-  const i = state.indoor ? reading(state.indoor, true) : {};
-  if (has(i.rh) && i.rh > RH_DAMP && has(i.t)) {
-    const g = Math.log(i.rh / 100) + 17.62 * i.t / (243.12 + i.t), dIn = 243.12 * g / (17.62 - g);
-    const dry = h => has(h.dew) && dIn - h.dew >= 5;
-    const inRush = h => (typeof h.bqe_toward === 'boolean' ? h.bqe_toward : toward) && RUSH.some(([a, e]) => hr(h) >= a && hr(h) < e);
-    if (!dry(fc[0])) {
-      const k = fc.findIndex((h, n) => n > 0 && dry(h) && !inRush(h));
-      if (k > 0) out.push({ at: at(fc[k]), time: `From ${label(fc[k])}`, title: 'Best time to air', ic: 'air',
-        sub: 'The outside air gets much drier', tone: 'good', needs: ['sinus'] });
-    }
-  }
-  return out;
-}
-
-// pm: the outdoor monitor's PM2.5 now. aired: "Best time to air" is already listed.
-function forecastAgenda(pm, ahead, aired) {
-  const fc = (window.__fc || []).filter(h => h && h.time), out = [];
-  const hr = h => Number(h.time.slice(11, 13)), label = h => minLabel(hr(h) * 60), atK = k => k ? ahead(hr(fc[k])) : 0;
-  const span = (k, end) => end > 0 ? hourRange(hr(fc[k]), hr(fc[end])) : `From ${label(fc[k])}`;
-  // Outdoor PM2.5 from the air-quality model. It can sit above or below the monitor, so it counts when it changes:
-  // haze when it climbs over the limit and 5 µg/m³ above its own value now, clearing when it falls back under.
-  const p0 = fc.length ? fc[0].pm25 : null, nowPm = has(pm) ? pm : p0;
-  if (has(p0) && has(nowPm)) {
-    if (nowPm <= PM_FINE) {
-      const k = fc.findIndex((h, i) => i > 0 && has(h.pm25) && h.pm25 > PM_FINE && h.pm25 - p0 >= 5);
-      if (k > 0) {
-        const end = fc.findIndex((h, i) => i > k && has(h.pm25) && h.pm25 <= PM_FINE);
-        out.push({ at: atK(k), time: span(k, end), title: 'Haze', ic: 'haze', sub: 'Close windows, run before', tone: 'warn', needs: ['runner', 'toddler'] });
-      }
-    } else if (p0 > PM_FINE) {
-      const k = fc.findIndex((h, i) => i > 0 && has(h.pm25) && h.pm25 <= PM_FINE);
-      if (k > 0) out.push({ at: atK(k), time: `From ${label(fc[k])}`, title: 'Air clears', ic: 'air', sub: 'Good to air and run then', tone: 'good', needs: ['runner', 'toddler'] });
-    }
-  }
-  // tomorrow's pollen (Google), 0 to 5: from 3 up, for the morning
-  const pt = (window.__pollenT || []).filter(p => has(p.index));
-  if (pt.length) {
-    const top = pt.reduce((a, b) => b.index > a.index ? b : a);
-    if (top.index >= 3) out.push({ at: 1440 - nyMinutes() + 7 * 60, time: 'Tomorrow', title: 'High pollen', ic: 'pollen',
-      sub: `${top.name} ${top.index} of 5, keep windows shut in the morning`, tone: 'warn', needs: ['sinus'], top: top.index });
-  }
-  // a dry night: the outdoor dew point drops under 0 °C, so heated rooms dry out (not when the room is damp, where airing helps)
-  const i = state.indoor ? reading(state.indoor, true) : {};
-  if (!aired && has(i.rh) && i.rh <= RH_DAMP && fc.length && has(fc[0].dew) && fc[0].dew >= 0) {
-    const k = fc.findIndex((h, n) => n > 0 && has(h.dew) && h.dew < 0);
-    if (k > 0) {
-      const h = hr(fc[k]), night = h >= 17 || h < 6, sameDay = fc[k].time.slice(0, 10) === fc[0].time.slice(0, 10);
-      out.push({ at: atK(k), time: `From ${label(fc[k])}`, title: night ? 'Dry air tonight' : sameDay ? 'Dry air today' : 'Dry air tomorrow', ic: 'drop',
-        sub: 'Heated rooms dry out; add moisture', tone: 'warn', needs: ['sinus'] });
-    }
-  }
-  // strong sun for outdoor play: UV 6 or more in the hours ahead
-  const u = fc.findIndex(h => has(h.uv) && h.uv >= 6);
-  if (u >= 0) {
-    const end = fc.findIndex((h, n) => n > u && !(has(h.uv) && h.uv >= 6));
-    const time = u === 0 ? `Now–${label(fc[end > 0 ? end : fc.length - 1])}` : span(u, end);
-    out.push({ at: atK(u), time, title: 'Strong sun', ic: 'sun', sub: 'Shade and sunscreen for outdoor play', tone: 'warn', needs: ['toddler'] });
-  }
-  return out;
-}
-
-function renderAgenda(r) {
-  const box = $('s-ag'); if (!box || !r || !r.needs) return;
-  // until the outdoor reading, the wind and the sky are in, show placeholder rows at full size (no partial list, no jump)
-  const ready = state.outdoor && window.__bqe && typeof SKY !== 'undefined' && SKY;
-  if (!ready) {
-    box.hidden = false;
-    box.innerHTML = `<h3>Coming up</h3><ol class="ag ag-skel" aria-hidden="true">${'<li><span class="ag-t"><i></i></span><span class="ag-d"></span><span class="ag-x"><i></i></span></li>'.repeat(4)}</ol>`;
-    return;
-  }
-  const items = buildAgenda(r);
-  box.hidden = !items.length;
-  const icon = it => it.ic ? AG_ICON[it.ic] : it.title === 'BQE rush hour' ? AG_ICON.road : it.tone === 'sun' ? (it.title === 'Sunrise' ? AG_ICON.sunrise : AG_ICON.sunset)
-    : it.needs[0] ? ICONS[NEED_ICON[it.needs[0]]] || '' : '';
-  box.innerHTML = `<h3>Coming up</h3><ol class="ag ag2">${items.map(it => `<li class="${it.tone}"${it.sub ? ` title="${esc(it.sub)}"` : ''}><span class="ag-i">${icon(it)}</span><b class="ag-n">${esc(it.title)}</b><span class="ag-w">${esc(it.time)}</span>${it.sub ? `<em class="ag-s">${esc(it.sub)}</em>` : ''}</li>`).join('')}</ol>`;
-}
-
-
-// After a refresh (and on first load): the headline fades in, Coming up appears moment by moment along its arrow,
-// the CO₂ bars grow, each chart line draws from left to right and ends on a dot for the latest reading, and the numbers roll.
 let revealNext = true;
-const prevNums = {};
-function rollNumber(el, to, from, digits) {
-  const fmt = v => digits ? v.toFixed(digits) : Math.round(v).toLocaleString();
-  el.animate([{ opacity: .6 }, { opacity: 1 }], { duration: 300 });
-  const t0 = performance.now(), dur = 900, ease = t => 1 - Math.pow(1 - t, 3);
-  const step = now => { const k = Math.min(1, (now - t0) / dur); el.textContent = fmt(from + (to - from) * ease(k)); if (k < 1) requestAnimationFrame(step); };
-  requestAnimationFrame(step);
-}
-function reveal() {
-  const cards = [...document.querySelectorAll('#s-cards .n-card')];
-  const remember = () => cards.forEach(c => { const b = c.querySelector('.s-num b'); if (b) prevNums[c.dataset.metric] = parseFloat(b.textContent.replace(/,/g, '')); });
-  if (reduceMotion.matches) { remember(); return; }
-  const out = 'cubic-bezier(.2, .7, .2, 1)', draw = 'cubic-bezier(.65, 0, .35, 1)';
-  for (const el of [$('lead'), $('why')]) el && el.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 480, easing: out });
-  document.querySelectorAll('#s-ag .ag li').forEach((li, i) =>
-    li.animate([{ opacity: 0, transform: 'translateX(-8px)' }, { opacity: 1, transform: 'none' }], { duration: 520, delay: 180 + i * 140, easing: out, fill: 'backwards' }));
-  document.querySelectorAll('#s-vis .v-row:not(.v-axis) b').forEach(b => { const to = parseFloat(b.textContent.replace(/,/g, '')); if (Number.isFinite(to)) rollNumber(b, to, 0, 0); });
-  document.querySelectorAll('#s-vis .v-axis, #s-vis .v-note').forEach(el => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 700, easing: out, fill: 'backwards' }));
-  document.querySelectorAll('#s-vis .v-track i').forEach((bar, i) =>
-    bar.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 1000, delay: 160 + i * 140, easing: out, fill: 'backwards' }));
-  cards.forEach((c, i) => {
-    const svg = c.querySelector('.s-spark svg'), end = c.querySelector('.s-end'), delay = 160 + i * 220;
-    if (svg) svg.style.clipPath = 'inset(0 100% 0 0)';
-    if (end) end.style.opacity = 0;
-    onVisible(c, () => {
-      if (svg) { svg.style.clipPath = ''; svg.animate([{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }], { duration: 1700, delay, easing: draw, fill: 'backwards' }); }
-      if (end) { end.style.opacity = ''; end.animate([{ transform: 'translate(-50%, -50%) scale(0)', opacity: 0 }, { transform: 'translate(-50%, -50%) scale(1.5)', opacity: 1, offset: .6 }, { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 }],
-        { duration: 520, delay: delay + 1600, easing: out, fill: 'backwards' }); }
-    });
-    const b = c.querySelector('.s-num b'), to = b && parseFloat(b.textContent.replace(/,/g, ''));
-    if (b && Number.isFinite(to)) { const from = prevNums[c.dataset.metric]; rollNumber(b, to, Number.isFinite(from) ? from : 0, c.dataset.metric === 'pm' ? 1 : 0); }
-  });
-  remember();
+function reveal() {   // a short fade on the summary's items as they arrive
+  if (reduceMotion.matches) return;
+  document.querySelectorAll('#summary .sx-row, #summary .sx-clear').forEach((el, i) => el.animate(
+    [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 480, delay: i * 120, easing: 'cubic-bezier(.2, .7, .2, 1)', fill: 'backwards' }));
 }
 
-// why: 'offline' or 'failed' when this is an earlier summary shown in place of a new one.
 function renderRead(r, stale, why) {
   const changed = shownSig !== null && readSig(r) !== shownSig;
   shownSig = readSig(r);
-  if (!r.headline) return;                      // a summary saved in the old format
-  // in front of the headline: an alert triangle when there's something to do, a check when all is fine
-  const urgent = r.headline.tone === 'warn' || r.headline.tone === 'bad';
-  const key = urgent || r.headline.tone === 'good';
-  $('s-act').hidden = !key;   // the main answer opens with its icon, like the need cards
-  document.querySelector('.s-main').className = 's-main' + (r.headline.tone === 'warn' || r.headline.tone === 'bad' ? ' alert ' + r.headline.tone : '');
-  $('s-act').className = 's-act ' + r.headline.tone;
-  $('s-act').innerHTML = key ? (urgent ? TONE_ICON.warn : TONE_ICON.good) : '';
-  $('lead').textContent = r.headline.text;
-  $('lead').className = 's-do ' + r.headline.tone;
-  $('why').textContent = r.why || '';
-
-  if (r.needs && r.needs.length) {
-    const byId = Object.fromEntries((r.cards || []).map(c => [c.id, c]));
-    // the main card leads with the headline, its why and one picture; the three needs always sit in the row below
-    // (the one behind the headline says its state instead of repeating the action)
-    const chips = (r.headline.needs || []).map(id => r.needs.find(n => n.id === id)).filter(Boolean);
-    $('s-chips').innerHTML = chips.map(n => `<button type="button" class="n-chip" data-open-home="needs">${ICONS[NEED_ICON[n.id]] || ''}${esc(n.name)}</button>`).join('');
-    const row = r.needs.filter(n => byId[n.metric]);
-    $('s-cards').innerHTML = row.map(n => needCard(n, byId[n.metric], r)).join('');
-    $('s-cards').dataset.count = row.length;
-    wireSparks();
-    renderAgenda(r);
-    renderActionVis(r);
-  } else $('s-cards').innerHTML = (r.cards || []).map(summaryCard).join('');   // a summary saved in the previous format
+  // the card is drawn by static/summary.js from the rules' summary; an earlier read without one keeps what's shown
+  if (r.summary) SummaryCard.renderSummary($('summary'), r.summary, new Date(), { label: false });   // TODAY/TONIGHT is the heading above
+  else if (!$('summary').childElementCount) SummaryCard.renderSummary($('summary'), null);
+  showUpdated();   // the heading follows the summary (Today / Tonight)
   if (revealNext) { revealNext = false; reveal(); }
-  const by = r.source === 'model' ? `by ${r.model_name || r.model}` : 'from the rules';
-  // the byline says who wrote the advice: Claude, or the rules when the model is off
-  $('s-by').textContent = r.source === 'model' ? '' : '· by the rules,';
+  $('s-by').textContent = '';
   $('s-tag-t').textContent = r.source === 'model' ? 'AI summary' : 'Summary';
-  if (!stale && changed && !rippleTimer) aiRipple('once');   // the summary's content changed: the dot sends one ripple
+  if (!stale && changed && !rippleTimer && r.source === 'model') aiRipple('once');   // the summary's content changed: the dot sends one ripple
   if ($('s-ago')) { $('s-ago').dataset.at = Date.parse(r.generated_at) || Date.now(); agoTick(); }
   if ($('s-src')) $('s-src').dataset.when = r.clock ? `Written ${r.clock} ·\u00a0` : '';   // the banner's status line: when, then the sources
   const swaps = (r.replaced || []).length;
@@ -1109,7 +686,8 @@ function renderRead(r, stale, why) {
   note.hidden = !why;
   note.textContent = why === 'offline' ? `Earlier summary, written at ${r.clock}. It updates when the page is back online.`
     : why === 'failed' ? `Earlier summary, written at ${r.clock}. A new one could not be written just now.` : '';
-  $('read-meta').textContent = `Written ${by} at ${r.clock}${stale ? ' (earlier summary)' : ''}.` +
+  $('read-meta').textContent = (r.source === 'model' ? `Written by ${r.model_name || r.model} at ${r.clock}` : `Updated at ${r.clock}`) +
+    `${stale ? ' (earlier summary)' : ''}.` +
     (swaps ? ` ${swaps === 1 ? 'One line' : swaps + ' lines'} replaced by the rules.` : '') +
     (r.source !== 'model' && r.note ? ' ' + r.note : '');
 }
@@ -1121,7 +699,7 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const TURN_MS = 900;
 let busyCount = 0, spin = null, lastStamp = null, loadFailed = false;
 
-// "Right now" only while the readings are fresh. Otherwise the title says when they are from.
+// The heading over the summary: Today or Tonight while the readings are fresh, otherwise when they are from.
 const FRESH_MIN = 10;
 function showUpdated() {
   const title = $('now-title'), meta = $('updated');
@@ -1130,7 +708,9 @@ function showUpdated() {
     title.textContent = t; meta.textContent = busyCount ? '' : m;   // while busy, the button says Updating…
     title.classList.toggle('stale', stale); meta.classList.toggle('stale', stale && !busyCount);
   };
-  if (lastStamp == null) return set(offline ? 'Offline' : 'Right now', loadFailed ? 'Readings did not load' : '', offline || loadFailed);
+  // the heading over the summary: TODAY or TONIGHT (the card's span) while the readings are fresh
+  const fresh = (state.read && state.read.summary && state.read.summary.label) || 'Today';
+  if (lastStamp == null) return set(offline ? 'Offline' : fresh, loadFailed ? 'Readings did not load' : '', offline || loadFailed);
   const d = new Date(lastStamp);
   const day = t => new Date(t).toLocaleDateString('en-US', { timeZone: TZ });
   const at = day(d) === day(Date.now()) ? clock(d)
@@ -1139,7 +719,7 @@ function showUpdated() {
   const age = mins < 60 ? `${mins} min old` : mins < 48 * 60 ? `${Math.round(mins / 60)} h old` : `${Math.round(mins / 1440)} days old`;
   if (offline) return set('Offline', `Last reading ${at}`, true);
   if (mins > FRESH_MIN) return set(`As of ${at}`, age, true);
-  set('Right now', '', false);
+  set(fresh, '', false);
 }
 
 function startSpin() {
@@ -1201,8 +781,11 @@ async function loadRead(force) {
     Object.assign(state, { read: r, readAt: Date.now(), readKey: key });
     store.set({ at: Date.now(), read: r });
     // nothing new to show: leave the page alone (no re-render, no fade). A manual refresh always shows its result.
-    if (!revealNext && readSig(r) === shownSig) { renderAgenda(r); return; }
-    const parts = ['lead', 'why', 's-cards'].map(id => [$(id), $(id).innerHTML]);
+    if (!revealNext && readSig(r) === shownSig) {   // redraw only so passed times drop ("before 4 PM"), unless a sentence is open
+      if (r.summary && !$('summary').querySelector('details[open]')) SummaryCard.renderSummary($('summary'), r.summary, new Date(), { label: false });
+      return;
+    }
+    const parts = ['summary'].map(id => [$(id), $(id).innerHTML]);
     renderRead(r, false);
     parts.forEach(([el, before]) => settle(el, before));
   } catch (err) {
@@ -1210,7 +793,7 @@ async function loadRead(force) {
     const why = navigator.onLine === false ? 'offline' : 'failed';
     const saved = store.get();
     if (!state.read && saved && saved.read) renderRead(saved.read, true, why);
-    else if (!state.read) $('lead').innerHTML = '<span class="pending">The summary didn’t load. Refresh to try again.</span>';
+    else if (!state.read) $('summary').innerHTML = '<p class="sx-none">The summary didn’t load. Refresh to try again.</p>';
     else renderRead(state.read, true, why);
   } finally {
     setBusy(false);
@@ -1288,6 +871,10 @@ window.addEventListener('online', () => { showUpdated(); refresh(); });
 // ── Theme ─────────────────────────────────────────────
 
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+// the summary's day chart is drawn to its width: redraw it when the width changes
+let sxWidth = 0;
+window.addEventListener('resize', () => { const sx = $('summary'); if (sx && sx.__redraw && sx.clientWidth !== sxWidth) { sxWidth = sx.clientWidth; sx.__redraw(); } });
+
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'dark' ? '#0b131c' : '#f4f6f8');
@@ -1297,6 +884,7 @@ function applyTheme(theme) {
     b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
   });
   const tb = $('theme-toggle'); if (tb) tb.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+  const sx = $('summary'); if (sx && sx.__redraw) sx.__redraw();   // the day chart reads its colours from the theme
   if (typeof SKY !== 'undefined' && SKY) SKY.theme();
   if (typeof NBMAP !== 'undefined') NBMAP.theme();
 }
@@ -1346,9 +934,8 @@ function setTempUnit(u) {
   tempPref = u; syncTempSeg();
   if (!changed) return;
   if (state.indoor || state.outdoor) $('monitors').innerHTML = monitorCard(state.indoor, true) + monitorCard(state.outdoor, false);
-  if (state.ctx) renderContext(state.ctx);   // the weather card, plus Coming up and the neighborhood table
-  else { if (state.read) renderAgenda(state.read); if (state.neighbors.length) renderNeighborhood(); }
-  if (state.read) renderActionVis(state.read);
+  if (state.ctx) renderContext(state.ctx);   // the weather card and the neighborhood table
+  else if (state.neighbors.length) renderNeighborhood();
   if (typeof SKY !== 'undefined' && SKY) SKY.units();   // the weather line in the header
 }
 document.querySelectorAll('[data-temp-unit]').forEach(b => {
