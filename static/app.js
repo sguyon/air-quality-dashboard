@@ -156,7 +156,7 @@ function monitorCard(m, indoor) {
     : { word: fT < 40 ? 'Cold' : fT < 60 ? 'Cool' : fT < 75 ? 'Mild' : fT < 85 ? 'Warm' : 'Hot', tone: 'muted' };
   return `<article class="card mc ${indoor ? 'mc-in' : 'mc-out'}" style="--tint:${indoor ? 'var(--series-in)' : 'var(--series-out)'}">
     <div class="mc-head">${uniq(indoor ? ICONS.sceneIn : ICONS.sceneOut)}
-      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${uniq(indoor ? ICONS.one : ICONS.openair)}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name">${indoor ? 'AirGradient ONE · main room' : 'AirGradient Open Air · backyard'}</div><div class="mc-status ${f.tone}" title="${(m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i>${f.label}${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi">· Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</div></div></div>
+      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${uniq(indoor ? ICONS.one : ICONS.openair)}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name">${indoor ? 'AirGradient ONE' : 'AirGradient Open Air'}<span class="mc-loc"> · ${indoor ? 'apartment' : 'backyard'}</span></div><div class="mc-status ${f.tone}" title="${(m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i>${f.label}<span class="mc-loc2" aria-hidden="true">· ${indoor ? 'apartment' : 'backyard'}</span>${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi">· Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</div></div></div>
     </div>
     <div class="mc-hero ${pl.tone}">
       ${pmRing(r.pm, pl.tone)}
@@ -894,9 +894,9 @@ function buildAgenda(r) {
   out.push(...weatherAgenda(needs, toward, ahead));
   // what the forecasts add: haze coming or clearing, tomorrow's pollen, a dry night, strong sun
   out.push(...forecastAgenda(pm, ahead, out.some(o => o.title === 'Best time to air')));
-  // airing the bedroom before the toddler's bedtime
+  // airing before the toddler's bedtime
   if (needs.toddler && needs.toddler.tone !== 'good' && needs.toddler.tone !== 'muted' && h0 >= 12 && h0 < 20)
-    out.push({ at: ahead(20), time: '8 PM', title: 'Air the bedroom before sleep', sub: `If CO₂ is still over ${CO2_OPEN}`, tone: '', needs: ['toddler'] });
+    out.push({ at: ahead(20), time: '8 PM', title: 'Open a window before sleep', sub: `If CO₂ is still over ${CO2_OPEN}`, tone: '', needs: ['toddler'] });
   // a rush happening now that doesn't blow this way is the reason the run is fine: say it once
   const rushNow = out.find(o => o.title === 'BQE rush hour' && o.at === 0 && o.tone !== 'warn'), runNow = out.find(o => o.needs.includes('runner') && o.title !== 'BQE rush hour' && o.at === 0);
   if (rushNow && runNow) { runNow.sub = `Rush hour until ${rushNow.time.replace('Now–', '')}, but ${rushNow.sub.charAt(0).toLowerCase() + rushNow.sub.slice(1)}`; out.splice(out.indexOf(rushNow), 1); }

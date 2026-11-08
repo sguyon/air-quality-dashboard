@@ -3,6 +3,7 @@
 Deployed on Railway with Anthropic API integration for AI analysis.
 """
 
+import base64
 import hashlib
 import json
 import math
@@ -449,8 +450,9 @@ def asset_version(rel_path):
 
 
 def version_assets(html):
-    """Add ?v=<hash> to every /static/*.css and /static/*.js reference."""
-    return re.sub(r'"(/static/[\w./-]+\.(?:css|js))"', lambda m: f'"{m.group(1)}?v={asset_version(m.group(1))}"', html)
+    """Add ?v=<hash> to the page's CSS, JS, icons and manifest, so a changed file gets a new URL. Safari keeps
+    home-screen icons per URL, so a new icon needs a new URL to show."""
+    return re.sub(r'"(/static/[\w./-]+\.(?:css|js|png|svg)|/manifest\.json)"', lambda m: f'"{m.group(1)}?v={asset_version(m.group(1))}"', html)
 
 
 @app.after_request
@@ -489,10 +491,23 @@ def tag_env(html):
     return html
 
 
+def inline_touch_icon(html):
+    """Put the 180 px home-screen icon in the page itself. Safari's Add to Home Screen sheet loads icons on its own
+    and can fail on a network URL, which leaves a letter tile."""
+    m = re.search(r'(<link rel="apple-touch-icon"[^>]*href=")(/static/icons/[\w./-]+\.png)(?:\?v=\w+)?"', html)
+    if not m:
+        return html
+    try:
+        data = base64.b64encode((Path(__file__).parent / m.group(2).lstrip("/")).read_bytes()).decode()
+    except OSError:
+        return html
+    return html[:m.start()] + f'{m.group(1)}data:image/png;base64,{data}"' + html[m.end():]
+
+
 @app.route("/")
 def index():
     html_path = Path(__file__).parent / "index.html"
-    html = tag_env(version_assets(html_path.read_text()))
+    html = inline_touch_icon(tag_env(version_assets(html_path.read_text())))
 
     # Inject build info into a data attribute on the body
     build_info = get_build_info()
@@ -538,16 +553,32 @@ def archive_proposal():
 def manifest():
     path = Path(__file__).parent / "manifest.json"
     env = icon_env()
-    if not env:
-        return send_file(path, mimetype="application/manifest+json")
-    data = json.loads(path.read_text())   # the installed app gets the DEV / PREVIEW icons and name too
-    data["name"] = f'{data.get("name", "Home Air Quality")} ({ENV_LABEL[env]})'
-    data["short_name"] = f"AQ {ENV_LABEL[env]}"
+    data = json.loads(path.read_text())
+    if env:   # the installed app gets the DEV / PREVIEW icons and name too
+        data["name"] = f'{data.get("name", "Home Air Quality")} ({ENV_LABEL[env]})'
+        data["short_name"] = f"AQ {ENV_LABEL[env]}"
     for ic in data.get("icons", []):
-        if str(ic.get("src", "")).startswith("/static/icons/"):
-            ic["src"] = ic["src"].replace("/static/icons/", f"/static/icons/{env}/", 1)
+        src = str(ic.get("src", ""))
+        if src.startswith("/static/icons/"):
+            ic["src"] = (src.replace("/static/icons/", f"/static/icons/{env}/", 1) if env else src) + f"?v={asset_version(src)}"
     resp = jsonify(data)
     resp.headers["Content-Type"] = "application/manifest+json"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
+@app.route("/apple-touch-icon.png")
+@app.route("/apple-touch-icon-precomposed.png")
+@app.route("/apple-touch-icon-180x180.png")
+@app.route("/apple-touch-icon-180x180-precomposed.png")
+@app.route("/favicon.ico")
+def root_icon():
+    """The icons iOS and browsers ask for at the root, whatever the page declares; with the DEV / PREVIEW set where it applies."""
+    env = icon_env()
+    name = "favicon-32.png" if request.path == "/favicon.ico" else "apple-touch-icon.png"
+    path = Path(__file__).parent / "static" / "icons" / (f"{env}/" if env else "") / name
+    resp = send_file(path, mimetype="image/png")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
     return resp
 
 
@@ -1271,7 +1302,7 @@ def build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run
         tod = ("bad", "Keep the toddler inside", f"Outdoor PM2.5 is {fmt_num(pm_out)}, over {PM_HIGH}.")
     elif co2 is not None and co2 > CO2_OPEN:
         since = co2_run["label"] if co2_run else ""
-        tod = ("bad" if co2 > 1500 else "warn", "Air the bedroom before sleep" if evening else "Air the room",
+        tod = ("bad" if co2 > 1500 else "warn", "Open a window before sleep" if evening else "Air the room",
                f"CO₂ has been over {CO2_OPEN} {since}." if since and since != "all day" else f"CO₂ is {co2:.0f} ppm, over {CO2_OPEN}.")
     elif co2 is not None:
         tod = ("good", "Fresh air for sleep" if evening else "Fresh air indoors", f"CO₂ is {co2:.0f} ppm, under {CO2_OPEN}.")

@@ -1,10 +1,11 @@
+// v5: the manifest and icons are network-first. v4 kept the manifest cache-first under a fixed cache name,
+// so installed phones never saw a new manifest (an old one with an SVG icon gave iOS a letter icon).
 // v4: the page's CSS and JS moved to /static/, with a ?v=<content hash> the server adds.
 // v3: pages are network-first (v2 served a cached page until the cache name changed),
 // only GET responses are cached, and history is cached once per monitor.
-const CACHE_NAME = 'aq-dashboard-v4';
+const CACHE_NAME = 'aq-dashboard-v5';
 const STATIC_ASSETS = [
   '/',
-  '/manifest.json',
   'https://cdn.jsdelivr.net/npm/chart.js@4',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
 ];
@@ -73,6 +74,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Manifest and icons: network first, so a new icon reaches installed phones.
+  if (sameOrigin && (url.pathname === '/manifest.json' || url.pathname.startsWith('/static/icons/') || /^\/(apple-touch-icon[\w-]*\.png|favicon\.ico)$/.test(url.pathname))) {
+    event.respondWith(networkFirst(request, request, () => Response.error()));
+    return;
+  }
+
   // Our CSS and JS: the URL carries a content hash, so cache first is safe.
   // Storing a new version removes the older copies of the same file.
   if (sameOrigin && url.pathname.startsWith('/static/')) {
@@ -88,7 +95,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Fonts, CDN scripts, manifest: cache first.
+  // Fonts and CDN scripts: cache first.
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
       if (response.ok || response.type === 'opaque') {

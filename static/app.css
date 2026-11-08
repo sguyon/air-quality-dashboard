@@ -2362,8 +2362,6 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
 :root .ai > .s-bar #read-refresh svg.i { width: 15px; height: 15px; }
 :root .ai > .s-bar #read-refresh:hover { color: var(--ink); }
 :root .ai > .s-bar { background:
-    radial-gradient(circle at 37px 50%, transparent 0 9px, color-mix(in srgb, #7fd3e6 38%, transparent) 9px 10px, transparent 10px 16px,
-      color-mix(in srgb, #7fd3e6 22%, transparent) 16px 17px, transparent 17px 25px, color-mix(in srgb, #7fd3e6 11%, transparent) 25px 26px, transparent 26px),
     linear-gradient(100deg, color-mix(in srgb, #7fd3e6 16%, var(--card)) 0%, color-mix(in srgb, #7fd3e6 5%, var(--card)) 50%, var(--card) 85%) !important; }
 @media (max-width: 760px) {
   :root .ai > .s-bar { padding: 9px 18px !important; }
@@ -2418,17 +2416,11 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
 }
 /* AI banner: tinted across the whole band like the monitor headers (never fades to plain card) */
 :root .ai > .s-bar, .ai > .s-bar { background:
-    radial-gradient(circle at 37px 50%, transparent 0 9px, color-mix(in srgb, #7fd3e6 38%, transparent) 9px 10px, transparent 10px 16px,
-      color-mix(in srgb, #7fd3e6 22%, transparent) 16px 17px, transparent 17px 25px, color-mix(in srgb, #7fd3e6 11%, transparent) 25px 26px, transparent 26px),
     linear-gradient(100deg, color-mix(in srgb, #7fd3e6 20%, var(--card)) 0%, color-mix(in srgb, #7fd3e6 10%, var(--card)) 55%, color-mix(in srgb, #7fd3e6 15%, var(--card)) 100%) !important; }
 :root[data-theme="dark"] .ai > .s-bar { background:
-    radial-gradient(circle at 37px 50%, transparent 0 9px, color-mix(in srgb, #7fd3e6 30%, transparent) 9px 10px, transparent 10px 16px,
-      color-mix(in srgb, #7fd3e6 16%, transparent) 16px 17px, transparent 17px 25px, color-mix(in srgb, #7fd3e6 8%, transparent) 25px 26px, transparent 26px),
     linear-gradient(100deg, color-mix(in srgb, #1f7d93 32%, var(--card)) 0%, color-mix(in srgb, #1f7d93 16%, var(--card)) 55%, color-mix(in srgb, #1f7d93 22%, var(--card)) 100%) !important; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .ai > .s-bar { background:
-    radial-gradient(circle at 37px 50%, transparent 0 9px, color-mix(in srgb, #7fd3e6 30%, transparent) 9px 10px, transparent 10px 16px,
-      color-mix(in srgb, #7fd3e6 16%, transparent) 16px 17px, transparent 17px 25px, color-mix(in srgb, #7fd3e6 8%, transparent) 25px 26px, transparent 26px),
     linear-gradient(100deg, color-mix(in srgb, #1f7d93 32%, var(--card)) 0%, color-mix(in srgb, #1f7d93 16%, var(--card)) 55%, color-mix(in srgb, #1f7d93 22%, var(--card)) 100%) !important; }
 }
 /* refresh steps show to the right of the button; "Updated… ago" steps aside meanwhile */
@@ -2576,3 +2568,34 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 .ai .n-card > .n-pollen { grid-row: 4; margin: 0 0 14px !important; }
 .ai .n-card > .s-means { grid-row: 5; margin: 0 !important; align-self: start; }
 @media (max-width: 760px) { .ai .s-cards .n-card { padding: 22px 18px 24px !important; } }
+
+/* the AI dot's still rings live in its own SVG (.halo), so they stay centered on the dot at every width
+   (they used to be a banner background at a fixed 37 px, which missed the dot on phones) */
+:root[data-theme="dark"] .s-tag-mark .halo { opacity: .8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .s-tag-mark .halo { opacity: .8; } }
+/* monitor headers on phones: a larger device drawing and scene; the device name on one line, the room beside the status */
+.mc-loc2 { display: none; }
+@media (max-width: 560px) {
+  .mc > .mc-head { padding-top: 14px !important; padding-bottom: 14px !important; }
+  .mc-head .mc-id { gap: 12px !important; padding-right: 96px !important; }
+  .mc-hw { width: 64px !important; height: 64px !important; margin: -4px 0 -4px -4px !important; }
+  .mc-hw svg { width: 60px !important; height: 60px !important; }
+  .mc-scene { width: 100px !important; height: 74px !important; right: 6px !important; }
+  .mc-kind { font-size: 12px; }
+  .mc-name { margin-top: 5px !important; font-size: 16px !important; line-height: 1.25 !important; white-space: nowrap; }
+  .mc-loc { display: none; }
+  .mc-loc2 { display: inline; font-weight: 500; color: var(--muted); }
+  .mc-head .mc-status { margin-top: 5px !important; }
+}
+/* source labels: room for descenders ("Google" was clipped), and the link arrow right after the text */
+.grid4 .card-top .k-link .srcl { line-height: 1.35; }
+.grid4 .card-top .k-link .k-arr { margin-left: -4px; }
+/* monitor headers: the name block may shrink, so a long name never widens the card */
+.mc-head .mc-id > div { min-width: 0; }
+@media (max-width: 380px) {
+  .mc-name { font-size: 15px !important; overflow: hidden; text-overflow: ellipsis; }
+  .mc-scene { width: 84px !important; height: 62px !important; }
+  .mc-head .mc-id { padding-right: 80px !important; }
+}
+/* iOS: no double-tap zoom (it zoomed a card to the screen width and left the page cut off); pinch-zoom still works */
+html { touch-action: manipulation; }
