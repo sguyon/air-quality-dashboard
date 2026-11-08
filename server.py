@@ -1302,7 +1302,7 @@ def build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run
         tod = ("bad", "Keep the toddler inside", f"Outdoor PM2.5 is {fmt_num(pm_out)}, over {PM_HIGH}.")
     elif co2 is not None and co2 > CO2_OPEN:
         since = co2_run["label"] if co2_run else ""
-        tod = ("bad" if co2 > 1500 else "warn", "Air the bedroom before sleep" if evening else "Air the room",
+        tod = ("bad" if co2 > 1500 else "warn", "Open a window before sleep" if evening else "Air the room",
                f"CO₂ has been over {CO2_OPEN} {since}." if since and since != "all day" else f"CO₂ is {co2:.0f} ppm, over {CO2_OPEN}.")
     elif co2 is not None:
         tod = ("good", "Fresh air for sleep" if evening else "Fresh air indoors", f"CO₂ is {co2:.0f} ppm, under {CO2_OPEN}.")
