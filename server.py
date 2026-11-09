@@ -1,7 +1,4 @@
-"""AirGradient Dashboard — Local proxy server.
-
-Deployed on Railway with Anthropic API integration for AI analysis.
-"""
+"""Home Air Quality: the server. It serves the page and fetches the readings and the local conditions it shows."""
 
 import base64
 import hashlib
@@ -10,15 +7,19 @@ import math
 import os
 import subprocess
 import re
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, g, jsonify, request, send_file
 import requests
 
+import phrases
 import summary as summary_rules
+from config import DEFAULT_LIMITS, ConfigError, bearing_in, env_key, load_config, public_view, real_value, route_path
 
 # One shared pool for short-lived upstream calls (weather / smoke / pollen).
 _UPSTREAM_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="upstream")
@@ -40,7 +41,7 @@ def _call_with_deadline(fn, *args, deadline_s=5, default=None, **kwargs):
         return default
 
 # ── Server-side cache ──
-# One in-memory store for upstream data (AirGradient, Open-Meteo, Google Pollen, NOAA, the model).
+# One in-memory store for upstream data (AirGradient, Open-Meteo, Google Pollen, NOAA).
 # - fresh (age < ttl): served as is
 # - a little old (age < ttl + swr): served at once, refreshed in the background
 # - older or missing: fetched; concurrent requests for the same key share one fetch
@@ -103,59 +104,9 @@ def cached(key, fetch, ttl, swr=0, keep=0, force=False, force_floor=15, wait=15)
         raise
 
 
-# ── Limits on paid model calls ──
-# Every model call costs money, and the page is public. Three caps, in memory (one server process):
-# per visitor (IP) per hour, for the whole site per minute, and for the whole site per day.
-# Past a cap, the advice falls back to the rules' wording; nothing breaks.
-AI_CAP_PER_IP_HOUR = int(os.environ.get("AI_CAP_PER_IP_HOUR", "20"))
-AI_CAP_PER_MINUTE = int(os.environ.get("AI_CAP_PER_MINUTE", "10"))
-AI_CAP_PER_DAY = int(os.environ.get("AI_CAP_PER_DAY", "300"))
-FORCE_CAP_PER_IP_10MIN = 6     # Refresh presses that rewrite the advice, per visitor
-_ai_log, _force_log, _ai_lock = [], {}, threading.Lock()
-
-
-def client_ip():
-    """The visitor's address. Railway's proxy puts it first in X-Forwarded-For."""
-    try:
-        fwd = request.headers.get("X-Forwarded-For", "")
-        return (fwd.split(",")[0].strip() or request.remote_addr or "?")
-    except RuntimeError:
-        return "?"
-
-
-def ai_allowed(ip):
-    """Records a model call and returns None if it's within the caps, else the reason it isn't."""
-    now = time.time()
-    with _ai_lock:
-        _ai_log[:] = [(t, a) for t, a in _ai_log if now - t < 86400]
-        if len(_ai_log) >= AI_CAP_PER_DAY:
-            return "day"
-        if sum(1 for t, _ in _ai_log if now - t < 60) >= AI_CAP_PER_MINUTE:
-            return "minute"
-        if sum(1 for t, a in _ai_log if a == ip and now - t < 3600) >= AI_CAP_PER_IP_HOUR:
-            return "visitor"
-        _ai_log.append((now, ip))
-    return None
-
-
-def force_allowed(ip):
-    """A visitor can make the server skip its cache a few times per 10 minutes; after that, cached data is served."""
-    now = time.time()
-    with _ai_lock:
-        hits = [t for t in _force_log.get(ip, []) if now - t < 600]
-        if len(hits) >= FORCE_CAP_PER_IP_10MIN:
-            _force_log[ip] = hits
-            return False
-        _force_log[ip] = hits + [now]
-        if len(_force_log) > 5000:
-            _force_log.clear()
-    return True
-
-
 def _force():
     """The page's Refresh button sends X-Force-Refresh: 1."""
-    # Free sources only; each has a floor (15 s, 10 min for Google Pollen) so repeats don't refetch.
-    # The paid model call has its own per-visitor cap in build_air_read.
+    # Each source has a floor (15 s, 10 min for Google Pollen) so repeats don't refetch.
     try:
         return request.headers.get("X-Force-Refresh") == "1"
     except RuntimeError:   # outside a request
@@ -169,74 +120,126 @@ def _note_cache(info):
         pass
 
 
-# Load .env file if it exists
-env_path = Path(__file__).parent / ".env"
-if env_path.exists():
-    for line in env_path.read_text().splitlines():
+def parse_dotenv(text):
+    """KEY=value lines from a .env file. One pair of matching quotes around a value is dropped
+    (AIRGRADIENT_TOKEN="abc" is abc); the first line for a key wins, like the environment over the file."""
+    out = {}
+    for line in text.splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             key, val = line.split("=", 1)
-            os.environ.setdefault(key.strip(), val.strip())
+            key, val = key.strip().removeprefix("export ").strip(), val.strip()
+            if not key or key == "export":   # "=x" or "export =x": no name to set
+                continue
+            if len(val) >= 2 and val[0] == val[-1] and val[0] in "'\"":
+                val = val[1:-1]
+            out.setdefault(key, val)
+    return out
+
+
+# Load .env file if it exists
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    for key, val in parse_dotenv(env_path.read_text()).items():
+        os.environ.setdefault(key, val)
 
 app = Flask(__name__)
 
 API_BASE = "https://api.airgradient.com/public/api/v1"
-TOKEN = os.environ.get("AIRGRADIENT_TOKEN", "")
-# Rounded to ~1 km on purpose (public repo): weather, pollen, smoke and the 15 km radius don't need more.
-HOME_LAT = 40.73
-HOME_LON = -73.95
+TOKEN = env_key("AIRGRADIENT_TOKEN")   # .env.example's placeholder counts as no token
 NEARBY_RADIUS_KM = 15
 
-try:
-    from zoneinfo import ZoneInfo
-    HOME_TZ = ZoneInfo("America/New_York")
-except Exception:  # no tz database on the host
-    HOME_TZ = None
+
+def use_config(cfg):
+    """Point the server at a config (config.py): the home, its clock, the road and the limits. Runs once at import;
+    tests run it again with another config. With None (no config) there is no home: Task 10 decides what happens then.
+    The config rounds the home to ~1 km on purpose (public repo): weather, pollen, smoke and the 15 km radius don't
+    need more. tzdata (requirements.txt) gives every host the timezone database."""
+    global CFG, APP_VIEW, HOME_LAT, HOME_LON, HOME_TZ, ROAD, RUSH_WINDOWS, LIMITS, PM_FINE, PM_HIGH, CO2_OPEN, RH_LOW, RH_DAMP
+    CFG = cfg
+    APP_VIEW = public_view(cfg) if cfg else {}   # what the page gets as window.APP
+    place = cfg.place if cfg else None
+    HOME_LAT, HOME_LON = (place.lat, place.lon) if place else (None, None)
+    HOME_TZ = ZoneInfo(place.timezone) if place else None
+    ROAD = cfg.road if cfg else None
+    RUSH_WINDOWS = list(ROAD.rush) if ROAD else []   # [start, end) hours, and the rush's name
+    # the TOML reads every limit as a float; whole numbers stay whole so the page says "800", not "800.0"
+    LIMITS = {k: int(v) if float(v).is_integer() else v for k, v in (cfg.limits if cfg else DEFAULT_LIMITS).items()}
+    PM_FINE, PM_HIGH, CO2_OPEN = LIMITS["pm"], LIMITS["pm_high"], LIMITS["co2"]
+    RH_LOW, RH_DAMP = LIMITS["rh_dry"], LIMITS["rh_damp"]
+    summary_rules.LIMITS.update(LIMITS)
+    phrases.LIMIT_FACTS.update(co2_limit=LIMITS["co2"], rh_damp=LIMITS["rh_damp"], rh_dry=LIMITS["rh_dry"],
+                               rh_stop=LIMITS["rh_stop"], pm_limit=LIMITS["pm"], pm_high=LIMITS["pm_high"],
+                               **({"indoor": place.indoor, "outdoor": place.outdoor} if place else {}))
+
+
+def startup_config(env=os.environ, root=None):
+    """The config to run with: DEMO=1, CONFIG_TOML, CONFIG_FILE or config.toml (config.load_config). With none of them and no
+    AIRGRADIENT_TOKEN either (a fresh copy), the demo's."""
+    kw = {} if root is None else {"root": root}
+    cfg = load_config(env, **kw)
+    if cfg is None and not real_value(env.get("AIRGRADIENT_TOKEN")):
+        cfg = load_config({"DEMO": "1"}, **kw)
+    return cfg
+
+
+NO_CONFIG_MESSAGE = "No config: copy config.example.toml to config.toml (or set CONFIG_TOML)"
+
+
+APP_LOAD_ERROR = 4   # gunicorn's exit code for "the app can't load": the master stops instead of respawning forever
+
+
+def _stop(message):
+    print(message, file=sys.stderr, flush=True)
+    sys.exit(APP_LOAD_ERROR)
+
+
+def boot_config(env=os.environ, root=None):
+    """startup_config for the server's start: stops with a plain message instead of a traceback when the config is
+    invalid (the ConfigError's text names where) or when there is a token but no config (it won't guess a home)."""
+    try:
+        cfg = startup_config(env, root)
+    except ConfigError as e:
+        _stop(str(e))
+    if cfg is None:
+        _stop(NO_CONFIG_MESSAGE)
+    return cfg
+
+
+def server_mode(cfg, token):
+    """"demo" (made-up data, demo/), "live" (a config and a token) or "no_token" (a config, no token yet)."""
+    if cfg is not None and cfg.demo:
+        return "demo"
+    return "live" if real_value(token) else "no_token"
+
+
+use_config(boot_config())
+MODE = server_mode(CFG, TOKEN)
 
 
 def local_now():
     """The clock at home. Railway runs in UTC, so a bare datetime.now() gives the wrong hour there."""
-    if HOME_TZ is not None:
-        return datetime.now(HOME_TZ)
-    # US Eastern without a tz database: DST runs from the second Sunday of March to the first Sunday of November.
-    utc = datetime.now(timezone.utc)
-    year = utc.year
-    march = datetime(year, 3, 8, 7, tzinfo=timezone.utc)
-    dst_start = march + timedelta(days=(6 - march.weekday()) % 7)
-    november = datetime(year, 11, 1, 6, tzinfo=timezone.utc)
-    dst_end = november + timedelta(days=(6 - november.weekday()) % 7)
-    offset = -4 if dst_start <= utc < dst_end else -5
-    return utc.astimezone(timezone(timedelta(hours=offset)))
+    return datetime.now(HOME_TZ) if HOME_TZ else datetime.now(timezone.utc)
 
 
 def get_build_info():
-    """Get git commit hash and deployment time in ET timezone."""
-    try:
-        # Get latest commit hash (short 7 chars)
-        commit = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=Path(__file__).parent,
-            stderr=subprocess.DEVNULL,
-            timeout=5
-        ).decode().strip()
-    except Exception:
-        commit = "no-git"
+    """The commit and the time of this page, in the home's timezone. The commit comes from the host's deploy
+    variables when it sets them (Railway, Vercel), else from git."""
+    commit = (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("VERCEL_GIT_COMMIT_SHA") or "").strip()[:7]
+    if not commit:
+        try:
+            commit = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=Path(__file__).parent, stderr=subprocess.DEVNULL, timeout=5,
+            ).decode().strip()
+        except Exception:
+            commit = "no-git"
+    return f"v2 · {commit} · {local_now().strftime('%H:%M:%S %Z')}"
 
-    # Current deploy time in ET (NYC timezone) using simple offset calculation
-    # ET is UTC-4 (EDT) or UTC-5 (EST)
-    import time
-    if time.daylight:
-        # During daylight saving time (EDT): UTC-4
-        offset_hours = -4
-    else:
-        # During standard time (EST): UTC-5
-        offset_hours = -5
 
-    from datetime import timezone, timedelta
-    et_tz = timezone(timedelta(hours=offset_hours))
-    time_str = datetime.now(et_tz).strftime("%H:%M:%S ET")
-
-    return f"v2 · {commit} · {time_str}"
+def _redact(text):
+    """The token never leaves the server: AirGradient error text can carry the request URL (?token=...) or echo it."""
+    return str(text).replace(TOKEN, "***") if TOKEN else str(text)
 
 
 def api_get(path, params=None):
@@ -249,9 +252,9 @@ def api_get(path, params=None):
         return r.json()
     except requests.exceptions.HTTPError as e:
         status = e.response.status_code
-        raise RuntimeError(f"AirGradient API returned {status}: {e.response.text[:300]}") from e
+        raise RuntimeError(_redact(f"AirGradient API returned {status}: {e.response.text[:300]}")) from None
     except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"AirGradient API unreachable: {e}") from e
+        raise RuntimeError(f"AirGradient API unreachable ({type(e).__name__})") from None
 
 
 def _fetch_weather():
@@ -266,7 +269,7 @@ def _fetch_weather():
             "past_hours": 4,   # the summary chart starts before now
             "daily": "sunrise,sunset",
             "forecast_days": 2,
-            "timezone": "America/New_York"
+            "timezone": CFG.place.timezone
         },
         timeout=10
     )
@@ -295,7 +298,7 @@ def _fetch_air_forecast():
         "https://air-quality-api.open-meteo.com/v1/air-quality",
         params={"latitude": HOME_LAT, "longitude": HOME_LON, "hourly": "pm2_5",
                 "forecast_hours": 24, "past_hours": 24,   # the past day calibrates the forecast to the backyard monitor
-                "timezone": "America/New_York"},
+                "timezone": CFG.place.timezone},
         timeout=10
     )
     r.raise_for_status()
@@ -408,7 +411,7 @@ def _pollen_types(day):
 
 def _fetch_pollen():
     """Today's and tomorrow's pollen, one call: {"today": [...], "tomorrow": [...]}."""
-    api_key = os.environ.get("GOOGLE_POLLEN_API_KEY", "")
+    api_key = env_key("GOOGLE_POLLEN_API_KEY")
     if not api_key:
         return {"today": [], "tomorrow": []}
     # Hard deadline: DNS stalls on pollen.googleapis.com have been observed at ~30s
@@ -433,6 +436,24 @@ def get_pollen_days():
 def get_pollen_data(lat=None, lon=None):
     """Today's pollen from Google: [{name, level, index, in_season}, ...]."""
     return get_pollen_days()["today"]
+
+
+# ── Sources that are off or not set up ──────────────────────────────────
+# "off": turned off in the config (or no road). "not_set_up": on, but its key is missing. "ok", or "error" when it
+# is on and set up and didn't answer. A source that is off or not set up is never fetched.
+
+def source_on(name):
+    return CFG.sources.get(name, True) if CFG else True
+
+
+def pollen_state():
+    if not source_on("pollen"):
+        return "off"
+    return "ok" if env_key("GOOGLE_POLLEN_API_KEY") else "not_set_up"
+
+
+def pollen_live():
+    return pollen_state() == "ok"
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -469,18 +490,22 @@ def api_headers(resp):
         if getattr(g, "cache_state", None):
             resp.headers["X-Cache"] = g.cache_state
             resp.headers["X-Data-Age"] = str(g.cache_age)
+    if MODE == "demo" and request.method == "GET" and resp.status_code == 200 and (request.path == "/" or request.path.startswith("/api/")):
+        # the demo's story is fixed: a CDN keeps each URL (each ?moment=) for a day, so a busy day barely runs the server
+        resp.headers["Cache-Control"] = "public, max-age=300, s-maxage=86400"
+    if not (CFG is not None and CFG.demo):   # only the demo is for search engines; someone's home is not
+        resp.headers["X-Robots-Tag"] = "noindex"
     return resp
 
 
 def icon_env():
-    """Which icon set this address gets: "dev" locally (localhost and local network IPs), "preview" on the Railway dev
-    service, None (the clean icons) everywhere else, production included."""
+    """"dev" or "preview" or None (a normal deployment). A local address is always "dev"; anywhere else the
+    deployment names itself with APP_ENV, never by its address."""
     host = (request.host or "").split(":")[0].lower()
     if host in ("localhost", "127.0.0.1", "0.0.0.0") or host.startswith(("127.", "10.", "192.168.")) or re.match(r"^172\.(1[6-9]|2\d|3[01])\.", host):
         return "dev"
-    if host == "air-quality-dashboard-dev.up.railway.app":
-        return "preview"
-    return None
+    env = os.environ.get("APP_ENV", "").strip().lower()
+    return env if env in ENV_LABEL else None
 
 
 ENV_LABEL = {"dev": "DEV", "preview": "PREVIEW"}
@@ -514,6 +539,7 @@ def inline_touch_icon(html):
 def index():
     html_path = Path(__file__).parent / "index.html"
     html = inline_touch_icon(tag_env(version_assets(html_path.read_text())))
+    html = inject_app(html)
 
     # Inject build info into a data attribute on the body
     build_info = get_build_info()
@@ -525,34 +551,29 @@ def index():
     return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
-@app.route("/v1")
-def v1():
-    """Previous live page. The new page is /."""
-    html_path = Path(__file__).parent / "v1.html"
-    html = html_path.read_text()
-    html = html.replace("<body>", f'<body data-build="{get_build_info()}">', 1)
-    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+def page_clock():
+    """The demo's fixed clock for the page (window.APP.now: the moment's time, its key, the moments to switch to),
+    or None: a real home runs on the real clock. demo/data.py replaces it."""
+    return None
 
 
-@app.route("/archive/home-air")
-def archive_home_air():
-    """Earlier redesign, kept for comparison. Not the live page."""
-    html_path = Path(__file__).parent / "archive" / "home-air.html"
-    if not html_path.exists():   # local-only mockups, not in the repo
-        return "Not found", 404
-    html = html_path.read_text()
-    html = html.replace("<body>", f'<body data-build="{get_build_info()}">', 1)
-    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+def inject_app(html):
+    """The home's config for the page's scripts (config.public_view), as window.APP before the first of them.
+    Every "<" is escaped (\\u003c, still the same JSON) so no config value can close the script or open a comment."""
+    now = page_clock()
+    data = json.dumps({**APP_VIEW, "env": icon_env(), **({"now": now} if now else {}), **({"state": "no_token"} if MODE == "no_token" else {})}, ensure_ascii=False).replace("<", "\\u003c")
+    return html.replace("<script src=", f"<script>window.APP = {data};</script>\n<script src=", 1)
 
 
-@app.route("/archive/proposal")
-def archive_proposal():
-    """Static mock. Does not replace the live page."""
-    html_path = Path(__file__).parent / "archive" / "proposal.html"
-    if not html_path.exists():   # local-only mockups, not in the repo
-        return "Not found", 404
-    html = html_path.read_text()
-    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+@app.route("/api/road/route")
+def road_route():
+    """The road's route ([lon, lat] points) for the map. 404 without a road."""
+    if not ROAD:
+        return jsonify({"error": "no road"}), 404
+    try:
+        return jsonify(json.loads(route_path(ROAD.route).read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return jsonify({"error": "road route unreadable"}), 404
 
 
 @app.route("/manifest.json")
@@ -598,12 +619,13 @@ def health():
     return jsonify({
         "status": "ok",
         "airgradient_token_set": bool(TOKEN),
-        "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
     })
 
 
 @app.route("/api/current")
 def current():
+    if MODE == "no_token":   # a config but no token yet: the page says so; an expired token is a 502 below
+        return jsonify({"state": "no_token"})
     try:
         value, info = cached("ag:current", lambda: api_get("/locations/measures/current"), ttl=30, keep=900, force=_force())
     except RuntimeError as e:
@@ -671,6 +693,8 @@ def _fetch_nearby():
 
 @app.route("/api/neighborhood")
 def neighborhood():
+    if not source_on("nearby"):
+        return jsonify([])
     try:
         value, info = cached("ag:nearby", _fetch_nearby, ttl=120, swr=900, keep=3600, force=_force(), wait=20)
     except Exception as e:
@@ -690,7 +714,7 @@ def get_wind_cardinal(degrees):
 
 def hourly_forecast(weather, air):
     """The next 12 hours (13 entries from the current local hour), for Coming up and the model's LATER facts:
-    rain, temperature, dew point, UV, the model's outdoor PM2.5, and whether the wind carries BQE exhaust here."""
+    rain, temperature, dew point, UV, the model's outdoor PM2.5, and whether the wind carries the road's exhaust here."""
     hourly = weather.get("hourly") or {}
     times = hourly.get("time") or []
     now_key = local_now().strftime("%Y-%m-%dT%H:00")
@@ -708,33 +732,37 @@ def hourly_forecast(weather, air):
         "wind_dir": col("wind_direction_10m", k),
         "uv": col("uv_index", k),
         "pm25": air.get(times[k]),   # the air-quality model's outdoor PM2.5 for that hour
-        # whether that hour's wind carries the BQE's exhaust here (None without a wind direction)
+        # whether that hour's wind carries the road's exhaust here (None without a wind direction; False without a road)
         "bqe_toward": None if col("wind_direction_10m", k) is None else
-        predict_bqe_traffic(int(times[k][11:13]), col("wind_direction_10m", k))["wind_impact"] == "Blowing toward Greenpoint",
+        road_traffic(int(times[k][11:13]), col("wind_direction_10m", k))["toward"],
     } for k in range(start, min(start + 13, len(times)))]
 
 
 @app.route("/api/context")
 def context():
-    """Return external data sources (weather, pollen, BQE, smoke) as structured JSON."""
+    """Return external data sources (weather, pollen, the road, smoke) as structured JSON."""
     # Fetch independents in parallel; pollen has its own hard deadline inside get_pollen_data.
     weather_fut = _CONTEXT_POOL.submit(get_open_meteo_data, HOME_LAT, HOME_LON)
-    smoke_fut = _CONTEXT_POOL.submit(smoke_status)
-    pollen_fut = _CONTEXT_POOL.submit(get_pollen_days)
+    smoke_fut = _CONTEXT_POOL.submit(smoke_status) if source_on("smoke") else None
+    pollen_fut = _CONTEXT_POOL.submit(get_pollen_days) if pollen_live() else None
     air_fut = _CONTEXT_POOL.submit(get_air_forecast)
 
     try:
         weather = weather_fut.result(timeout=12)
     except Exception:
         weather = {"current": {}}
-    try:
-        smoke = smoke_fut.result(timeout=12)
-    except Exception:
-        smoke = {"checked": False, "detected": False, "density": None, "date": None}
-    try:
-        pollen_days = pollen_fut.result(timeout=6)
-    except Exception:
-        pollen_days = {"today": [], "tomorrow": []}
+    smoke = {"checked": False, "detected": False, "density": None, "date": None}
+    pollen_days = {"today": [], "tomorrow": []}
+    if smoke_fut:
+        try:
+            smoke = smoke_fut.result(timeout=12)
+        except Exception:
+            pass
+    if pollen_fut:
+        try:
+            pollen_days = pollen_fut.result(timeout=6)
+        except Exception:
+            pass
     pollen, pollen_tomorrow = pollen_days["today"], pollen_days["tomorrow"]
     try:
         air = air_fut.result(timeout=12)
@@ -775,9 +803,24 @@ def context():
 
     forecast = hourly_forecast(weather, air)
 
-    # BQE traffic
+    # the road's traffic, and whether the wind blows its exhaust here
     current_hour = local_now().hour
-    bqe = predict_bqe_traffic(current_hour, wind_direction)
+    road = road_traffic(current_hour, wind_direction)
+    if ROAD:   # "bqe" is the shape the page reads today; "road" carries the flag (the page moves to it later)
+        extra = {"bqe": {"traffic": road["traffic"], "wind_impact": road["wind_impact"],
+                         "pollution_pressure": road["pollution_pressure"], "current_hour": current_hour},
+                 "road": {"name": ROAD.name, "toward": road["toward"]}}
+    else:
+        extra = {}
+
+    # per source: ok, off (config), not_set_up (key missing) or error (on, but it didn't answer)
+    pollen_s = pollen_state()
+    status = {
+        "pollen": ("ok" if pollen else "error") if pollen_s == "ok" else pollen_s,
+        "smoke": ("ok" if smoke.get("checked") else "error") if source_on("smoke") else "off",
+        "road": "ok" if ROAD else "off",
+        "nearby": "ok" if source_on("nearby") else "off",
+    }
 
     return jsonify({
         "weather": {
@@ -794,41 +837,33 @@ def context():
             "cloud_cover": cur.get("cloud_cover"),
             "weather_code": cur.get("weather_code")
         },
-        "bqe": {
-            "traffic": bqe["traffic"],
-            "wind_impact": bqe["wind_impact"],
-            "pollution_pressure": bqe["pollution_pressure"],
-            "current_hour": current_hour
-        },
+        **extra,
         "smoke": smoke,
         "pollen": pollen,
         "pollen_tomorrow": pollen_tomorrow,
-        "forecast": forecast
+        "forecast": forecast,
+        "status": status,
     })
 
 
-BQE_TOWARD = (80, 200)   # wind from these directions carries BQE exhaust toward home
+def road_traffic(hour, wind_direction):
+    """How much the road's traffic weighs on home at this hour: its rush, and whether the wind carries its exhaust here.
 
-
-def predict_bqe_traffic(hour, wind_direction):
-    """Predict BQE pollution impact based on time of day and wind direction.
-
-    BQE peaks: 7-10 AM and 4-8 PM.
-    Where the BQE is: within 2 km of home it lies east through south (bearings ~83-194°, nearest
-    ~0.95 km south-east, along Meeker Ave and the Kosciuszko Bridge approach; from OpenStreetMap routing).
-    So wind FROM about 80-200° (E, SE, S) carries its exhaust toward home; wind from about 260-20°
-    (W, NW, N) carries it away; anything else is a crosswind.
+    Peak inside a rush window, shoulders an hour either side. The road's `toward` arc (config) holds the wind
+    directions that carry its exhaust toward home (Sacha's BQE: from about 80-200°, E through S, so the road lies
+    east through south within 2 km); the opposite arc carries it away; anything else is a crosswind.
+    `toward` is the flag to test; wind_impact is display text. Without a road: toward False and nothing else.
     """
+    if ROAD is None:
+        return {"toward": False, "traffic": None, "wind_impact": None, "pollution_pressure": None}
     hour_int = int(hour)
 
     # Traffic intensity by hour
-    if 7 <= hour_int <= 9:
-        traffic_intensity = "PEAK (morning rush)"
-        multiplier = 1.5
-    elif 16 <= hour_int <= 19:
-        traffic_intensity = "PEAK (evening rush)"
-        multiplier = 1.4
-    elif 6 <= hour_int <= 10 or 15 <= hour_int <= 20:
+    peak = next(((i, name) for i, (a, b, name) in enumerate(RUSH_WINDOWS) if a <= hour_int < b), None)
+    if peak:
+        traffic_intensity = f"PEAK ({peak[1]} rush)"
+        multiplier = 1.5 if peak[0] == 0 else 1.4
+    elif any(a - 1 <= hour_int <= b for a, b, _ in RUSH_WINDOWS):
         traffic_intensity = "HIGH (rush shoulders)"
         multiplier = 1.2
     else:
@@ -836,13 +871,15 @@ def predict_bqe_traffic(hour, wind_direction):
         multiplier = 0.7
 
     # Wind direction impact (wind_direction is where the wind comes FROM, in degrees)
+    lo, hi = ROAD.toward
+    toward = wind_direction is not None and bearing_in(wind_direction, ROAD.toward)
     if wind_direction is None:
         wind_impact = "Unknown"
         wind_multiplier = 1.0
-    elif BQE_TOWARD[0] <= wind_direction <= BQE_TOWARD[1]:
-        wind_impact = "Blowing toward Greenpoint"
+    elif toward:
+        wind_impact = f"Blowing toward {CFG.place.name}"
         wind_multiplier = 1.3
-    elif wind_direction >= 260 or wind_direction <= 20:
+    elif bearing_in(wind_direction, ((lo + 180) % 360, (hi + 180) % 360)):
         wind_impact = "Blowing away"
         wind_multiplier = 0.5
     else:
@@ -852,183 +889,19 @@ def predict_bqe_traffic(hour, wind_direction):
     pollution_pressure = multiplier * wind_multiplier
 
     return {
+        "toward": toward,
         "traffic": traffic_intensity,
         "wind_impact": wind_impact,
         "pollution_pressure": round(pollution_pressure, 1)
     }
 
 
-def calculate_composite_scores(indoor_pm25, outdoor_pm25, indoor_co2, humidity, dew_point, uv_index, visibility, wind_speed):
-    """Calculate health-focused composite scores (1-10 scale)."""
-
-    # ALLERGY RISK (1-10): pollen sensitivity + humidity mold risk + dew point sinus risk
-    # Lower is better
-    mold_risk = 0
-    if humidity > 60:
-        mold_risk += 3  # High mold growth risk
-    elif humidity < 30:
-        mold_risk += 2  # Sinus dryness risk
-
-    sinus_dryness = 0
-    if dew_point is not None and dew_point < 5:  # Very dry air
-        sinus_dryness = 3
-    elif dew_point is not None and dew_point < 10:
-        sinus_dryness = 1
-
-    visibility_allergen = 0
-    if visibility is not None:
-        if visibility < 2000:  # Very low visibility = high particulate/allergen
-            visibility_allergen = 4
-        elif visibility < 5000:
-            visibility_allergen = 2
-
-    allergy_risk = min(10, 2 + mold_risk + sinus_dryness + visibility_allergen)
-
-    # RESPIRATORY LOAD (1-10): PM2.5 + CO2 + visibility + UV
-    # Lower is better (1=excellent, 10=hazardous)
-    pm_score = min(10, (indoor_pm25 / 15))  # 12 µg/m³ is EPA standard
-    co2_score = min(10, (indoor_co2 / 1000))  # 1000 ppm is concerning
-    visibility_resp = 0
-    if visibility is not None and visibility < 3000:
-        visibility_resp = 3
-
-    respiratory_load = round((pm_score + co2_score + visibility_resp) / 3, 1)
-
-    # ACTIVITY SAFETY: composite of all factors + time of day (determined in LLM context)
-    # Will be determined by LLM based on hour and all signals
-
-    return {
-        "allergy_risk": round(allergy_risk, 1),
-        "respiratory_load": round(respiratory_load, 1),
-        "mold_risk": "High" if humidity > 60 else "Low" if humidity < 30 else "Ideal",
-        "sinus_dryness_risk": "High" if dew_point is not None and dew_point < 5 else "None"
-    }
-
-
-def determine_health_status(indoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index,
-                            visibility, smoke_detected, pollen_data, bqe_prediction, scores):
-    """Extensible health status from ALL data sources.
-
-    Each signal returns a severity: 0=GOOD, 1=FAIR, 2=POOR.
-    Overall status = worst signal. Add new signals by appending to the list.
-    """
-    signals = []
-
-    # ── AirGradient sensors ──
-    if indoor_pm25 <= 12:
-        signals.append(0)
-    elif indoor_pm25 <= 35:
-        signals.append(1)
-    else:
-        signals.append(2)
-
-    # The prompt already treats CO2 as fine until 800 ppm.
-    if indoor_co2 <= 800:
-        signals.append(0)
-    elif indoor_co2 <= 1200:
-        signals.append(1)
-    else:
-        signals.append(2)
-
-    # ── Humidity ──
-    if 30 <= indoor_humidity <= 50:
-        signals.append(0)
-    elif 25 <= indoor_humidity <= 60:
-        signals.append(1)
-    else:
-        signals.append(2)
-
-    # ── Dew point (sinus dryness) ──
-    # Outdoor dew point matters less when indoor humidity is ideal (30-50%)
-    if dew_point is not None:
-        if dew_point >= 10:
-            signals.append(0)
-        elif dew_point >= 5:
-            signals.append(1)
-        elif 30 <= indoor_humidity <= 50:
-            # Indoor air is well-humidified — cap at FAIR, not POOR
-            signals.append(1)
-        else:
-            signals.append(2)
-
-    # ── UV index ──
-    if uv_index is not None:
-        if uv_index <= 5:
-            signals.append(0)
-        elif uv_index <= 7:
-            signals.append(1)
-        else:
-            signals.append(2)
-
-    # ── Visibility (particulate proxy) ──
-    if visibility is not None:
-        if visibility >= 10000:
-            signals.append(0)
-        elif visibility >= 5000:
-            signals.append(1)
-        else:
-            signals.append(2)
-
-    # ── Wildfire smoke ──
-    if smoke_detected:
-        signals.append(2)  # Smoke = always POOR
-
-    # ── Pollen (worst allergen drives status) ──
-    if pollen_data:
-        max_pollen = max((p.get("index", 0) for p in pollen_data), default=0)
-        if max_pollen <= 1:
-            signals.append(0)
-        elif max_pollen <= 3:
-            signals.append(1)
-        else:
-            signals.append(2)
-
-    # Rush hour changes when to go out. It should not mark the air itself poor.
-    pressure = bqe_prediction.get("pollution_pressure", 0)
-    if pressure <= 0.9:
-        signals.append(0)
-    else:
-        signals.append(1)
-
-    # ── Composite health scores ──
-    if scores.get("allergy_risk", 0) <= 3:
-        signals.append(0)
-    elif scores.get("allergy_risk", 0) <= 6:
-        signals.append(1)
-    else:
-        signals.append(2)
-
-    if scores.get("respiratory_load", 0) <= 3:
-        signals.append(0)
-    elif scores.get("respiratory_load", 0) <= 6:
-        signals.append(1)
-    else:
-        signals.append(2)
-
-    # Overall = worst signal
-    worst = max(signals) if signals else 0
-    return ["GOOD", "FAIR", "POOR"][worst]
-
-
 # ── Air summary (the new page) ──────────────────────────────────────────
-# Rules decide each verdict. The model only writes the sentences around them,
-# and falls back to the rule sentences when it is missing or breaks a rule.
+# Rules decide every verdict and every sentence.
 
-# Haiku 5.5 thinks by default, and thinking counts toward max_tokens: keep effort low and leave room.
-# The summary card is written by rules; set SUMMARY_AI=on to let the model write its explanations again.
-SUMMARY_AI = os.environ.get("SUMMARY_AI", "off").lower() == "on"
-READ_MODEL = "claude-haiku-5-5"
-READ_EFFORT = "low"
-READ_MODEL_NAME = "Claude Haiku 5.5"
-READ_CACHE_SECONDS = 20 * 60
-
-# Peak hours as predict_bqe_traffic() counts them: [start, end).
-RUSH_WINDOWS = [(7, 10, "morning"), (16, 20, "evening")]
-PM_FINE = 15   # Sacha's line for any hour (WHO's 15 is a 24-hour average)
-PM_HIGH = 35
-CO2_OPEN = 800
-RH_LOW, RH_HIGH, RH_DAMP = 30, 50, 60
-MACHINE_WORDS = re.compile(r"\b(de)?humidifier|purifier|hepa|air conditioner|\bac\b|\bfan\b", re.I)
+# RUSH_WINDOWS, PM_FINE (any hour, though WHO's 15 is a 24-hour average), PM_HIGH, CO2_OPEN, RH_LOW and RH_DAMP
+# come from the config (use_config). RH_HIGH is the top of the comfortable band, not a limit.
+RH_HIGH = 50
 
 
 def fnum(value):
@@ -1059,6 +932,8 @@ def dew_point_c(temp_c, rh):
 
 
 def rush_state(hour):
+    if not RUSH_WINDOWS:   # no road
+        return {"in_rush": False, "name": None, "start": None, "end": None, "tomorrow": True}
     for start, end, name in RUSH_WINDOWS:
         if start <= hour < end:
             return {"in_rush": True, "name": name, "start": start, "end": end}
@@ -1079,122 +954,19 @@ def rule_run(outdoor_pm, smoke, rush, wind_toward, hour):
     if outdoor_pm > PM_HIGH:
         return verdict("Skip it", "bad", f"Outdoor PM2.5 is {pm} µg/m³, over {PM_HIGH}. Skip the run, and keep the toddler in.")
     if outdoor_pm > PM_FINE or smoke:
-        why = f"Outdoor PM2.5 is {pm} µg/m³, over {PM_FINE}" if outdoor_pm > PM_FINE else "NOAA reports wildfire smoke in the Northeast"
+        why = f"Outdoor PM2.5 is {pm} µg/m³, over {PM_FINE}" if outdoor_pm > PM_FINE else "NOAA reports wildfire smoke over the region"
         return verdict("Keep it short", "warn", f"{why}. Keep a run short and easy.")
     base = f"Outdoor PM2.5 is {pm} µg/m³, under {PM_FINE}."
     if rush["in_rush"] and wind_toward:
         return verdict(f"After {fmt_hour(rush['end'])}", "warn",
-                       f"{base} The BQE {rush['name']} rush runs until {fmt_hour(rush['end'])} with the wind toward Greenpoint, so run after that.")
+                       f"{base} The {ROAD.name} {rush['name']} rush runs until {fmt_hour(rush['end'])} with the wind toward {CFG.place.name}, so run after that.")
     if hour >= 21 or hour < 5:
-        return verdict("Fine", "good", f"{base} Tonight is fine, and so is the morning before the {fmt_hour(RUSH_WINDOWS[0][0])} rush.")
+        return verdict("Fine", "good", f"{base} Tonight is fine, and so is the morning before the {fmt_hour(RUSH_WINDOWS[0][0])} rush."
+                       if RUSH_WINDOWS else f"{base} Tonight is fine.")
     if not rush["in_rush"] and not rush.get("tomorrow") and wind_toward:
         return verdict(f"Fine until {fmt_hour(rush['start'])}", "good",
-                       f"{base} Fine for a run, and for the toddler outside, until {fmt_hour(rush['start'])}. Then the BQE rush starts, with the wind toward Greenpoint.")
+                       f"{base} Fine for a run, and for the toddler outside, until {fmt_hour(rush['start'])}. Then the {ROAD.name} rush starts, with the wind toward {CFG.place.name}.")
     return verdict("Fine", "good", f"{base} Fine for a run, and for the toddler outside.")
-
-
-def forecast_facts(fc, t_in, rh, pm_out, wind_toward):
-    """What Coming up will show later, as plain lines for the model's DATA, so its why line can't contradict them.
-    Same rules as weatherAgenda() and forecastAgenda() in static/app.js; change both together.
-    Returns (lines, best_air_hour)."""
-    lines, best = [], None
-    if len(fc) < 3:
-        return lines, best
-    hr = lambda h: int(h["time"][11:13])
-    # Best time to air: a damp room, and an hour (not now) when the outdoor dew point is 5 °C or more under the
-    # indoor one, skipping BQE rush hours whose wind blows toward Greenpoint (that hour's wind, else the wind now).
-    d_in = dew_point_c(t_in, rh)
-    if rh is not None and rh > RH_DAMP and d_in is not None:
-        dry = lambda h: h["dew"] is not None and d_in - h["dew"] >= 5
-        def in_rush(h):
-            toward = h["bqe_toward"] if isinstance(h.get("bqe_toward"), bool) else wind_toward
-            return toward and any(a <= hr(h) < e for a, e, _ in RUSH_WINDOWS)
-        if not dry(fc[0]):
-            k = next((n for n in range(1, len(fc)) if dry(fc[n]) and not in_rush(fc[n])), None)
-            if k is not None:
-                best = hr(fc[k])
-                lines.append(f"Later: from {fmt_hour(best)} the outside air gets much drier (best time to air).")
-    # Rain or snow starting, or stopping when it's already falling
-    wet = lambda h: (h["precip"] or 0) >= 0.2 or (h["pop"] or 0) >= 60
-    k = next((n for n in range(1, len(fc)) if wet(fc[n]) != wet(fc[0])), None)
-    if k is not None:
-        lines.append(f"Later: rain or snow {'stops' if wet(fc[0]) else 'starts'} around {fmt_hour(hr(fc[k]))}.")
-    # Outdoor PM2.5 from the air-quality model, read as a change against its own value now (it can be biased)
-    p0 = fc[0].get("pm25")
-    now_pm = pm_out if pm_out is not None else p0
-    if p0 is not None and now_pm is not None:
-        if now_pm <= PM_FINE:
-            k = next((n for n in range(1, len(fc)) if (fc[n].get("pm25") is not None and fc[n]["pm25"] > PM_FINE
-                                                         and fc[n]["pm25"] - p0 >= 5)), None)
-            if k is not None:
-                lines.append(f"Later: haze from {fmt_hour(hr(fc[k]))}; the outside air gets dirtier.")
-        elif p0 > PM_FINE:
-            k = next((n for n in range(1, len(fc)) if fc[n].get("pm25") is not None and fc[n]["pm25"] <= PM_FINE), None)
-            if k is not None:
-                lines.append(f"Later: the outside air clears from {fmt_hour(hr(fc[k]))}.")
-    return lines, best
-
-
-READ_SYSTEM = """You explain an air summary for one household in Greenpoint, Brooklyn: a toddler, sinus and allergy sensitivity, and a runner.
-Rules have already decided every action and every verdict. You only write short explanations.
-
-For every sentence:
-- Use only numbers that appear in DATA.
-- Never give a clock time that has already passed.
-- Do not name an appliance (no dehumidifier, humidifier, purifier, fan, HEPA, AC).
-- Say why, not what to do; the action is already written.
-- Simple everyday English: short sentences and common words a ten-year-old knows. No jargon (no "particulates", "respiratory", "ventilation", "airway", "pathogens").
-- No exclamation marks, no emoji. Never mention rules or instructions.
-- Do not contradict the LATER facts in DATA; you may mention them.
-
-Output one JSON object and nothing else:
-- "why": one sentence, at most 16 words, under the HEADLINE: how the NEEDS fit together today (for example, stale and damp inside, clean but damper outside). No numbers; the cards show them.
-- "means": {"co2": string, "humidity": string, "pm": string}, each at most 12 words: what that reading does to people in this home, in simple words. Teach; do not restate the reading."""
-
-
-def _numbers(text):
-    return [float(n) for n in re.findall(r"\d+(?:\.\d+)?", text.replace(",", ""))]
-
-
-def _allowed(text, data_numbers):
-    """True when every number in text appears in DATA (within rounding) or is a small count or hour."""
-    for n in _numbers(text):
-        if n <= 24 and n == int(n):
-            continue
-        if not any(abs(n - d) <= 0.51 for d in data_numbers):
-            return False
-    return True
-
-
-def _parse_model_json(text):
-    cleaned = re.sub(r"```(?:json)?", "", text).strip()
-    match = re.search(r"\{[\s\S]*\}", cleaned)
-    return json.loads(match.group(0)) if match else None
-
-
-def call_read_model(api_key, data_text):
-    resp = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-        json={
-            "model": READ_MODEL,
-            "max_tokens": 4000,
-            "output_config": {"effort": READ_EFFORT},
-            "system": READ_SYSTEM,
-            "messages": [{"role": "user", "content": data_text}],
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
-    body = resp.json()
-    if body.get("stop_reason") not in ("end_turn", "stop_sequence"):
-        raise ValueError(f"stop_reason {body.get('stop_reason')}")
-    text = "".join(b.get("text", "") for b in body.get("content", []) if b.get("type") == "text")
-    usage = body.get("usage") or {}
-    return _parse_model_json(text), {"input_tokens": usage.get("input_tokens"), "output_tokens": usage.get("output_tokens")}
-
-
-BANNED = re.compile(r"\b(rules?|instructions?|do not call|never call)\b", re.I)
 
 
 def history_points(location_id, now_local, hours=24):
@@ -1357,27 +1129,38 @@ def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_ou
     cams = sorted((_local(t, tz), v) for t, v in (get_air_forecast() or {}).items())
     sun = [{"t": _local(t, tz), "kind": kind} for key, kind in (("sunrise", "Sunrise"), ("sunset", "Sunset"))
            for t in daily.get(key) or [] if t]
-    days = get_pollen_days()
+    days = get_pollen_days() if pollen_live() else {"today": [], "tomorrow": []}
     top = lambda types: max(types, key=lambda q: q.get("index") or 0) if types else None
-    rush = summary_rules.rush_windows(hourly, now, RUSH_WINDOWS, BQE_TOWARD)
     return {"r": {"co2": co2, "rh": rh, "rh_out": rh_out, "t_in": t_in, "t_out": t_out, "pm_now": pm_out},
             "cams": cams, "hourly": hourly,
             "co2_pts": [(t, co2_of(x)) for t, x in pts_in], "rh_pts": [(t, rh_in_of(x)) for t, x in pts_in],
-            "pm_past": [(t, pm_of(x)) for t, x in pts_out], "smoke": get_smoke_data(),
+            "pm_past": [(t, pm_of(x)) for t, x in pts_out], "smoke": get_smoke_data() if source_on("smoke") else False,
             "pollen_today": top(days.get("today")), "pollen_tomorrow": top(days.get("tomorrow")),
-            "rush": rush, "sun": sun, "now": now}
+            "rush": rush_windows(hourly, now), "road": ROAD.name if ROAD else None, "sun": sun, "now": now}
 
 
-def safe_summary(inputs, means=None):
+def rush_windows(hourly, now):
+    """Today's and tomorrow's rush windows of the road, each with whether the forecast wind blows its exhaust here."""
+    return summary_rules.rush_windows(hourly, now, RUSH_WINDOWS, ROAD.toward) if ROAD else []
+
+
+def needs_on(needs):
+    """Only the needs this home's config turns on."""
+    return [n for n in needs if CFG.needs.get(n["id"], True)]
+
+
+def safe_summary(inputs):
     """The new card, or None (logged) if the rules fail on odd data: the page then keeps its previous card."""
     try:
-        return summary_rules.build_summary(**inputs, means=means)
+        s = summary_rules.build_summary(**inputs)
+        s["needs"] = needs_on(s["needs"])
+        return s
     except Exception as e:  # never let the card take the whole read down
         app.logger.warning("summary failed: %s: %s", type(e).__name__, e)
         return None
 
 
-def build_air_read(payload, force=False):
+def build_air_read(payload):
     now = local_now()
     co2 = fnum(payload.get("indoor_co2"))
     rh = fnum(payload.get("indoor_humidity"))
@@ -1388,20 +1171,15 @@ def build_air_read(payload, force=False):
 
     weather = get_open_meteo_data(HOME_LAT, HOME_LON).get("current", {})
     wind_direction = weather.get("wind_direction_10m")
-    bqe = predict_bqe_traffic(now.hour, wind_direction)
-    wind_toward = bqe["wind_impact"] == "Blowing toward Greenpoint"
-    smoke = get_smoke_data()
-    pollen = get_pollen_data(HOME_LAT, HOME_LON)
+    wind_toward = road_traffic(now.hour, wind_direction)["toward"]
+    smoke = get_smoke_data() if source_on("smoke") else False
+    pollen = get_pollen_data(HOME_LAT, HOME_LON) if pollen_live() else []
     rush = rush_state(now.hour)
 
     in_dp, out_dp = dew_point_c(t_in, rh), dew_point_c(t_out, rh_out)
     if out_dp is None:
         out_dp = fnum(weather.get("dew_point_2m"))
     adds_moisture = in_dp is not None and out_dp is not None and out_dp - in_dp > 1
-    # what Coming up will say later (rain, haze, best time to air), so the model's line agrees with it
-    later, best_air = forecast_facts(hourly_forecast(get_open_meteo_data(HOME_LAT, HOME_LON), get_air_forecast()),
-                                     t_in, rh, pm_out, wind_toward)
-
     pts_in = history_points(payload.get("indoor_location_id"), now)
     pts_out = history_points(payload.get("outdoor_location_id"), now)
 
@@ -1483,17 +1261,17 @@ def build_air_read(payload, force=False):
     elif w == "Keep it short":
         actions.append({"key": "run", "tone": "warn", "text": "Keep a run short and easy", "why": run_v["text"].split(". ")[0] + "."})
     elif w.startswith("After"):
-        actions.append({"key": "run", "tone": "warn", "text": "Run " + w.lower(), "why": f"The BQE rush runs until {w[6:]}, with the wind toward Greenpoint."})
+        actions.append({"key": "run", "tone": "warn", "text": "Run " + w.lower(), "why": f"The {ROAD.name} rush runs until {w[6:]}, with the wind toward {CFG.place.name}."})
     elif w.startswith("Fine until"):
         run_item = {"key": "run", "tone": "good", "text": "Run before " + w[11:], "why": f"The air outside is clean; the {w[11:]} rush blows this way."}
     elif w == "Fine":
         night = now.hour >= 21 or now.hour < 5
-        run_item = {"key": "run", "tone": "good", "text": f"Run tonight or before {fmt_hour(RUSH_WINDOWS[0][0])}" if night else "Fine to run",
-                    "why": "The air outside is clean" + (f"; the {fmt_hour(RUSH_WINDOWS[0][0])} rush blows this way." if night and wind_toward else ".")}
+        run_item = {"key": "run", "tone": "good", "text": f"Run tonight or before {fmt_hour(RUSH_WINDOWS[0][0])}" if night and RUSH_WINDOWS else "Fine to run",
+                    "why": "The air outside is clean" + (f"; the {fmt_hour(RUSH_WINDOWS[0][0])} rush blows this way." if night and wind_toward and RUSH_WINDOWS else ".")}
     top_pollen = max(pollen, key=lambda q: q.get("index") or 0) if pollen else None
     if top_pollen and (top_pollen.get("index") or 0) >= 3:
         actions.append({"key": "pollen", "tone": "warn", "text": "Limit time outside", "why": f"{top_pollen['name']} pollen is {top_pollen['index']} of 5."})
-    needs = build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run_item, co2_run, now)
+    needs = needs_on(build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run_item, co2_run, now))
     order = {"window": 0, "humidity": 1, "run": 2, "pollen": 3}
     actions.sort(key=lambda a: ({"bad": 0, "warn": 1}.get(a["tone"], 2), order[a["key"]]))
 
@@ -1504,7 +1282,7 @@ def build_air_read(payload, force=False):
         also = []
         if run_item and run_item["text"].startswith("Run before"):
             headline = f"All good. {run_item['text']}."
-            why = f"The air outside is clean, and the BQE {rush['name']} rush starts at {fmt_hour(rush['start'])}."
+            why = f"The air outside is clean, and the {ROAD.name} {rush['name']} rush starts at {fmt_hour(rush['start'])}."
         elif run_item:
             headline, why = f"All good. {run_item['text']}.", run_item["why"]
         else:
@@ -1524,9 +1302,9 @@ def build_air_read(payload, force=False):
     if pm_out is not None and pm_out <= PM_FINE and not any(a["key"] == "run" for a in actions) and not run_item:
         checked.append("Outdoor air is clean")
     ahead = ""
-    if not actions and run_item and wind_toward and not rush["in_rush"]:
+    if not actions and run_item and wind_toward and not rush["in_rush"] and RUSH_WINDOWS:
         st, en = fmt_hour(rush["start"]), fmt_hour(rush["end"])
-        ahead = f"{st.split()[0] if st.split()[1] == en.split()[1] else st}–{en}: the BQE rush blows this way."
+        ahead = f"{st.split()[0] if st.split()[1] == en.split()[1] else st}–{en}: the {ROAD.name} rush blows this way."
 
     result = {
         "generated_at": now.isoformat(), "clock": now.strftime("%-I:%M %p"), "status": tone,
@@ -1534,316 +1312,39 @@ def build_air_read(payload, force=False):
         "also": [{"text": a["text"], "why": a["why"], "tone": a["tone"]} for a in also],
         "checked": checked, "ahead": ahead, "cards": cards,
         "needs": needs, "relief": relief_line(pollen, now), "relief_short": relief_short(pollen, now),
-        "source": "rules", "model": None, "model_name": None, "note": None, "replaced": [],
     }
     # the new card: items, needs and the day chart, all from the rules (summary.py)
     summary_in = summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now)
     result["summary"] = safe_summary(summary_in)
 
-    signature = json.dumps([headline, [n["action"] for n in needs], [c["state"] for c in cards],
-                            None if co2 is None else round(co2 / 50), None if rh is None else round(rh / 3), now.hour, best_air])
-    if not SUMMARY_AI:
-        return result   # the summary is written by the rules; the model path below stays wired for later
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        result["note"] = "No API key, so these lines come from the rules."
-        return result
-
-    ip = client_ip()
-    if force and not force_allowed(ip):
-        force = False   # too many Refresh presses: serve the cached advice
-
-    def write_with_model():
-        """The model writes the why and means lines; raises with a note when it can't (nothing bad gets cached)."""
-        over = ai_allowed(ip)
-        if over:
-            raise RuntimeError("AI writing is paused for a moment (usage limit), so these lines come from the rules."
-                               if over != "day" else "Today's AI limit is reached, so these lines come from the rules.")
-
-        data = [
-            f"Clock: {now.strftime('%-I:%M %p')}.",
-            f"Indoor CO2: {fmt_num(co2, 0)} ppm (limit {CO2_OPEN}; 1000 feels stuffy; 1500 is above building codes). {c_fact}.",
-            f"Indoor humidity: {fmt_num(rh, 0)}% (comfortable 30–50; mold and mites above 60). {h_fact}.",
-            f"Outdoor humidity: {fmt_num(rh_out, 0)}%. Airing {'adds' if adds_moisture else 'does not add'} moisture.",
-            *([f"Airing now: the outside air holds " + ("more water than" if out_dp - in_dp > 1 else "less water than" if in_dp - out_dp > 1 else "about the same water as")
-               + f" inside (dew point {fmt_num(out_dp)} vs {fmt_num(in_dp)} °C)."] if in_dp is not None and out_dp is not None else []),
-            f"Outdoor PM2.5: {fmt_num(pm_out)} µg/m³ (aim under {PM_FINE}; {PM_HIGH} is unhealthy). {p_fact}.",
-            f"BQE rush hours: 7 to 10 AM and 4 to 8 PM; wind {'toward' if wind_toward else 'not toward'} Greenpoint.",
-            *later,
-            "",
-            f"HEADLINE: {headline} Fact: {why}",
-            "NEEDS:",
-        ] + [f"- {n['name']}: {n['action']}. Fact: {n['why']}" for n in needs]
-        data_text = "DATA\n" + "\n".join(data)
-        try:
-            out = call_read_model(api_key, data_text)
-            if isinstance(out, tuple):
-                out, usage = out
-            else:
-                usage = None
-        except Exception as e:  # network, HTTP, JSON: keep the rule lines
-            app.logger.warning("read model call failed: %s: %s", type(e).__name__, e)   # the error type goes to the log, not the page
-            raise RuntimeError("Claude didn't answer, so these lines come from the rules.") from e
-        if not isinstance(out, dict):
-            app.logger.warning("read model answer was not JSON")
-            raise RuntimeError("Claude didn't answer, so these lines come from the rules.")
-
-        nums = _numbers(data_text)
-        def ok(text, max_words):
-            return (isinstance(text, str) and text.strip() and len(text.split()) <= max_words + 4 and _allowed(text, nums)
-                    and not MACHINE_WORDS.search(text) and not BANNED.search(text))
-        replaced = []
-        if ok(out.get("why"), 16):
-            result["why"] = out["why"].strip()
-        else:
-            replaced.append("why")
-        means = out.get("means") if isinstance(out.get("means"), dict) else {}
-        for c in cards:
-            if c["num"] is not None and ok(means.get(c["id"]), 10):
-                c["means"] = means[c["id"]].strip()
-            elif c["num"] is not None:
-                replaced.append(c["id"])
-        accepted = {c["id"]: c["means"] for c in cards if c["id"] in means and c["id"] not in replaced and c.get("means")}
-        result["summary_means"] = accepted   # kept with the cached read; the card itself is redrawn on every read
-        result.update(source="model", model=READ_MODEL, model_name=READ_MODEL_NAME, usage=usage, replaced=replaced)
-        return result
-
-    key = "read:" + hashlib.sha1(signature.encode()).hexdigest()
-    try:
-        value, info = cached(key, write_with_model, ttl=READ_CACHE_SECONDS, force=force, force_floor=10, wait=40)
-    except Exception as e:
-        result["note"] = str(e) if isinstance(e, RuntimeError) else "Claude didn't answer, so these lines come from the rules."
-        return result
-    # the card follows the readings now, even when the model's lines come from the cache
-    value = {**value, "summary": safe_summary(summary_in, means=value.get("summary_means") or None)}
-    return {**value, "cached": True} if info["state"] != "miss" else value
+    return result
 
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    """Stream LLM analysis of current air quality data with weather context.
-
-    With "format": "read" in the body, returns the new page's air summary as one JSON object instead.
-    """
-    data = request.json or {}
+    """The page's air summary as one JSON object. Only "format": "read" is served."""
+    data = request.get_json(silent=True) or {}
     if data.get("format") == "read":
-        return jsonify(build_air_read(data, force=bool(data.get("force"))))
+        return jsonify(build_air_read(data))
+    return jsonify({"error": 'POST {"format": "read", ...}'}), 400
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return jsonify({"error": "ANTHROPIC_API_KEY not set"}), 500
-    over = ai_allowed(client_ip())
-    if over:
-        return jsonify({"error": "AI analysis is paused for a moment (usage limit). Try again later."}), 429
 
-    indoor_pm25 = float(data.get('indoor_pm25', 0))
-    outdoor_pm25 = float(data.get('outdoor_pm25', 0))
-    indoor_co2 = float(data.get('indoor_co2', 0))
-    indoor_humidity = float(data.get('indoor_humidity', 50))
-    neighbor_rank = int(data.get('neighbor_rank', 1))
-    neighbor_count = int(data.get('neighbor_count', 1))
+def request_moment():
+    """The demo moment this request asked for (?moment=), or the default one."""
+    from demo.moments import moment_for
+    try:
+        return moment_for(request.args.get("moment"))
+    except RuntimeError:   # outside a request
+        return moment_for(None)
 
-    # Fetch weather context from Open-Meteo (free API, no key needed)
-    weather = get_open_meteo_data(HOME_LAT, HOME_LON)
-    current = weather.get("current", {})
-    wind_speed = current.get("wind_speed_10m")
-    wind_direction = current.get("wind_direction_10m")
-    visibility = current.get("visibility")
-    uv_index = current.get("uv_index")
-    dew_point = current.get("dew_point_2m")
 
-    wind_dir = get_wind_cardinal(wind_direction)
-
-    # BQE traffic prediction based on time and wind
-    current_hour = local_now().hour
-    bqe_prediction = predict_bqe_traffic(current_hour, wind_direction)
-
-    # Check for wildfire smoke (NOAA)
-    smoke_detected = get_smoke_data()
-    smoke_note = " ⚠️ Wildfire smoke in Northeast region — extra PM2.5 risk" if smoke_detected else ""
-
-    # Fetch pollen data (Google Pollen API)
-    pollen_data = get_pollen_data(HOME_LAT, HOME_LON)
-    pollen_summary = ""
-    if pollen_data:
-        pollen_str = ", ".join([f"{p['name']} ({p['level']})" for p in pollen_data])
-        pollen_summary = f"POLLEN TODAY: {pollen_str}"
-    else:
-        pollen_summary = "POLLEN: Data unavailable"
-
-    # Calculate composite health scores
-    scores = calculate_composite_scores(indoor_pm25, outdoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index, visibility, wind_speed)
-
-    # Seasonal allergen triggers (Greenpoint, New York)
-    month = local_now().month
-    if month in [4, 5]:
-        allergen_season = "TREE (birch, maple) pollen peak"
-    elif month in [6, 7, 8]:
-        allergen_season = "GRASS + MOLD SPORE season"
-    elif month in [8, 9, 10]:
-        allergen_season = "RAGWEED + MOLD SPORE peak"
-    else:
-        allergen_season = "Low pollen, mold dormancy period"
-
-    # Determine overall health status from ALL data sources
-    status = determine_health_status(
-        indoor_pm25, indoor_co2, indoor_humidity, dew_point, uv_index,
-        visibility, smoke_detected, pollen_data, bqe_prediction, scores
-    )
-
-    # Health context
-    humidity_status = "ideal" if 30 <= indoor_humidity <= 50 else "dry" if indoor_humidity < 30 else "humid"
-    humidity_risk = "Sinus dryness risk" if indoor_humidity < 30 else "Mold growth risk" if indoor_humidity > 60 else "Clear nasal passages"
-
-    # Dew point sinus impact
-    dew_point_status = ""
-    if dew_point is not None:
-        if dew_point < 5 and not (30 <= indoor_humidity <= 50):
-            dew_point_status = "Very dry — sinus dryness risk (indoor humidity not ideal)"
-        elif dew_point < 5:
-            dew_point_status = "Outdoor air dry, but indoor humidity ideal — sinuses protected"
-        elif dew_point < 10:
-            dew_point_status = "Mildly dry — monitor if you go outside"
-        else:
-            dew_point_status = "Comfortable for sinuses"
-
-    # Activity timing recommendation based on BQE rush
-    if current_hour >= 7 and current_hour <= 9:
-        activity_warning = "AVOID outdoor activity 7-9am (BQE morning rush peak)"
-        best_window = "10am-3pm is safest for outdoor activity"
-    elif current_hour >= 16 and current_hour <= 19:
-        activity_warning = "CAUTION: BQE evening rush (4-7pm) — outdoor exposure risky"
-        best_window = "Best outdoor window was 10am-3pm, next safe time is 8pm+"
-    else:
-        activity_warning = f"BQE traffic moderate at {current_hour}:00"
-        best_window = "10am-3pm is still the safest window today"
-
-    prompt = f"""You are a CONSUMER-GRADE health coach helping someone and their spouse manage allergies/sinus sensitivity in Greenpoint, Brooklyn using real-time data.
-
-═══ COMPREHENSIVE DATA INPUT ═══
-INDOOR CONDITIONS:
-  • PM2.5: {indoor_pm25} µg/m³ (EPA safe: ≤12)
-  • CO2: {indoor_co2} ppm (Alert: >800)
-  • Humidity: {indoor_humidity}% (Ideal: 30-50%)
-  • Dew Point: {dew_point}°C ({dew_point_status if dew_point_status else 'calculating...'})
-
-OUTDOOR CONDITIONS:
-  • PM2.5: {outdoor_pm25} µg/m³
-  • Wind: {wind_speed} km/h from {wind_dir} ({bqe_prediction['wind_impact']})
-  • Visibility: {visibility}m (Low=high particulate)
-  • UV Index: {uv_index}
-  {smoke_note}
-
-POLLEN DATA (Real-time from Google):
-  • {pollen_summary}
-
-LOCAL CONTEXT:
-  • Clock: {local_now().strftime("%-I:%M %p")} local. Windows already past this clock are not available.
-  • Greenpoint Rank: {neighbor_rank}/{neighbor_count} cleanest (lower is better)
-  • Seasonal: {allergen_season}
-  • BQE Traffic: {bqe_prediction['traffic']} (Pollution Pressure: {bqe_prediction['pollution_pressure']}x)
-  • Activity: {activity_warning}
-
-HEALTH SCORES:
-  • Allergy Risk: {scores['allergy_risk']}/10 ({scores['mold_risk']} mold risk)
-  • Respiratory Load: {scores['respiratory_load']}/10
-  • Sinus Risk: {scores['sinus_dryness_risk']} sinus dryness
-
-═══ STRICT BREVITY RULES ═══
-• status_line: one or two sentences, MAX 4 words each. Sentence 1 is the day. Sentence 2 only when one thing needs attention, and it names that thing. No numbers.
-• metric benefit: MAX 8 words. What to do or how it feels, not a restatement of the value.
-• working items: MAX 12 words each. Exactly 3 facts that are already comfortable or clean. Never an instruction, never a warning, never an invented ratio.
-• next_steps: MAX 16 words each. Exactly 3 instructions. The first is the single action still available after the Clock above, and it starts with when. Never name a clock time that has already passed. The other two are backups.
-• insight: MAX 16 words. One sentence about the Seasonal line above, including when it changes. Do not mention a month the Seasonal line does not support.
-• Every string below is a shape sample. Rewrite it from the data. Do not copy a sample.
-• NEVER add text outside the JSON object. Output ONLY the JSON.
-• Write like a fitness app notification, not a medical report.
-
-═══ TONE RULES ═══
-• Use the status value "{status}" exactly — do NOT override it.
-• GOOD = reassuring, positive ("Sinuses clear, great day to be outside")
-• FAIR = balanced, watchful ("Conditions decent, keep an eye on X")
-• POOR = urgent, actionable ("Take action now: X is affecting your health")
-• If indoor humidity is 30-50% (ideal), do NOT call dew point "critically dry" — indoor air is compensating.
-
-═══ CONTENT PRIORITIES ═══
-1. Symptom-first language ("Clear sinuses" not "PM2.5 is 10")
-2. Activity timing for runner + toddler outdoor time
-3. Dryness/humidity warnings (sinus-critical)
-4. BQE traffic + wind pollution timing
-5. Pollen alerts if any type is Moderate+
-6. Seasonal context (relief date)
-
-═══ JSON OUTPUT (ONLY JSON, NO MARKDOWN, NO EXTRA TEXT) ═══
-{{
-  "status": "{status}",
-  "status_line": "Clear today. Watch the evening rush.",
-  "rank": "{neighbor_rank}/{neighbor_count}",
-  "metrics": [
-    {{"icon": "🫁", "category": "Air Quality (Indoor)", "status": "Excellent", "value": "{indoor_pm25} µg/m³ indoor · {outdoor_pm25} outdoor", "benefit": "Filtering 70% of street dust"}},
-    {{"icon": "💧", "category": "Humidity (Indoor)", "status": "{humidity_status.upper()}", "value": "{indoor_humidity}%", "benefit": "Nasal passages clear, no dryness"}},
-    {{"icon": "🌬️", "category": "Ventilation (Indoor)", "status": "Healthy", "value": "{indoor_co2} ppm CO2", "benefit": "Sharp focus, no brain fog"}}
-  ],
-  "working": [
-    "Indoor air is cleaner than the street",
-    "Humidity is holding sinuses comfortable",
-    "No wildfire smoke in the region"
-  ],
-  "next_steps": [
-    "After the rush, open one window for ten minutes",
-    "Skip the outdoor run until the traffic eases",
-    "Check humidity again before bed"
-  ],
-  "insight": "Follow the Seasonal line, and say when that season turns"
-}}"""
-
-    def stream():
-        resp = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": READ_MODEL,
-                "max_tokens": 4000,
-                "output_config": {"effort": READ_EFFORT},
-                "stream": True,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-            stream=True,
-            timeout=30,
-        )
-        resp.raise_for_status()
-
-        for line in resp.iter_lines():
-            if not line:
-                continue
-            line = line.decode("utf-8")
-            if line.startswith("data: "):
-                payload = line[6:]
-                if payload == "[DONE]":
-                    break
-                try:
-                    event = json.loads(payload)
-                    if event.get("type") == "content_block_delta":
-                        text = event["delta"].get("text", "")
-                        if text:
-                            yield f"data: {json.dumps({'text': text})}\n\n"
-                    elif event.get("type") == "message_stop":
-                        break
-                except json.JSONDecodeError:
-                    pass
-        yield "data: [DONE]\n\n"
-
-    return Response(stream(), mimetype="text/event-stream")
+if MODE == "demo":   # every outside source becomes made-up data, generated per request (demo/data.py)
+    from demo import data as demo_data
+    demo_data.install(sys.modules[__name__], request_moment)
 
 
 if __name__ == "__main__":
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("⚠  ANTHROPIC_API_KEY not set — LLM analysis disabled")
-        print("   Run: ANTHROPIC_API_KEY=sk-... python server.py")
     port = int(os.environ.get("PORT", 5555))
-    print(f"AirGradient Dashboard → http://localhost:{port}")
-    app.run(host="0.0.0.0", port=port, debug=False)
+    host = os.environ.get("HOST", "127.0.0.1")   # HOST=0.0.0.0 to open it from a phone on the same network
+    print(f"Home Air Quality → http://localhost:{port}")
+    app.run(host=host, port=port, debug=False)

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Block private files
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          added=$(git -c core.quotePath=false diff --name-only --no-renames --diff-filter=A "origin/$BASE"...HEAD)
+          bad=$(printf '%s\n' "$added" | grep -Ev '(^|/)\.env\.example$' | grep -E '(^|/)(config\.toml|\.env[^/]*)$|^(internal|research)/' || true)
+          if [ -n "$bad" ]; then
+            echo "These files must not be added to the repo:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Python tests
+        run: pytest -q
+
+      - name: JavaScript tests
+        run: node --test tests/

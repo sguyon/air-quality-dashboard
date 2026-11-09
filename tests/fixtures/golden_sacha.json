@@ -1,0 +1,1910 @@
+{
+ "evening": {
+  "context": {
+   "bqe": {
+    "current_hour": 16,
+    "pollution_pressure": 1.8,
+    "traffic": "PEAK (evening rush)",
+    "wind_impact": "Blowing toward Greenpoint"
+   },
+   "forecast": [
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 12,
+     "pop": 10,
+     "precip": 0,
+     "temp": 18,
+     "time": "2026-04-21T16:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 16,
+     "pop": 10,
+     "precip": 0,
+     "temp": 18,
+     "time": "2026-04-21T17:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 21,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T18:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 25,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T19:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 22,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T20:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 17,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T21:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 12,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T22:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": false,
+     "code": 3,
+     "dew": 9,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T23:00",
+     "uv": 2,
+     "wind_dir": 300
+    },
+    {
+     "bqe_toward": false,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-22T00:00",
+     "uv": 2,
+     "wind_dir": 300
+    },
+    {
+     "bqe_toward": false,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-22T01:00",
+     "uv": 2,
+     "wind_dir": 300
+    },
+    {
+     "bqe_toward": false,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-22T02:00",
+     "uv": 2,
+     "wind_dir": 300
+    },
+    {
+     "bqe_toward": false,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-22T03:00",
+     "uv": 2,
+     "wind_dir": 300
+    },
+    {
+     "bqe_toward": false,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-22T04:00",
+     "uv": 2,
+     "wind_dir": 300
+    }
+   ],
+   "pollen": [
+    {
+     "in_season": true,
+     "index": 4,
+     "level": "High",
+     "name": "Tree"
+    },
+    {
+     "in_season": true,
+     "index": 1,
+     "level": "Very Low",
+     "name": "Grass"
+    },
+    {
+     "in_season": false,
+     "index": 0,
+     "level": "None",
+     "name": "Weed"
+    }
+   ],
+   "pollen_tomorrow": [
+    {
+     "in_season": true,
+     "index": 3,
+     "level": "Moderate",
+     "name": "Tree"
+    },
+    {
+     "in_season": true,
+     "index": 1,
+     "level": "Very Low",
+     "name": "Grass"
+    },
+    {
+     "in_season": false,
+     "index": 0,
+     "level": "None",
+     "name": "Weed"
+    }
+   ],
+   "smoke": {
+    "checked": true,
+    "date": "2026-04-21",
+    "density": null,
+    "detected": false
+   },
+   "weather": {
+    "cloud_cover": 60,
+    "dew_point": 17.4,
+    "dew_point_risk": "Comfortable",
+    "humidity": 85,
+    "temperature": 20,
+    "uv_index": 2,
+    "visibility": 16000,
+    "visibility_status": "Clear",
+    "weather_code": 3,
+    "wind_cardinal": "SE",
+    "wind_direction": 135,
+    "wind_speed": 9
+   }
+  },
+  "read": {
+   "ahead": "",
+   "also": [
+    {
+     "text": "Air the room briefly, then dry it",
+     "tone": "warn",
+     "why": "The room is too damp (64%), and the air outside holds more water."
+    },
+    {
+     "text": "Run after 8 pm",
+     "tone": "warn",
+     "why": "The BQE rush runs until 8 PM, with the wind toward Greenpoint."
+    },
+    {
+     "text": "Limit time outside",
+     "tone": "warn",
+     "why": "Tree pollen is 4 of 5."
+    }
+   ],
+   "cards": [
+    {
+     "cross": {
+      "i": 45,
+      "t": "3:00 PM"
+     },
+     "fact": "since 3:00 PM",
+     "id": "co2",
+     "limit": 800,
+     "limit_label": "limit",
+     "means": "Stale air makes people tired and sleep worse.",
+     "name": "Room air (CO₂)",
+     "num": 1240,
+     "series": [
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      1105.0,
+      1120.0,
+      1105.0,
+      1120.0,
+      1105.0,
+      1120.0,
+      1105.0,
+      1120.0,
+      1105.0,
+      1120.0,
+      1105.0,
+      1120.0,
+      1105.0,
+      1120.0,
+      1105.0,
+      1120.0,
+      1105.0,
+      1120.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      1240.0,
+      1240.0,
+      1240.0
+     ],
+     "src": "ONE",
+     "state": "High",
+     "tone": "warn",
+     "unit": "ppm"
+    },
+    {
+     "cross": {
+      "i": 38,
+      "t": "11:30 AM"
+     },
+     "fact": "since 11:30 AM",
+     "id": "humidity",
+     "limit": 60,
+     "limit_label": "limit",
+     "means": "Damp air helps mold and dust mites grow.",
+     "name": "Humidity",
+     "num": 64,
+     "series": [
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0
+     ],
+     "src": "ONE",
+     "state": "Too damp",
+     "tone": "warn",
+     "unit": "%"
+    },
+    {
+     "cross": null,
+     "fact": "back under the limit",
+     "id": "pm",
+     "limit": 15,
+     "limit_label": "aim under",
+     "means": "Clean air. Fine for running and playing outside.",
+     "name": "Outside air (PM2.5)",
+     "num": 7.0,
+     "series": [
+      12.0,
+      16.0,
+      16.0,
+      21.0,
+      21.0,
+      25.0,
+      25.0,
+      22.0,
+      22.0,
+      17.0,
+      17.0,
+      12.0,
+      12.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      12.0
+     ],
+     "src": "Open Air",
+     "state": "Clean",
+     "tone": "good",
+     "unit": "µg/m³"
+    }
+   ],
+   "checked": [
+    "Both monitors reporting"
+   ],
+   "clock": "4:30 PM",
+   "generated_at": "2026-04-21T16:30:00-04:00",
+   "headline": {
+    "key": "window",
+    "needs": [
+     "toddler",
+     "sinus"
+    ],
+    "text": "Open a window for a few minutes.",
+    "tone": "warn"
+   },
+   "needs": [
+    {
+     "action": "Air the room",
+     "id": "toddler",
+     "metric": "co2",
+     "name": "Toddler",
+     "tone": "warn",
+     "why": "CO₂ has been over 800 since 3:00 PM."
+    },
+    {
+     "action": "Air the room briefly, then dry it",
+     "id": "sinus",
+     "metric": "humidity",
+     "name": "Sinus & allergy",
+     "pollen": [
+      {
+       "in_season": true,
+       "index": 4,
+       "name": "Tree"
+      },
+      {
+       "in_season": true,
+       "index": 1,
+       "name": "Grass"
+      },
+      {
+       "in_season": false,
+       "index": 0,
+       "name": "Weed"
+      }
+     ],
+     "tone": "warn",
+     "why": "The room is too damp (64%), and the air outside holds more water."
+    },
+    {
+     "action": "Run after 8 pm",
+     "id": "runner",
+     "metric": "pm",
+     "name": "Runner",
+     "tone": "warn",
+     "why": "The BQE rush runs until 8 PM, with the wind toward Greenpoint."
+    }
+   ],
+   "relief": "Tree pollen usually eases by early June.",
+   "relief_short": "eases by early June",
+   "status": "warn",
+   "summary": {
+    "all_clear": false,
+    "also": "Also: Humidity inside 64%.",
+    "clock": "4:30 PM",
+    "items": [
+     {
+      "action": {
+       "text": "Windows shut",
+       "when": "5–10 PM",
+       "when_end": "2026-04-21T22:00:00-04:00"
+      },
+      "ctx": "Peak 7 PM, BQE rush · now 7",
+      "facts": {
+       "cause": "BQE rush",
+       "peak_at": "7 PM",
+       "pm": 25,
+       "pm_now": 7,
+       "smoke": false,
+       "wind_dir": 135
+      },
+      "forecast": true,
+      "id": "pm",
+      "key": "out",
+      "label": "PM2.5 outside",
+      "need": "runner",
+      "num": "25",
+      "score": 1.6666666666666667,
+      "unit": "µg/m³",
+      "why": "Fine particles reach deep into the lungs. The line is 15, WHO’s guideline for a 24-hour average, used here for any hour. The southeast wind carries BQE rush-hour fumes onto the block. The forecast comes from the Copernicus model via Open-Meteo, adjusted to your backyard monitor."
+     },
+     {
+      "action": {
+       "text": "Open a window for 10 min",
+       "when": "before 5 PM",
+       "when_end": "2026-04-21T17:00:00-04:00"
+      },
+      "ctx": "55% over the 800 limit · over 800 all last night",
+      "facts": {
+       "co2": 1240,
+       "rush_start": "5 PM",
+       "since": "3 PM"
+      },
+      "forecast": false,
+      "id": "co2",
+      "key": "in",
+      "label": "CO₂ inside",
+      "need": "toddler",
+      "num": "1,240",
+      "score": 1.55,
+      "unit": "ppm",
+      "why": "Above 800 the air feels stale, and focus and sleep can suffer. It’s been over 800 since 3 PM. Do it before 5 PM, when the rush fumes arrive."
+     },
+     {
+      "action": {
+       "text": "Keep windows shut",
+       "when": "today",
+       "when_end": null
+      },
+      "ctx": "Tree pollen, high today",
+      "facts": {
+       "pollen_index": 4,
+       "pollen_type": "tree"
+      },
+      "forecast": false,
+      "id": "pollen",
+      "key": null,
+      "label": "Pollen today",
+      "need": "sinus",
+      "num": "4",
+      "score": 1.3333333333333333,
+      "unit": "of 5",
+      "why": "Tree pollen sets off sneezing and a stuffy nose for allergic sinuses. Today it’s 4 of 5. Keep the windows shut and shower after time outside."
+     }
+    ],
+    "label": "Today",
+    "needs": [
+     {
+      "facts": {
+       "co2": 1240.0,
+       "night_peak": 1125
+      },
+      "id": "toddler",
+      "name": "Toddler",
+      "ok": false,
+      "state": "Stale indoors",
+      "why": "Stale air can make sleep lighter. Last night it stayed over 800, peaking at 1,125, so air before bed too."
+     },
+     {
+      "facts": {
+       "pollen_index": 4,
+       "pollen_type": "Tree",
+       "rh": 64.0
+      },
+      "id": "sinus",
+      "name": "Sinus & allergy",
+      "ok": false,
+      "state": "Damp + pollen",
+      "why": "Damp inside and pollen outside: dehumidify with the windows shut."
+     },
+     {
+      "facts": {
+       "pm_now": 7.0,
+       "smoke": false
+      },
+      "id": "runner",
+      "name": "Runner",
+      "ok": false,
+      "state": "Avoid 5–10 PM",
+      "why": "PM2.5 outside is forecast over 15 in those hours: run before or after."
+     }
+    ],
+    "timeline": {
+     "co2": [
+      [
+       "2026-04-21T13:00:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T13:10:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T13:20:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T13:30:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T13:40:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T13:50:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T14:00:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T14:10:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T14:20:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T14:30:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T14:40:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T14:50:00-04:00",
+       690.0
+      ],
+      [
+       "2026-04-21T15:00:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T15:10:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T15:20:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T15:30:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T15:40:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T15:50:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T16:00:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T16:10:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T16:20:00-04:00",
+       1240.0
+      ]
+     ],
+     "hours": [
+      {
+       "mm": 0.6,
+       "pop": 70,
+       "t": "2026-04-21T15:00:00-04:00",
+       "temp": 18
+      },
+      {
+       "mm": null,
+       "pop": null,
+       "t": "2026-04-21T18:00:00-04:00",
+       "temp": 12
+      },
+      {
+       "mm": null,
+       "pop": null,
+       "t": "2026-04-21T21:00:00-04:00",
+       "temp": 12
+      },
+      {
+       "mm": null,
+       "pop": null,
+       "t": "2026-04-22T00:00:00-04:00",
+       "temp": 12
+      },
+      {
+       "mm": null,
+       "pop": null,
+       "t": "2026-04-22T03:00:00-04:00",
+       "temp": 12
+      }
+     ],
+     "limits": {
+      "co2": 800,
+      "pm": 15,
+      "rh": 60
+     },
+     "night": [
+      [
+       "2026-04-21T19:38:00-04:00",
+       "2026-04-22T04:00:00-04:00"
+      ]
+     ],
+     "now": "2026-04-21T16:30:00-04:00",
+     "pm": {
+      "fc": [
+       [
+        "2026-04-21T17:00:00-04:00",
+        16.0
+       ],
+       [
+        "2026-04-21T18:00:00-04:00",
+        21.0
+       ],
+       [
+        "2026-04-21T19:00:00-04:00",
+        25.0
+       ],
+       [
+        "2026-04-21T20:00:00-04:00",
+        22.0
+       ],
+       [
+        "2026-04-21T21:00:00-04:00",
+        17.0
+       ],
+       [
+        "2026-04-21T22:00:00-04:00",
+        12.0
+       ],
+       [
+        "2026-04-21T23:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-22T00:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-22T01:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-22T02:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-22T03:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-22T04:00:00-04:00",
+        7.0
+       ]
+      ],
+      "past": [
+       [
+        "2026-04-21T13:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T13:10:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T13:20:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T13:30:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T13:40:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T13:50:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T14:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T14:10:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T14:20:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T14:30:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T14:40:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T14:50:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T15:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T15:10:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T15:20:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T15:30:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T15:40:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T15:50:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T16:00:00-04:00",
+        12.0
+       ],
+       [
+        "2026-04-21T16:10:00-04:00",
+        12.0
+       ],
+       [
+        "2026-04-21T16:20:00-04:00",
+        12.0
+       ]
+      ]
+     },
+     "rh": null,
+     "sun": [
+      {
+       "kind": "Sunset",
+       "t": "2026-04-21T19:38:00-04:00"
+      }
+     ],
+     "t0": "2026-04-21T13:00:00-04:00",
+     "t1": "2026-04-22T04:00:00-04:00",
+     "uv": [
+      [
+       "2026-04-21T13:00:00-04:00",
+       "2026-04-21T15:00:00-04:00",
+       7
+      ]
+     ]
+    }
+   },
+   "why": "CO₂ has been over the 800 limit since 3:00 PM."
+  }
+ },
+ "morning": {
+  "context": {
+   "bqe": {
+    "current_hour": 7,
+    "pollution_pressure": 2.0,
+    "traffic": "PEAK (morning rush)",
+    "wind_impact": "Blowing toward Greenpoint"
+   },
+   "forecast": [
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T07:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T08:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T09:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T10:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 15,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 18,
+     "time": "2026-04-21T11:00",
+     "uv": 7,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 18,
+     "time": "2026-04-21T12:00",
+     "uv": 7,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 61,
+     "dew": 9,
+     "pm25": 7,
+     "pop": 70,
+     "precip": 0.6,
+     "temp": 18,
+     "time": "2026-04-21T13:00",
+     "uv": 7,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 61,
+     "dew": 9,
+     "pm25": 7,
+     "pop": 70,
+     "precip": 0.6,
+     "temp": 18,
+     "time": "2026-04-21T14:00",
+     "uv": 7,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 7,
+     "pop": 10,
+     "precip": 0,
+     "temp": 18,
+     "time": "2026-04-21T15:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 12,
+     "pop": 10,
+     "precip": 0,
+     "temp": 18,
+     "time": "2026-04-21T16:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 16,
+     "pop": 10,
+     "precip": 0,
+     "temp": 18,
+     "time": "2026-04-21T17:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 21,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T18:00",
+     "uv": 2,
+     "wind_dir": 135
+    },
+    {
+     "bqe_toward": true,
+     "code": 3,
+     "dew": 9,
+     "pm25": 25,
+     "pop": 10,
+     "precip": 0,
+     "temp": 12,
+     "time": "2026-04-21T19:00",
+     "uv": 2,
+     "wind_dir": 135
+    }
+   ],
+   "pollen": [
+    {
+     "in_season": true,
+     "index": 4,
+     "level": "High",
+     "name": "Tree"
+    },
+    {
+     "in_season": true,
+     "index": 1,
+     "level": "Very Low",
+     "name": "Grass"
+    },
+    {
+     "in_season": false,
+     "index": 0,
+     "level": "None",
+     "name": "Weed"
+    }
+   ],
+   "pollen_tomorrow": [
+    {
+     "in_season": true,
+     "index": 3,
+     "level": "Moderate",
+     "name": "Tree"
+    },
+    {
+     "in_season": true,
+     "index": 1,
+     "level": "Very Low",
+     "name": "Grass"
+    },
+    {
+     "in_season": false,
+     "index": 0,
+     "level": "None",
+     "name": "Weed"
+    }
+   ],
+   "smoke": {
+    "checked": true,
+    "date": "2026-04-21",
+    "density": null,
+    "detected": false
+   },
+   "weather": {
+    "cloud_cover": 60,
+    "dew_point": 17.4,
+    "dew_point_risk": "Comfortable",
+    "humidity": 85,
+    "temperature": 20,
+    "uv_index": 2,
+    "visibility": 16000,
+    "visibility_status": "Clear",
+    "weather_code": 3,
+    "wind_cardinal": "SE",
+    "wind_direction": 135,
+    "wind_speed": 9
+   }
+  },
+  "read": {
+   "ahead": "",
+   "also": [
+    {
+     "text": "Air the room briefly, then dry it",
+     "tone": "warn",
+     "why": "The room is too damp (64%), and the air outside holds more water."
+    },
+    {
+     "text": "Run after 10 am",
+     "tone": "warn",
+     "why": "The BQE rush runs until 10 AM, with the wind toward Greenpoint."
+    },
+    {
+     "text": "Limit time outside",
+     "tone": "warn",
+     "why": "Tree pollen is 4 of 5."
+    }
+   ],
+   "cards": [
+    {
+     "cross": {
+      "i": 28,
+      "t": "10:05 PM"
+     },
+     "fact": "since 10:05 PM yesterday",
+     "id": "co2",
+     "limit": 800,
+     "limit_label": "limit",
+     "means": "Stale air makes people tired and sleep worse.",
+     "name": "Room air (CO₂)",
+     "num": 1240,
+     "series": [
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      690.0,
+      826.7,
+      1110.0,
+      1115.0,
+      1110.0,
+      1115.0,
+      1110.0,
+      1115.0,
+      1110.0,
+      1115.0,
+      1110.0,
+      1115.0,
+      1110.0,
+      1115.0,
+      1110.0,
+      1115.0,
+      1110.0,
+      1115.0,
+      1240.0,
+      1240.0,
+      1240.0
+     ],
+     "src": "ONE",
+     "state": "High",
+     "tone": "warn",
+     "unit": "ppm"
+    },
+    {
+     "cross": {
+      "i": 38,
+      "t": "2:45 AM"
+     },
+     "fact": "since 2:45 AM",
+     "id": "humidity",
+     "limit": 60,
+     "limit_label": "limit",
+     "means": "Damp air helps mold and dust mites grow.",
+     "name": "Humidity",
+     "num": 64,
+     "series": [
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      55.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0,
+      64.0
+     ],
+     "src": "ONE",
+     "state": "Too damp",
+     "tone": "warn",
+     "unit": "%"
+    },
+    {
+     "cross": null,
+     "fact": "back under the limit",
+     "id": "pm",
+     "limit": 15,
+     "limit_label": "aim under",
+     "means": "Clean air. Fine for running and playing outside.",
+     "name": "Outside air (PM2.5)",
+     "num": 7.0,
+     "series": [
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      8.7,
+      12.0,
+      13.3,
+      16.0,
+      17.7,
+      21.0,
+      22.3,
+      25.0,
+      24.0,
+      22.0,
+      20.3,
+      17.0,
+      15.3,
+      12.0,
+      10.3,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0
+     ],
+     "src": "Open Air",
+     "state": "Clean",
+     "tone": "good",
+     "unit": "µg/m³"
+    }
+   ],
+   "checked": [
+    "Both monitors reporting"
+   ],
+   "clock": "7:45 AM",
+   "generated_at": "2026-04-21T07:45:00-04:00",
+   "headline": {
+    "key": "window",
+    "needs": [
+     "toddler",
+     "sinus"
+    ],
+    "text": "Open a window for a few minutes.",
+    "tone": "warn"
+   },
+   "needs": [
+    {
+     "action": "Air the room",
+     "id": "toddler",
+     "metric": "co2",
+     "name": "Toddler",
+     "tone": "warn",
+     "why": "CO₂ has been over 800 since 10:05 PM yesterday."
+    },
+    {
+     "action": "Air the room briefly, then dry it",
+     "id": "sinus",
+     "metric": "humidity",
+     "name": "Sinus & allergy",
+     "pollen": [
+      {
+       "in_season": true,
+       "index": 4,
+       "name": "Tree"
+      },
+      {
+       "in_season": true,
+       "index": 1,
+       "name": "Grass"
+      },
+      {
+       "in_season": false,
+       "index": 0,
+       "name": "Weed"
+      }
+     ],
+     "tone": "warn",
+     "why": "The room is too damp (64%), and the air outside holds more water."
+    },
+    {
+     "action": "Run after 10 am",
+     "id": "runner",
+     "metric": "pm",
+     "name": "Runner",
+     "tone": "warn",
+     "why": "The BQE rush runs until 10 AM, with the wind toward Greenpoint."
+    }
+   ],
+   "relief": "Tree pollen usually eases by early June.",
+   "relief_short": "eases by early June",
+   "status": "warn",
+   "summary": {
+    "all_clear": false,
+    "also": null,
+    "clock": "7:45 AM",
+    "items": [
+     {
+      "action": {
+       "text": "Open a window for 10 min",
+       "when": "now",
+       "when_end": null
+      },
+      "ctx": "55% over the 800 limit · over 800 all last night",
+      "facts": {
+       "co2": 1240,
+       "since": "yesterday 10 PM"
+      },
+      "forecast": false,
+      "id": "co2",
+      "key": "in",
+      "label": "CO₂ inside",
+      "need": "toddler",
+      "num": "1,240",
+      "score": 1.55,
+      "unit": "ppm",
+      "why": "Above 800 the air feels stale, and focus and sleep can suffer. It’s been over 800 since yesterday 10 PM."
+     },
+     {
+      "action": {
+       "text": "Keep windows shut",
+       "when": "today",
+       "when_end": null
+      },
+      "ctx": "Tree pollen, high today",
+      "facts": {
+       "pollen_index": 4,
+       "pollen_type": "tree"
+      },
+      "forecast": false,
+      "id": "pollen",
+      "key": null,
+      "label": "Pollen today",
+      "need": "sinus",
+      "num": "4",
+      "score": 1.3333333333333333,
+      "unit": "of 5",
+      "why": "Tree pollen sets off sneezing and a stuffy nose for allergic sinuses. Today it’s 4 of 5. Keep the windows shut and shower after time outside."
+     },
+     {
+      "action": {
+       "text": "Run the dehumidifier",
+       "when": "until under 55%",
+       "when_end": null
+      },
+      "ctx": "4 points over 60",
+      "facts": {
+       "drier_out": false,
+       "dry": false,
+       "rh": 64,
+       "rh_out": 85
+      },
+      "forecast": false,
+      "id": "rh",
+      "key": null,
+      "label": "Humidity inside",
+      "need": "sinus",
+      "num": "64",
+      "score": 1.0666666666666667,
+      "unit": "%",
+      "why": "Above 60%, mold and dust mites grow, which is hard on sinuses. Outside is wetter (85%), so a window won’t dry the room. The AC’s dry mode works too. Stop at 55%."
+     }
+    ],
+    "label": "Today",
+    "needs": [
+     {
+      "facts": {
+       "co2": 1240.0,
+       "night_peak": 1240
+      },
+      "id": "toddler",
+      "name": "Toddler",
+      "ok": false,
+      "state": "Stale indoors",
+      "why": "Stale air can make sleep lighter. Last night it stayed over 800, peaking at 1,240, so air before bed too."
+     },
+     {
+      "facts": {
+       "pollen_index": 4,
+       "pollen_type": "Tree",
+       "rh": 64.0
+      },
+      "id": "sinus",
+      "name": "Sinus & allergy",
+      "ok": false,
+      "state": "Damp + pollen",
+      "why": "Damp inside and pollen outside: dehumidify with the windows shut."
+     },
+     {
+      "facts": {
+       "pm_now": 7.0,
+       "smoke": false
+      },
+      "id": "runner",
+      "name": "Runner",
+      "ok": true,
+      "state": "Clean air",
+      "why": "Outdoor PM2.5 is under 15."
+     }
+    ],
+    "timeline": {
+     "co2": [
+      [
+       "2026-04-21T04:05:00-04:00",
+       1100.0
+      ],
+      [
+       "2026-04-21T04:15:00-04:00",
+       1105.0
+      ],
+      [
+       "2026-04-21T04:25:00-04:00",
+       1110.0
+      ],
+      [
+       "2026-04-21T04:35:00-04:00",
+       1115.0
+      ],
+      [
+       "2026-04-21T04:45:00-04:00",
+       1120.0
+      ],
+      [
+       "2026-04-21T04:55:00-04:00",
+       1125.0
+      ],
+      [
+       "2026-04-21T05:05:00-04:00",
+       1100.0
+      ],
+      [
+       "2026-04-21T05:15:00-04:00",
+       1105.0
+      ],
+      [
+       "2026-04-21T05:25:00-04:00",
+       1110.0
+      ],
+      [
+       "2026-04-21T05:35:00-04:00",
+       1115.0
+      ],
+      [
+       "2026-04-21T05:45:00-04:00",
+       1120.0
+      ],
+      [
+       "2026-04-21T05:55:00-04:00",
+       1125.0
+      ],
+      [
+       "2026-04-21T06:05:00-04:00",
+       1100.0
+      ],
+      [
+       "2026-04-21T06:15:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T06:25:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T06:35:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T06:45:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T06:55:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T07:05:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T07:15:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T07:25:00-04:00",
+       1240.0
+      ],
+      [
+       "2026-04-21T07:35:00-04:00",
+       1240.0
+      ]
+     ],
+     "hours": [
+      {
+       "mm": null,
+       "pop": null,
+       "t": "2026-04-21T06:00:00-04:00",
+       "temp": 12
+      },
+      {
+       "mm": null,
+       "pop": null,
+       "t": "2026-04-21T09:00:00-04:00",
+       "temp": 12
+      },
+      {
+       "mm": 0.6,
+       "pop": 70,
+       "t": "2026-04-21T12:00:00-04:00",
+       "temp": 18
+      },
+      {
+       "mm": 0.6,
+       "pop": 70,
+       "t": "2026-04-21T15:00:00-04:00",
+       "temp": 18
+      },
+      {
+       "mm": null,
+       "pop": null,
+       "t": "2026-04-21T18:00:00-04:00",
+       "temp": 12
+      }
+     ],
+     "limits": {
+      "co2": 800,
+      "pm": 15,
+      "rh": 60
+     },
+     "night": [
+      [
+       "2026-04-21T04:00:00-04:00",
+       "2026-04-21T06:17:00-04:00"
+      ]
+     ],
+     "now": "2026-04-21T07:45:00-04:00",
+     "pm": {
+      "fc": [
+       [
+        "2026-04-21T08:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T09:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T10:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T11:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T12:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T13:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T14:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T15:00:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T16:00:00-04:00",
+        12.0
+       ],
+       [
+        "2026-04-21T17:00:00-04:00",
+        16.0
+       ],
+       [
+        "2026-04-21T18:00:00-04:00",
+        21.0
+       ],
+       [
+        "2026-04-21T19:00:00-04:00",
+        25.0
+       ]
+      ],
+      "past": [
+       [
+        "2026-04-21T04:05:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T04:15:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T04:25:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T04:35:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T04:45:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T04:55:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T05:05:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T05:15:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T05:25:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T05:35:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T05:45:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T05:55:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T06:05:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T06:15:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T06:25:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T06:35:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T06:45:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T06:55:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T07:05:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T07:15:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T07:25:00-04:00",
+        7.0
+       ],
+       [
+        "2026-04-21T07:35:00-04:00",
+        7.0
+       ]
+      ]
+     },
+     "rh": [
+      [
+       "2026-04-21T04:05:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T04:15:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T04:25:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T04:35:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T04:45:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T04:55:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T05:05:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T05:15:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T05:25:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T05:35:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T05:45:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T05:55:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T06:05:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T06:15:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T06:25:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T06:35:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T06:45:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T06:55:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T07:05:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T07:15:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T07:25:00-04:00",
+       64.0
+      ],
+      [
+       "2026-04-21T07:35:00-04:00",
+       64.0
+      ]
+     ],
+     "sun": [
+      {
+       "kind": "Sunrise",
+       "t": "2026-04-21T06:17:00-04:00"
+      }
+     ],
+     "t0": "2026-04-21T04:00:00-04:00",
+     "t1": "2026-04-21T19:00:00-04:00",
+     "uv": [
+      [
+       "2026-04-21T11:00:00-04:00",
+       "2026-04-21T15:00:00-04:00",
+       7
+      ]
+     ]
+    }
+   },
+   "why": "CO₂ has been over the 800 limit since 10:05 PM yesterday."
+  }
+ }
+}

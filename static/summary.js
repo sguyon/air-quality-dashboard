@@ -1,6 +1,6 @@
 // Home Air Quality: the summary card (items, needs, day chart, hover readout), drawn from /api/analyze's
 // `summary` object. The rules in summary.py decide everything; this file only draws it.
-// Spec: research/specs/summary-redesign-spec.md · visual reference: research/design-archive/49-summary-needs-row.html, needs as in 52 (B9 without the underline)
+// Spec: internal/specs/summary-redesign-spec.md · visual reference: internal/design-archive/49-summary-needs-row.html, needs as in 52 (B9 without the underline)
 (function (root) {
   'use strict';
 
@@ -27,6 +27,14 @@
   const staleWhen = (action, now) => (!action || !action.when) ? null
     : (action.when_end && Date.parse(action.when_end) <= +now) ? null : action.when;
   const tipSide = (px, width, tipWidth) => px + 16 + tipWidth > width ? 'left' : 'right';
+  // The page's clock. The demo (window.APP.now) runs from its story moment, advancing as the tab stays open; a real home
+  // runs on the real clock. For what the page shows; timers and cache stamps keep Date.now().
+  const LOADED = Date.now();
+  const appNow = () => { const n = root.APP && root.APP.now;
+    return n ? new Date(Date.parse(n.at) + (Date.now() - LOADED)) : new Date(); };
+  // The time the readings are from, for how old a reading is and where the history ends: the demo's data never moves
+  // past its moment, so a demo tab left open stays live and asks for the same history URLs. A real home: now.
+  const readingsNow = () => { const n = root.APP && root.APP.now; return n ? new Date(Date.parse(n.at)) : new Date(); };
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const NEED_ICON = {
@@ -68,7 +76,7 @@
   const kickHtml = (label, needs, showLabel = true) =>
     `<div class="sx-kick">${showLabel ? `<span>${esc(label)}</span>` : '<span></span>'}${needsHeadHtml(needs)}</div>`;
 
-  const api = { kickHtml, hoursOf, lerp, shareOfLimit, fmtClock, staleWhen, tipSide, hourLabel, needsHeadHtml, itemNeedHtml, fitLabel, rhLabelY, peakAhead, rewire };
+  const api = { appNow, readingsNow, kickHtml, hoursOf, lerp, shareOfLimit, fmtClock, staleWhen, tipSide, hourLabel, needsHeadHtml, itemNeedHtml, fitLabel, rhLabelY, peakAhead, rewire };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   // ── drawing ──
@@ -242,7 +250,7 @@
     </div>`;
   }
 
-  function renderSummary(el, s, now = new Date(), opts = {}) {
+  function renderSummary(el, s, now = appNow(), opts = {}) {
     if (!el) return false;
     if (!s || !s.timeline) { el.innerHTML = '<p class="sx-none">The summary isn’t available right now.</p>'; return false; }
     let html = kickHtml(s.label, s.needs, opts.label !== false);

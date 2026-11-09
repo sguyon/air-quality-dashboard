@@ -1,24 +1,33 @@
-.env
+# Python
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 .DS_Store
 
-# Agent session scratchpads (ephemeral, not for contributors)
-PROGRESS.md
-research/
-research-internal/
-SCRATCHPAD.md
-TASKS.md
-TODO.md
-tmp/
-.claude/sessions/
-.superpowers/
-SESSION-HANDOFF.md
+# Keys and your home's config (see config.example.toml)
+.env
+.env.*
+!.env.example
+/config.toml
+
+# Private notes: a separate private repo cloned here
+internal/
 CLAUDE.local.md
 
-# Design captures from the browse tool (local only)
-.gstack/
+# Vercel build output
+public/
+.vercel/
 
-# Build log (private notes for posts)
-build-log/
+# Local agent and design tools
+.claude/sessions/
+.claude/worktrees/
+.superpowers/
+.gstack/
+.impeccable/
+.codex/
+.gemini/
+.grok/
+.cursor/hooks.json
+.github/hooks/
+PRODUCT.md

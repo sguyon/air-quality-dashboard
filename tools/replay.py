@@ -2,8 +2,8 @@
 
     python3 tools/replay.py [days=7]
 
-Writes research/replay/<date>-<HHMM>.json (one card per snapshot: 8:00 AM, 3:40 PM, 9:30 PM) and
-research/replay/gallery.html. research/ is gitignored: these are the household's real readings, and the repo is
+Writes internal/replay/<date>-<HHMM>.json (one card per snapshot: 8:00 AM, 3:40 PM, 9:30 PM) and
+internal/replay/gallery.html. internal/ is gitignored: these are the household's real readings, and the repo is
 public, so they never go into git. The AirGradient token comes from .env through server.py and is never printed.
 
 Caveats, shown in the gallery header:
@@ -20,10 +20,10 @@ sys.path.insert(0, ROOT)
 
 import requests  # noqa: E402
 
-import server  # noqa: E402  (loads .env; gives api_get, the limits and the coordinates)
+import server  # noqa: E402  (loads .env and the config; gives api_get, the limits, the home and the road)
 import summary  # noqa: E402
 
-OUT = os.path.join(ROOT, "research", "replay")
+OUT = os.path.join(ROOT, "internal", "replay")
 SNAPSHOTS = [(8, 0), (15, 40), (21, 30)]
 
 
@@ -68,10 +68,10 @@ def open_meteo(days, tz):
     w = requests.get("https://api.open-meteo.com/v1/forecast", params={
         "latitude": server.HOME_LAT, "longitude": server.HOME_LON, "past_days": days + 1, "forecast_days": 2,
         "hourly": "temperature_2m,precipitation_probability,precipitation,uv_index,wind_direction_10m",
-        "daily": "sunrise,sunset", "timezone": "America/New_York"}, timeout=20).json()
+        "daily": "sunrise,sunset", "timezone": server.CFG.place.timezone}, timeout=20).json()
     a = requests.get("https://air-quality-api.open-meteo.com/v1/air-quality", params={
         "latitude": server.HOME_LAT, "longitude": server.HOME_LON, "past_days": days + 1, "forecast_days": 2,
-        "hourly": "pm2_5", "timezone": "America/New_York"}, timeout=20).json()
+        "hourly": "pm2_5", "timezone": server.CFG.place.timezone}, timeout=20).json()
     loc = lambda s: datetime.fromisoformat(s).replace(tzinfo=tz)
     hw = w.get("hourly") or {}
     hourly = [{"t": loc(t), "temp": hw["temperature_2m"][k], "pop": hw["precipitation_probability"][k],
@@ -96,7 +96,7 @@ def snapshot(now, ins, outs, hourly, cams, sun):
         r=r, cams=[(t, v) for t, v in cams if now - timedelta(hours=24) <= t <= now + timedelta(hours=24)], hourly=hr,
         co2_pts=win(ins, lambda x: pick(x, "rco2_corrected", "rco2")), rh_pts=win(ins, lambda x: pick(x, "rhum_corrected", "rhum")),
         pm_past=win(outs, lambda x: pick(x, "pm02_corrected", "pm02")), smoke=False, pollen_today=None, pollen_tomorrow=None,
-        rush=summary.rush_windows(hr, now, server.RUSH_WINDOWS, server.BQE_TOWARD), sun=sun, now=now)
+        rush=server.rush_windows(hr, now), road=server.ROAD.name if server.ROAD else None, sun=sun, now=now)
 
 
 GALLERY = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -137,7 +137,7 @@ def main(days=7):
         f.write("window.REPLAY = " + json.dumps(cards, default=str) + ";")
     with open(os.path.join(OUT, "gallery.html"), "w") as f:
         f.write(GALLERY.replace("__N__", str(len(cards))))
-    print(f"{len(cards)} snapshots written to research/replay/")
+    print(f"{len(cards)} snapshots written to internal/replay/")
 
 
 if __name__ == "__main__":

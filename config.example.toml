@@ -1,0 +1,91 @@
+# Copy this file to config.toml and edit it. config.toml is not tracked by git.
+# Secrets (AIRGRADIENT_TOKEN, GOOGLE_POLLEN_API_KEY) go in .env, never here.
+
+[place]
+# The name shown on the page.
+name = "Maplewood"
+# Latitude and longitude of your home, in decimal degrees (west and south are negative).
+lat = 39.95
+lon = -75.16
+# Your timezone, as an IANA name (for example America/Chicago, Europe/Paris).
+timezone = "America/New_York"
+# What to call your indoor monitor in sentences (the room it's in). The page finds the monitor itself, from your token.
+indoor = "living room"
+# What to call your outdoor monitor in sentences.
+outdoor = "porch"
+# Your US ZIP code, used for the pollen.com link. Delete this line for no pollen link (outside the US).
+pollen_zip = "19103"
+# Your city or region, used in a few sentences, e.g. "the usual New York season". Leave out for neutral wording.
+# region = "Philadelphia"
+
+[needs]
+# Which questions the page answers for your household. Each is true or false.
+# A toddler at home: CO2 and the air at sleep time, and whether outdoor air is fine for them.
+toddler = true
+# Sinus trouble or allergies: humidity and pollen.
+sinus = true
+# Someone who runs outdoors: when the outdoor air makes a run worth it.
+runner = true
+
+[limits]
+# Indoor CO2 (ppm) above which the page says to ventilate.
+co2 = 800
+# Outdoor PM2.5 (ug/m3) above which air is called poor.
+pm = 15
+# Outdoor PM2.5 (ug/m3) above which air is called bad.
+pm_high = 35
+# Indoor relative humidity (%) below which air is called dry.
+rh_dry = 30
+# Indoor relative humidity (%) above which air is called damp.
+rh_damp = 60
+# Indoor relative humidity (%) the damp-room action aims for: when the room is over rh_damp,
+# the page says to run the dehumidifier until it's under this.
+rh_stop = 55
+# Pollen level (0 to 5) from which the page warns.
+pollen = 3
+
+[sources]
+# NOAA wildfire smoke data. US only.
+smoke = true
+# Pollen levels from Google. Also needs GOOGLE_POLLEN_API_KEY in .env.
+pollen = true
+# Other public AirGradient monitors near you.
+nearby = true
+
+# Optional: a busy road near your home. Leave this whole section out for no road.
+# Example, the road in the demo (demo/config.toml). SETUP.md describes the route file:
+# [road]
+# # The name shown on the page.
+# name = "BQE"
+# # What kind of road, shown after the name ("BQE expressway"). Default: highway.
+# kind = "expressway"
+# # A file of [longitude, latitude] points tracing the road.
+# route = "static/bqe.json"
+# # Rush hours: [start hour, end hour, label], 24-hour clock.
+# rush = [[7, 10, "morning"], [16, 20, "evening"]]
+# # Optional: compass bearings (degrees) toward the road, [min, max].
+# # If you leave it out, it is computed from the route.
+# toward = [80, 200]
+
+# Pollen seasons: typical calendar dates as [month, day]. Add or remove blocks freely.
+# These are the usual dates for the northeastern US, not a forecast.
+[[pollen_seasons]]
+name = "Tree"
+# First day of the season.
+start = [3, 10]
+# The heaviest stretch: [from, to].
+peak = [[4, 1], [5, 10]]
+# Last day of the season.
+end = [5, 31]
+
+[[pollen_seasons]]
+name = "Grass"
+start = [5, 10]
+peak = [[6, 1], [6, 30]]
+end = [7, 31]
+
+[[pollen_seasons]]
+name = "Weed"
+start = [8, 15]
+peak = [[8, 25], [9, 20]]
+end = [10, 20]

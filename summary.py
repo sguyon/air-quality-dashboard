@@ -1,14 +1,15 @@
 """The summary card's rules: which readings lead, what to do and when, the needs row and the day chart's data.
 
 Pure functions, no network or Flask: server.py and tools/replay.py gather the inputs and call build_summary.
-Spec: research/specs/summary-redesign-spec.md.
+Spec: internal/specs/summary-redesign-spec.md.
 """
 import math
 from datetime import datetime, timedelta
 
 import phrases
+from config import DEFAULT_LIMITS, bearing_in
 
-LIMITS = {"co2": 800, "rh_damp": 60, "rh_dry": 30, "rh_stop": 55, "pm": 15, "pm_high": 35, "pollen": 3}
+LIMITS = dict(DEFAULT_LIMITS)   # the server fills these from the config at import
 HOUSEHOLD = {"equipment": {"dehumidifier", "ac_dry"}}   # Sacha, 8 Nov 2026: no humidifier, no purifier
 OUTLOOK_HOURS = 8
 ANCHOR_FADE = timedelta(hours=6)
@@ -22,7 +23,7 @@ def clock(t):
 
 
 def anchor_forecast(cams, measured_now, cams_now):
-    """CAMS works on a 45 km grid and misses the BQE, so keep its shape but start it from what the backyard
+    """CAMS works on a 45 km grid and misses a nearby road, so keep its shape but start it from what the backyard
     monitor reads now. Without a measurement (or a CAMS value for now) the raw values are used, flagged False."""
     pts = [(t, v) for t, v in cams if v is not None]
     if measured_now is None or cams_now is None:
@@ -352,8 +353,9 @@ def _since(pts, limit, now):
     return f"yesterday {s}" if t.date() < now.date() else s
 
 
-def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today, pollen_tomorrow, rush, sun, now, means=None):
-    """The whole card from the rules: items with actions and explanations, the Also line, the needs row, the chart."""
+def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today, pollen_tomorrow, rush, sun, now, road=None):
+    """The whole card from the rules: items with actions and explanations, the Also line, the needs row, the chart.
+    `road` is the road's name (None without one); `rush` its rush windows from rush_windows()."""
     cams_now = next((v for t, v in cams if _floor_hour(t) == _floor_hour(now) and v is not None), None)
     adjusted, _k = calibrate_forecast(cams, pm_past, now)
     if adjusted is None:   # not enough history to calibrate: anchor to the reading now, fading over 6 hours
@@ -363,8 +365,8 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
         at_t = outlook["max_at"] or now
         if smoke:
             outlook["cause"] = "smoke"
-        elif any(a <= at_t < b and toward for a, b, toward in rush):
-            outlook["cause"] = "BQE rush"
+        elif road and any(a <= at_t < b and toward for a, b, toward in rush):
+            outlook["cause"] = f"{road} rush"
     night = last_night(co2_pts, now)
 
     pollen_ok = pollen_today if pollen_today and (pollen_today.get("index") or 0) >= LIMITS["pollen"] else None
@@ -375,7 +377,6 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
     items, also = select(cands, extra)
 
     wind_at = lambda t: next((h.get("wind_dir") for h in hourly if t is not None and _floor_hour(h["t"]) == _floor_hour(t)), None)
-    model_key = {"co2": "co2", "rh": "humidity", "pm": "pm"}
     for it in items:
         # whose need the item is: its chip on the card names that need and opens its sentence after the item's
         it["need"] = {"co2": "toddler", "rh": "sinus", "pollen": "sinus"}.get(it["id"], "toddler" if outlook.get("high") else "runner")
@@ -384,8 +385,8 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
         when = it["action"]["when"] or ""
         if it["id"] == "co2":
             f["since"] = _since(co2_pts, LIMITS["co2"], now)
-            if when.startswith("before "):
-                f["rush_start"] = when[7:]
+            if when.startswith("before "):   # the PM2.5 stretch ahead: with a road and rush hours, its rush fumes
+                f["rush_start" if road and rush else "dirty_at"] = when[7:]
             elif when.startswith("after "):
                 f["clean_at"] = when[6:]
             cold = next((h for h in sorted(hourly, key=lambda x: x["t"])
@@ -398,9 +399,7 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
                 f["drier_out"] = None   # drier outside, but the air there is dirty soon: say nothing about airing
         if it["id"] == "pm":
             f.update(wind_dir=wind_at(outlook["max_at"] or now), smoke=bool(smoke))
-        m = (means or {}).get(model_key.get(it["id"]))
-        text = phrases.why(it["id"], f, effect=m.strip() if m else None)   # the model's line replaces only the effect
-        it["why"] = text
+        it["why"] = phrases.why(it["id"], f)
         it["facts"] = f
 
     needs = needs_row(r, outlook, pollen_today, smoke, night, now)
@@ -414,15 +413,15 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
 
 
 
-def rush_windows(hourly, now, windows, toward_range):
-    """Today's and tomorrow's BQE rush windows as (start, end, wind_toward): toward when at least half the window's
-    forecast hours blow from `toward_range` (degrees)."""
+def rush_windows(hourly, now, windows, toward):
+    """Today's and tomorrow's rush windows of the road as (start, end, wind_toward): toward when at least half the
+    window's forecast hours blow from the arc `toward` (lo, hi) in degrees, which can cross north (lo > hi)."""
     out = []
     for d in (0, 1):
         day = (now + timedelta(days=d)).replace(hour=0, minute=0, second=0, microsecond=0)
         for start, end, _name in windows:
             a, b = day + timedelta(hours=start), day + timedelta(hours=end)
             winds = [h["wind_dir"] for h in hourly if a <= h["t"] < b and h.get("wind_dir") is not None]
-            toward = sum(1 for w in winds if toward_range[0] <= w <= toward_range[1])
-            out.append((a, b, bool(winds) and toward * 2 >= len(winds)))
+            n = sum(1 for w in winds if bearing_in(w, toward))
+            out.append((a, b, bool(winds) and n * 2 >= len(winds)))
     return out

@@ -1,5 +1,5 @@
 /* Home Air Quality: the summary card (static/summary.js). Page tokens only, so the dark theme works.
-   Visual reference: research/design-archive/49-summary-needs-row.html */
+   Visual reference: internal/design-archive/49-summary-needs-row.html */
 .sx { position: relative; padding: 14px 20px 12px; container-type: inline-size; }
 
 .sx-kick { position: relative; display: flex; justify-content: space-between; align-items: center; min-height: 22px;

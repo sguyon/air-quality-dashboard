@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "bash scripts/vercel_build.sh",
+  "regions": ["iad1"],
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "**": false
+    }
+  },
+  "functions": {
+    "server.py": {
+      "maxDuration": 30,
+      "excludeFiles": "{internal,tests,docs,archive}/**"
+    }
+  }
+}

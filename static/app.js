@@ -3,20 +3,83 @@ const ICONS = {"toddler":"<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"t
 // Each inserted copy of a drawing gets its own ids: a gradient referenced from a hidden copy doesn't paint.
 let svgCopy = 0;
 const uniq = svg => { const n = ++svgCopy; return svg.replace(/id="([^"]+)"/g, `id="$1-${n}"`).replace(/url\(#([^)]+)\)/g, `url(#$1-${n})`); };
-const TZ = 'America/New_York';
-const PM_FINE = 15, PM_HIGH = 35, CO2_OPEN = 800;
-const RH_LOW = 30, RH_HIGH = 50, RH_DAMP = 60;   // same as server.py
-// Peak hours as the server's BQE estimate counts them: [start, end).
-const RUSH = [[7, 10, 'morning'], [16, 20, 'evening']];
+// The home (place, links, road, needs, limits, pollen seasons) comes from the server's config: window.APP, set in index().
+const APP = window.APP;
+// The page's clock (summary.js): the demo's story moment (APP.now), or the real time. What the page shows uses it;
+// timers and cache stamps keep Date.now(). The demo also names its moment on every /api call.
+const appNow = SummaryCard.appNow, readingsNow = SummaryCard.readingsNow;   // readingsNow: what the readings' age is judged against
+const apiUrl = url => APP.now ? `${url}${url.includes('?') ? '&' : '?'}moment=${encodeURIComponent(APP.now.moment)}` : url;
+const TZ = APP.place.timezone;
+const PM_FINE = APP.limits.pm, PM_HIGH = APP.limits.pm_high, CO2_OPEN = APP.limits.co2;
+const RH_LOW = APP.limits.rh_dry, RH_HIGH = 50, RH_DAMP = APP.limits.rh_damp;   // same as server.py
 const RANGE_HOURS = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 };
 const RANGE_LABEL = { '1h': 'Last hour', '6h': 'Last 6 hours', '24h': 'Last 24 hours', '7d': 'Last 7 days' };
 const READ_MAX_AGE = 10 * 60 * 1000;
-const CACHE_KEY = 'air-read-v2';
+const CACHE_KEY = 'air-read-v2' + (APP.now ? ':' + APP.now.moment : '');   // the demo keeps one per moment
 
 const state = { range: '1h', indoor: null, outdoor: null, neighbors: [], read: null, readAt: 0, readKey: '' };
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Fill the page's home-specific links and labels ([data-app] in index.html) from the config, once at load.
+// Without a road: no road card, source row, legend or road words. Needs that are off are hidden.
+function applyConfig() {
+  const { place, links, road, needs } = APP;
+  const set = (el, attr, v) => { if (v) el.setAttribute(attr, v); else el.removeAttribute(attr); };
+  const runner = `Runner: adds the run check, saying when the outdoor air${road ? ` and ${road.name} traffic` : ''} make${road ? '' : 's'} a run worth it.`;
+  const fill = {
+    'place': el => { el.textContent = place.name; },
+    'map-home': el => { el.href = links.map_home; el.textContent = place.name; },
+    'map-area': el => { el.href = links.map_area; },
+    'nearby-about': el => { el.textContent = `Other AirGradient monitors around ${place.name}.`; },
+    'forecast': el => { el.href = links.forecast; el.title = `Hourly forecast for ${place.name}, National Weather Service`; },
+    'wx-about': el => { el.textContent = road ? `Open-Meteo. Wind direction changes how ${road.name} exhaust drifts.` : 'Open-Meteo.'; },
+    'pollen-link': el => {   // pollen.com needs a US ZIP; without one the heading is plain text
+      set(el, 'href', links.pollen); set(el, 'title', place.pollen_zip && `5-day pollen forecast for ZIP ${place.pollen_zip}, pollen.com`);
+      if (!links.pollen) { el.removeAttribute('target'); const arr = el.querySelector('.k-arr'); if (arr) arr.remove(); }
+    },
+    'nb-map': el => { el.setAttribute('aria-label', `Map of nearby monitors${road ? ` and the ${road.name}` : ''}`); },
+    'runner-tip': el => { el.dataset.tip = runner; if (el.hasAttribute('aria-label')) el.setAttribute('aria-label', runner); },
+    'needs-label': el => {
+      const names = { toddler: 'Toddler', sinus: 'Sinus and allergy', runner: 'Runner' };
+      el.setAttribute('aria-label', 'Needs: ' + Object.keys(names).filter(k => needs[k]).map(k => names[k]).join(', '));
+    },
+    'road-only': el => { el.hidden = !road; },
+    'smoke-about': el => { el.textContent = smokeText(place.region); },
+    'smoke-card-about': el => { el.textContent = smokeMapText(place.region); },
+    'needs-for': el => { const t = needsFor(needs); el.textContent = t; el.parentElement.hidden = !t; },
+    'sources-label': el => { el.setAttribute('aria-label', sourcesLabel(APP.sources, !!road)); },
+  };
+  if (road) Object.assign(fill, {
+    'road': el => { el.textContent = roadLabel(road); },
+    'road-estimate': el => { el.textContent = `${road.name} estimate`; },
+    'road-estimate-title': el => { el.title = `${road.name} estimate`; },
+    'road-exhaust': el => { el.textContent = `${road.name} exhaust`; },
+    'road-about-label': el => { el.setAttribute('aria-label', `About the ${road.name} estimate`); },
+    'traffic': el => { el.href = links.traffic; el.title = `Live traffic on the ${road.name} near ${place.name}, Google Maps`; },
+    'road-clock': el => { el.textContent = roadClockText(road); },
+    'road-wind': el => { el.textContent = roadWindText(road); },
+  });
+  document.querySelectorAll('[data-app]').forEach(el => { const f = fill[el.dataset.app]; if (f) f(el); });
+  document.querySelectorAll('[data-need]').forEach(el => { el.hidden = !needs[el.dataset.need]; });
+}
+applyConfig();
+if ($('nb-credit')) $('nb-credit').innerHTML = creditHtml([], !!APP.now, esc);   // the demo's line, or AirGradient's credit, before any monitor loads
+
+// The demo's banner (only with APP.now): the three story moments, each its own link; the one shown is marked.
+if (APP.now && $('demo-bar') && !/[?&]shot\b/.test(location.search)) {   // not in screenshots: the README says they come from the demo
+  $('demo-moments').innerHTML = (APP.now.moments || []).map(m =>
+    `<a href="?moment=${encodeURIComponent(m.key)}"${m.key === APP.now.moment ? ' aria-current="page"' : ''}>${esc(m.label)}</a>`).join('');
+  $('demo-bar').hidden = false;
+}
+// Nearby monitors turned off in the config: the section says so in one line instead of showing an empty table and map.
+if ((APP.sources || {}).nearby === false) {
+  const lead = document.getElementById('nb-lead'), card = document.querySelector('.nb-card');
+  if (lead) lead.textContent = 'Off. Turned off in the config.';
+  if (card) card.hidden = true;
+  document.querySelectorAll('.maplink, #nb-sub').forEach(el => { el.hidden = true; });
+}
 // Zero is a real reading; only null and undefined mean missing.
 const has = v => v !== null && v !== undefined && !Number.isNaN(v);
 const num = (v, d = 1) => has(v) ? Number(v).toFixed(d) : '—';
@@ -48,39 +111,34 @@ const store = {
 let forceNext = false;
 async function getJSON(url, opts = {}) {
   if (forceNext) opts = { ...opts, headers: { ...(opts.headers || {}), 'X-Force-Refresh': '1' } };
-  const r = await fetch(url, opts);
+  const r = await fetch(apiUrl(url), opts);
   if (!r.ok) throw new Error(`${url} ${r.status}`);
   return r.json();
 }
 
 function homeHour() {
-  return Number(new Date().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false })) % 24;
+  return Number(appNow().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false })) % 24;
 }
 
 
-function freshness(m) {
-  if (!m || !m.timestamp) return { tone: 'bad', label: 'Offline' };
-  const mins = Math.round((Date.now() - new Date(m.timestamp)) / 60000);
-  if (mins <= 10) return { tone: 'good', label: 'Online' };
-  if (mins <= 60) return { tone: 'warn', label: `Late · ${mins} min` };
-  return { tone: 'bad', label: 'Offline' };
-}
 
 // Connection status for a row in the Home panel: a dot plus a few words.
-const srcOk = { nearby: null, wx: null, pollen: null, smoke: null, bqe: true };
+const SRC_ON = APP.sources || {};   // a source turned off in the config is not counted
+const srcOk = { ...(SRC_ON.nearby !== false ? { nearby: null } : {}), wx: null, ...(SRC_ON.pollen !== false ? { pollen: null } : {}), ...(SRC_ON.smoke !== false ? { smoke: null } : {}), ...(APP.road ? { bqe: true } : {}) };
 function setStatus(id, tone, text, title) {
   const el = $('st-' + id); if (!el) return;
   el.className = 'pst ' + tone; el.lastElementChild.textContent = text; el.title = title || text;
-  if (id in srcOk && id !== 'bqe') srcOk[id] = tone === 'good';
+  if (tone === 'neutral' && id !== 'bqe') delete srcOk[id];   // off or not set up: not counted, not an error
+  else if (id in srcOk && id !== 'bqe') srcOk[id] = tone === 'good';
 }
 function monitorStatus(id, m) {
-  const f = freshness(m), mins = m && m.timestamp ? Math.max(0, Math.round((Date.now() - new Date(m.timestamp)) / 60000)) : null;
+  const f = freshness(m, readingsNow()), mins = m && m.timestamp ? Math.max(0, Math.round((readingsNow() - new Date(m.timestamp)) / 60000)) : null;
   const text = f.tone === 'good' ? `Live · ${mins < 1 ? 'just now' : mins + ' min ago'}` : f.label;
   setStatus(id, f.tone, text, m && m.timestamp ? 'Last reading ' + new Date(m.timestamp).toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' }) : 'No reading');
 }
 function sourceSummary() {
-  const known = Object.values(srcOk).filter(v => v !== null);
-  return known.length < 5 ? '5 sources' : `${known.filter(Boolean).length === 5 ? '5' : known.filter(Boolean).length + ' of 5'} sources`;
+  const all = Object.keys(srcOk).length, known = Object.values(srcOk).filter(v => v !== null);
+  return known.length < all ? `${all} sources` : `${known.filter(Boolean).length === all ? all : known.filter(Boolean).length + ' of ' + all} sources`;
 }
 
 function reading(m, indoor) {
@@ -140,7 +198,7 @@ function tempScale(tC, otherC, indoor) {
 }
 
 function monitorCard(m, indoor) {
-  const f = freshness(m), r = reading(m, indoor);
+  const f = freshness(m, readingsNow()), r = reading(m, indoor);
   const pl = pmLevel(r.pm), cl = co2Level(r.co2), hl = rhLevel(r.rh, indoor);
   const voc = m && m.tvocIndex, nox = m && m.noxIndex, wifi = m && m.wifi;
   const bar = (pct, tone) => `<div class="mc-bar"><i style="width:${Math.max(0, Math.min(100, pct)).toFixed(0)}%;background:${TONE[tone]}"></i></div>`;
@@ -156,7 +214,7 @@ function monitorCard(m, indoor) {
     : { word: fT < 40 ? 'Cold' : fT < 60 ? 'Cool' : fT < 75 ? 'Mild' : fT < 85 ? 'Warm' : 'Hot', tone: 'muted' };
   return `<article class="card mc ${indoor ? 'mc-in' : 'mc-out'}" style="--tint:${indoor ? 'var(--series-in)' : 'var(--series-out)'}">
     <div class="mc-head">${uniq(indoor ? ICONS.sceneIn : ICONS.sceneOut)}
-      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${uniq(indoor ? ICONS.one : ICONS.openair)}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name">${indoor ? 'AirGradient ONE' : 'AirGradient Open Air'}<span class="mc-loc"> · ${indoor ? 'apartment' : 'backyard'}</span></div><div class="mc-status ${f.tone}" title="${(m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i>${f.label}<span class="mc-loc2" aria-hidden="true">· ${indoor ? 'apartment' : 'backyard'}</span>${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi">· Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</div></div></div>
+      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${uniq(indoor ? ICONS.one : ICONS.openair)}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name">${indoor ? 'AirGradient ONE' : 'AirGradient Open Air'}<span class="mc-loc"> · ${esc(indoor ? APP.place.indoor : APP.place.outdoor)}</span></div><div class="mc-status ${f.tone}" title="${(m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i>${f.label}<span class="mc-loc2" aria-hidden="true">· ${esc(indoor ? APP.place.indoor : APP.place.outdoor)}</span>${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi">· Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</div></div></div>
     </div>
     <div class="mc-hero ${pl.tone}">
       ${pmRing(r.pm, pl.tone)}
@@ -184,14 +242,14 @@ function monitorCard(m, indoor) {
 // Monitor status sits on the avatar as a dot; the words are its tooltip.
 function updateStatus() {
   setTimeout(renderSources, 0);
-  const okN = [freshness(state.indoor), freshness(state.outdoor)].filter(f => f.tone === 'good').length;
+  const okN = [freshness(state.indoor, readingsNow()), freshness(state.outdoor, readingsNow())].filter(f => f.tone === 'good').length;
   monitorStatus('one', state.indoor); monitorStatus('openair', state.outdoor);
   const status = `${okN === 2 ? '2 monitors live' : okN + ' of 2 monitors live'} · ${sourceSummary()}`;
   $('avatar').dataset.tip = status; $('avatar').setAttribute('aria-label', 'Home · ' + status);
   $('dot-sum').className = 'av-dot ' + (okN === 2 ? 'good' : okN ? 'warn' : 'bad');
   const hw = $('vsum-hw');
   if (hw) hw.innerHTML = [[ICONS.one, state.indoor, 'Indoor · AirGradient ONE'], [ICONS.openair, state.outdoor, 'Outdoor · AirGradient Open Air']]
-    .map(([ic, m, name]) => { const f = freshness(m); return `<span class="vhw" data-tip="${name}: ${f.label}">${uniq(ic)}<i class="${f.tone}"></i></span>`; }).join('');
+    .map(([ic, m, name]) => { const f = freshness(m, readingsNow()); return `<span class="vhw" data-tip="${name}: ${f.label}">${uniq(ic)}<i class="${f.tone}"></i></span>`; }).join('');
 }
 
 function renderMonitors() {
@@ -211,16 +269,12 @@ function kv(rows) {
   return rows.filter(Boolean).map(([k, v, tone]) => `<div><dt>${k}</dt><dd${tone ? ` class="${tone}"` : ''}>${v}</dd></div>`).join('');
 }
 
-// Typical New York pollen seasons (day of year, approximately), so the card can say what's in season and what's next.
+// The home's usual pollen seasons (config: [month, day] dates), so the card can say what's in season and what's next.
 // Live levels come from Google; these dates are the usual calendar, not a forecast.
-const POLLEN_SEASONS = [
-  { name: 'Tree', start: [3, 10], peak: [[4, 1], [5, 10]], end: [5, 31] },
-  { name: 'Grass', start: [5, 10], peak: [[6, 1], [6, 30]], end: [7, 31] },
-  { name: 'Weed', start: [8, 15], peak: [[8, 25], [9, 20]], end: [10, 20] },
-];
+const POLLEN_SEASONS = APP.pollen_seasons || [];
 function renderPollenSeason(levels) {
-  const box = $('pollen-season'); if (!box) return;
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ })), y = now.getFullYear();
+  const box = $('pollen-season'); if (!box || !POLLEN_SEASONS.length) return;
+  const now = new Date(appNow().toLocaleString('en-US', { timeZone: TZ })), y = now.getFullYear();
   const doy = d => Math.round((d - new Date(y, 0, 1)) / 864e5), at = ([m, dd], yr = y) => new Date(yr, m - 1, dd);
   const today = doy(now), pct = n => (n / 365 * 100).toFixed(2);
   const fmt = d => { const m = d.toLocaleDateString('en-US', { month: 'long' }), n = d.getDate(); return n <= 10 ? `early ${m}` : n <= 20 ? `mid-${m}` : `late ${m}`; };
@@ -237,7 +291,7 @@ function renderPollenSeason(levels) {
   const M = 'JFMAMJJASOND';
   const lvl = i => ['None', 'Very low', 'Low', 'Moderate', 'High', 'Very high'][i] || '—';
   const level = name => { const t = (levels || []).find(x => x.name === name), i = t ? (t.index || 0) : null; return i == null ? '—' : `<b class="${i >= 3 ? 'warn' : i ? 'good' : ''}">${lvl(i)}</b>`; };
-  box.innerHTML = `<div class="ps-grid" title="Bars: the usual New York season, peak in amber. Right: today's level from Google.">${POLLEN_SEASONS.map(p => `<div class="ps-row"><span>${p.name}</span><div class="ps-track">
+  box.innerHTML = `<div class="ps-grid" title="${esc(pollenBarsTitle(APP.place.region))}">${POLLEN_SEASONS.map(p => `<div class="ps-row"><span>${p.name}</span><div class="ps-track">
       <i class="ps-season" style="left:${pct(doy(at(p.start)))}%;width:${pct(doy(at(p.end)) - doy(at(p.start)))}%"></i>
       <i class="ps-peak" style="left:${pct(doy(at(p.peak[0])))}%;width:${pct(doy(at(p.peak[1])) - doy(at(p.peak[0])))}%"></i></div>${level(p.name)}</div>`).join('')}
       <div class="ps-row ps-months"><span></span><div class="ps-track">${[0, 3, 6, 9].map(i => `<em style="left:${pct(doy(new Date(y, i, 1)))}%">${new Date(y, i, 1).toLocaleDateString('en-US', { month: 'short' })}</em>`).join('')}</div><span></span></div>
@@ -251,9 +305,10 @@ function setEdges() {
     if (!card) continue;
     // the dot says whether the source is connected, as everywhere else on the page (the hero word's color says good or bad):
     // green when it answered, amber when it didn't (no data / not checked), none while loading
-    const t = el.textContent.trim(), failed = /^(No reading|No data|Not checked)$/.test(t);
-    const c = t === '—' || !t ? '' : failed ? 'var(--warn-fill)' : 'var(--good)';
-    card.style.setProperty('--edge', c || 'var(--sky)');
+    // off or not set up is neither: no dot, a plain gray edge
+    const t = el.textContent.trim(), failed = /^(No reading|No data|Not checked)$/.test(t), idle = /^(Off|Not set up)$/.test(t);
+    const c = t === '—' || !t || idle ? '' : failed ? 'var(--warn-fill)' : 'var(--good)';
+    card.style.setProperty('--edge', c || (idle ? 'var(--line-strong)' : 'var(--sky)'));
     card.classList.toggle('has-status', !!c);
     card.querySelector('.k-link')?.setAttribute('aria-description', failed ? 'Source not answering' : c ? 'Source connected' : 'Loading');
   }
@@ -263,16 +318,32 @@ function contextStatus(ctx) {
   const w = (ctx && ctx.weather) || {}, pollen = (ctx && ctx.pollen) || [], sm = (ctx && ctx.smoke) || {};
   setStatus('wx', has(w.temperature) ? 'good' : 'bad', has(w.temperature) ? 'Live' : 'No data', has(w.temperature) ? 'Current weather from Open-Meteo' : 'Open-Meteo did not answer');
   // Google returns every pollen type even out of season, so an empty list means no answer.
-  setStatus('pollen', pollen.length ? 'good' : 'bad', pollen.length ? 'Today' : 'No data', pollen.length ? "Today's pollen from Google" : 'Google Pollen did not answer');
-  setStatus('smoke', sm.checked ? 'good' : 'bad', sm.checked ? `${sm.date ? new Date(sm.date + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today'} map` : 'Not checked', sm.checked ? `NOAA smoke map${sm.date ? ' for ' + sm.date : ''}` : 'The NOAA smoke map did not load');
+  const st = (ctx && ctx.status) || {};
+  const offOf = id => sourceOff(id, st[id] || (SRC_ON[id] === false ? 'off' : ''));
+  for (const id of ['pollen', 'smoke']) {
+    const o = offOf(id);
+    if (o) setStatus(id, 'neutral', o.word, o.line);
+  }
+  if (!offOf('pollen')) setStatus('pollen', pollen.length ? 'good' : 'bad', pollen.length ? 'Today' : 'No data', pollen.length ? "Today's pollen from Google" : 'Google Pollen did not answer');
+  if (!offOf('smoke')) setStatus('smoke', sm.checked ? 'good' : 'bad', sm.checked ? `${sm.date ? new Date(sm.date + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today'} map` : 'Not checked', sm.checked ? `NOAA smoke map${sm.date ? ' for ' + sm.date : ''}` : 'The NOAA smoke map did not load');
+  if (SRC_ON.nearby === false || st.nearby === 'off') setStatus('nearby', 'neutral', 'Off', sourceOff('nearby', 'off').line);
   setStatus('bqe', 'neutral', 'Estimated', 'Calculated from the hour and the wind; nothing to connect');
   updateStatus();
+}
+
+// A source that is off or not set up: its card says so in the page's muted tone, with one line on what it adds.
+function idleCard(id, { word, line }) {
+  $(id + '-hero').textContent = word;
+  $(id + '-hero').style.setProperty('--c', 'var(--soft)');
+  $(id + '-sub').textContent = line;
+  $(id + '-kv').innerHTML = '';
+  const season = $(id + '-season'); if (season) season.innerHTML = '';
 }
 
 function renderContext(ctx) {
   state.ctx = ctx;   // kept so a unit switch can redraw without a reload
   const w = ctx.weather || {}, b = ctx.bqe || {}, pollen = ctx.pollen || [];
-  window.__wx = w; window.__bqe = b; window.__fc = Array.isArray(ctx.forecast) ? ctx.forecast : []; window.__pollenT = Array.isArray(ctx.pollen_tomorrow) ? ctx.pollen_tomorrow : [];
+  window.__wx = w; window.__bqe = b; window.__road = ctx.road || null; window.__fc = Array.isArray(ctx.forecast) ? ctx.forecast : []; window.__pollenT = Array.isArray(ctx.pollen_tomorrow) ? ctx.pollen_tomorrow : [];
   if (state.neighbors && state.neighbors.length) renderNeighborhood();
   if (typeof SKY !== 'undefined' && SKY) SKY.weather(w);
   if (has(w.wind_speed)) {
@@ -294,7 +365,10 @@ function renderContext(ctx) {
     $('wx-kv').innerHTML = '';
   }
 
-  if (pollen.length) {
+  const st = ctx.status || {}, pollenOff = sourceOff('pollen', st.pollen || (SRC_ON.pollen === false ? 'off' : ''));
+  const smokeOff = sourceOff('smoke', st.smoke || (SRC_ON.smoke === false ? 'off' : ''));
+  if (pollenOff) idleCard('pollen', pollenOff);
+  else if (pollen.length) {
     const top = Math.max(...pollen.map(p => p.index || 0));
     const word = top === 0 ? 'None' : top <= 2 ? 'Low' : top === 3 ? 'Moderate' : 'High';
     $('pollen-hero').textContent = word;
@@ -311,33 +385,35 @@ function renderContext(ctx) {
     $('pollen-kv').innerHTML = '';
   }
 
-  const hour = has(b.current_hour) ? b.current_hour : homeHour();
-  const t = String(b.traffic || '');
-  const peak = t.startsWith('PEAK'), high = t.startsWith('HIGH');
-  $('bqe-hero').textContent = peak ? 'Peak' : high ? 'High' : 'Low';
-  $('bqe-hero').style.setProperty('--c', peak || high ? 'var(--warn)' : 'var(--good)');
-  $('bqe-sub').textContent = peak ? (t.includes('morning') ? 'Morning rush' : 'Evening rush') : high ? 'Rush shoulders' : 'Off-peak traffic';
-  const pressure = b.pollution_pressure;
-  $('bqe-kv').innerHTML = kv([
-    has(pressure) && ['Pollution pressure', `${num(pressure)}×`, pressure > 1 ? 'warn' : 'good'],
-    b.wind_impact && ['Wind', esc(b.wind_impact), b.wind_impact === 'Blowing toward Greenpoint' ? 'warn' : ''],
-    ['Morning rush', '7–10 AM'],
-    ['Evening rush', '4–8 PM'],
-  ]);
-  $('bqe-now').textContent = `Pressure is those two multiplied. Now, ${peak ? 'peak' : high ? 'high' : 'low'} traffic times ${has(w.wind_direction) ? 'a ' + w.wind_cardinal + ' wind' : 'an unknown wind'} is ${num(pressure)}.`;
+  if (APP.road) {
+    const t = String(b.traffic || '');
+    const peak = t.startsWith('PEAK'), high = t.startsWith('HIGH'), rushName = (t.match(/^PEAK \((.+) rush\)/) || [])[1];
+    $('bqe-hero').textContent = peak ? 'Peak' : high ? 'High' : 'Low';
+    $('bqe-hero').style.setProperty('--c', peak || high ? 'var(--warn)' : 'var(--good)');
+    $('bqe-sub').textContent = peak ? (rushName ? cap(rushName) + ' rush' : 'Rush hour') : high ? 'Rush shoulders' : 'Off-peak traffic';
+    const pressure = b.pollution_pressure;
+    $('bqe-kv').innerHTML = kv([
+      has(pressure) && ['Pollution pressure', `${num(pressure)}×`, pressure > 1 ? 'warn' : 'good'],
+      b.wind_impact && ['Wind', esc(b.wind_impact), ctx.road && ctx.road.toward ? 'warn' : ''],
+      ...APP.road.rush.map(([a, e, name]) => [esc(cap(name)) + ' rush', hourRange(a, e, '–')]),
+    ]);
+    $('bqe-now').textContent = `Pressure is those two multiplied. Now, ${peak ? 'peak' : high ? 'high' : 'low'} traffic times ${has(w.wind_direction) ? 'a ' + w.wind_cardinal + ' wind' : 'an unknown wind'} is ${num(pressure)}.`;
+  }
 
   const sm = ctx.smoke || {};
   const mapped = sm.date ? new Date(sm.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null;
-  if (!sm.checked) {
+  if (smokeOff) {
+    idleCard('smoke', smokeOff);
+  } else if (!sm.checked) {
     $('smoke-hero').textContent = 'Not checked';
     $('smoke-hero').style.setProperty('--c', 'var(--soft)');
     $('smoke-sub').textContent = 'NOAA\u2019s smoke map did not load';
   } else {
     $('smoke-hero').textContent = sm.detected ? `${sm.density} smoke` : 'Not detected';
     $('smoke-hero').style.setProperty('--c', sm.detected ? (sm.density === 'Light' ? 'var(--warn)' : 'var(--bad)') : 'var(--good)');
-    $('smoke-sub').textContent = sm.detected ? 'Satellites mapped wildfire smoke over Greenpoint' : 'No wildfire smoke mapped over Greenpoint';
+    $('smoke-sub').textContent = sm.detected ? `Satellites mapped wildfire smoke over ${APP.place.name}` : `No wildfire smoke mapped over ${APP.place.name}`;
   }
-  $('smoke-kv').innerHTML = kv([mapped && ['Map date', mapped], ['Source', 'NOAA satellite smoke map']]);
+  if (!smokeOff) $('smoke-kv').innerHTML = kv([mapped && ['Map date', mapped], ['Source', 'NOAA satellite smoke map']]);
   setEdges();
 }
 
@@ -359,10 +435,11 @@ function growBars() {
 
 function renderNeighborhood() {
   const own = new Set([state.indoor, state.outdoor].filter(Boolean).map(m => m.locationId));
-  const live = state.neighbors.filter(n => !n.offline && has(n.pm02) && (!n.timestamp || Date.now() - new Date(n.timestamp) < 2 * 3600e3));
+  const live = state.neighbors.filter(n => !n.offline && has(n.pm02) && (!n.timestamp || readingsNow() - new Date(n.timestamp) < 2 * 3600e3));
   const you = live.find(n => own.has(n.locationId));
   const others = live.filter(n => !own.has(n.locationId));
   const rows = (you ? [you] : []).concat(others);
+  $('nb-credit').innerHTML = creditHtml(others, !!APP.now, esc);
   setStatus('nearby', others.length ? 'good' : 'bad', others.length ? `${others.length} reporting` : 'No answer', others.length ? `${others.length} nearby monitors sent a reading in the last 2 hours` : 'Nearby monitors did not answer');
   if (!rows.length) {
     $('nb-lead').textContent = 'Nearby monitors did not answer.';
@@ -394,7 +471,7 @@ function renderNeighborhood() {
     const isYou = n === you, tone = n.pm02 > PM_FINE ? 'warn' : 'good';
     const tTxt = has(n.atmp) ? fmtTemp(n.atmp, { tight: true }) : '—';
     return `<tr class="${isYou ? 'you' : ''}" data-id="${n.locationId}"><td class="dot"><i></i></td><td class="dist">${isYou ? 'You' : num(n.distance_km) + ' km'}</td>` +
-      `<td class="loc" title="${esc(n.locationName)}">${esc(isYou ? 'Greenpoint' : n.locationName)}</td>` +
+      `<td class="loc" title="${esc(n.locationName)}">${esc(isYou ? APP.place.name : n.locationName)}</td>` +
       `<td class="r pm ${tone}">${pmNum(n.pm02)}</td><td class="r">${tTxt}</td><td class="r">${has(n.rhum) ? Math.round(n.rhum) + '%' : '—'}</td>` +
       `<td class="nbbar"><span style="--lim:${limPct}%"><i style="width:${Math.max(1.5, n.pm02 / barMax * 100).toFixed(1)}%" class="${tone}"></i></span></td></tr>`;
   }).join('');
@@ -407,15 +484,17 @@ function renderNeighborhood() {
     : `Show ${extra} more monitor${extra === 1 ? '' : 's'} <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   more.setAttribute('aria-expanded', String(!!state.nbAll));
   [...$('nb').rows].forEach((tr, i) => { tr.classList.toggle('nb-extra', i >= 8); });
-  // the map: same monitors, the BQE, and where the wind takes its exhaust
-  const w = window.__wx || {}, b = window.__bqe || {};
-  // what the map means for the block: the BQE runs about 1 km east to south, so east, south-east and south winds bring its exhaust here
-  const imp = b.wind_impact;
-  $('nb-wind').innerHTML = has(w.wind_direction) ? `<b>Wind ${esc(w.wind_cardinal || '')} ${num(w.wind_speed)} km/h:</b> ` + (
-    imp === 'Blowing toward Greenpoint' ? '<b class="warn">the BQE\'s traffic exhaust drifts toward your block.</b> Worst in the rush hours; keep windows shut then.'
-    : imp === 'Blowing away' ? 'the BQE\'s traffic exhaust drifts away from your block.'
-    : 'the BQE\'s traffic exhaust passes beside your block, not over it.') +
-    ' <span class="nb-why">The expressway runs about 1 km east to south of here, so it matters on east, south-east and south winds.</span>' : '';
+  // the map: same monitors, the road, and where the wind takes its exhaust
+  const w = window.__wx || {}, road = APP.road;
+  // what the map means for the block: toward comes from the server (/api/context road.toward); away is the arc opposite the road's
+  const toward = !!(window.__road && window.__road.toward);
+  const away = road && has(w.wind_direction) && bearingIn(w.wind_direction, road.toward.map(d => (d + 180) % 360));
+  const ex = road ? `the ${esc(road.name)}'s traffic exhaust` : '';
+  $('nb-wind').innerHTML = road && has(w.wind_direction) ? `<b>Wind ${esc(w.wind_cardinal || '')} ${num(w.wind_speed)} km/h:</b> ` + (
+    toward ? `<b class="warn">${ex} drifts toward your block.</b> Worst in the rush hours; keep windows shut then.`
+    : away ? `${ex} drifts away from your block.`
+    : `${ex} passes beside your block, not over it.`) +
+    ` <span class="nb-why">${esc(roadWhyText(road))}</span>` : '';
   if (typeof NBMAP !== 'undefined') NBMAP.update(you, others, has(w.wind_direction) ? w.wind_direction : null);
 }
 
@@ -465,8 +544,9 @@ function draw(id, a, b, times, range, spec) {
   const values = [...a, ...b].filter(has);
   if (!values.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No readings in this range</text>`; return; }
   let lo = Math.min(...values), hi = Math.max(...values);
-  const limitNear = spec.limit <= hi * 1.35 && spec.limit >= lo;
-  if (limitNear) hi = Math.max(hi, spec.limit);
+  // the limit is drawn when it's near the readings or under all of them (every reading over it); else "All under the limit"
+  const limitNear = spec.limit <= hi * 1.35;
+  if (limitNear) { hi = Math.max(hi, spec.limit); lo = Math.min(lo, spec.limit); }
   const pad = Math.max((hi - lo) * 0.1, spec.minSpan / 2);
   lo = Math.max(spec.floor, lo - pad); hi = hi + pad;
   const x = i => L + (a.length < 2 ? iw / 2 : i / (a.length - 1) * iw);
@@ -539,7 +619,7 @@ const fetchHist = (from, to) => Promise.all([state.indoor, state.outdoor].map(m 
 function loadWeek() {   // once per visit, then at most every 30 minutes
   if (hist.pending) return hist.pending;
   if (hist.week && Date.now() - hist.at < 30 * 60e3) return Promise.resolve(hist.week);
-  const to = new Date(), from = new Date(to - 168 * 3600e3);
+  const to = readingsNow(), from = new Date(to - 168 * 3600e3);
   hist.pending = fetchHist(from, to).then(([ih, oh]) => { if (!ih || !oh) throw new Error('history'); hist.week = { ih, oh, to }; hist.at = Date.now(); return hist.week; }).finally(() => { hist.pending = null; });
   return hist.pending;
 }
@@ -556,7 +636,7 @@ async function loadCharts({ fresh = false, quiet = false } = {}) {
   });
   // A range switch cuts from the saved week (instant); a refresh fetches only the range on screen.
   const week = !fresh && hist.week ? hist.week : null;
-  const to = week ? week.to : new Date(), from = new Date(to - RANGE_HOURS[range] * 3600e3);
+  const to = week ? week.to : readingsNow(), from = new Date(to - RANGE_HOURS[range] * 3600e3);
   let ih, oh;
   if (week) {
     const inRange = rows => (rows || []).filter(r => new Date(r.timestamp) >= from);
@@ -596,7 +676,7 @@ function onVisible(el, fn) {
 // ── Linked hover: one moment, marked on every chart that covers it ──
 const hoverCharts = new Set();
 const atLabel = t => { const day = x => new Date(x).toLocaleDateString('en-US', { timeZone: TZ }), d = new Date(t);
-  const pre = day(t) === day(Date.now()) ? '' : day(t) === day(Date.now() - 864e5) ? 'Yesterday ' : d.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short' }) + ' ';
+  const pre = day(t) === day(readingsNow()) ? '' : day(t) === day(readingsNow() - 864e5) ? 'Yesterday ' : d.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short' }) + ' ';
   return pre + d.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }); };
 function linkHover(el) {
   hoverCharts.add(el);
@@ -669,27 +749,21 @@ function reveal() {   // a short fade on the summary's items as they arrive
 }
 
 function renderRead(r, stale, why) {
-  const changed = shownSig !== null && readSig(r) !== shownSig;
   shownSig = readSig(r);
   // the card is drawn by static/summary.js from the rules' summary; an earlier read without one keeps what's shown
-  if (r.summary) SummaryCard.renderSummary($('summary'), r.summary, new Date(), { label: false });   // TODAY/TONIGHT is the heading above
+  if (r.summary) SummaryCard.renderSummary($('summary'), r.summary, appNow(), { label: false });   // TODAY/TONIGHT is the heading above
   else if (!$('summary').childElementCount) SummaryCard.renderSummary($('summary'), null);
   showUpdated();   // the heading follows the summary (Today / Tonight)
   if (revealNext) { revealNext = false; reveal(); }
   $('s-by').textContent = '';
-  $('s-tag-t').textContent = r.source === 'model' ? 'AI summary' : 'Summary';
-  if (!stale && changed && !rippleTimer && r.source === 'model') aiRipple('once');   // the summary's content changed: the dot sends one ripple
-  if ($('s-ago')) { $('s-ago').dataset.at = Date.parse(r.generated_at) || Date.now(); agoTick(); }
+  $('s-tag-t').textContent = 'Summary';
+  if ($('s-ago')) { $('s-ago').dataset.at = Date.parse(r.generated_at) || +readingsNow(); agoTick(); }
   if ($('s-src')) $('s-src').dataset.when = r.clock ? `Written ${r.clock} ·\u00a0` : '';   // the banner's status line: when, then the sources
-  const swaps = (r.replaced || []).length;
   const note = $('stale-note');
   note.hidden = !why;
   note.textContent = why === 'offline' ? `Earlier summary, written at ${r.clock}. It updates when the page is back online.`
     : why === 'failed' ? `Earlier summary, written at ${r.clock}. A new one could not be written just now.` : '';
-  $('read-meta').textContent = (r.source === 'model' ? `Written by ${r.model_name || r.model} at ${r.clock}` : `Updated at ${r.clock}`) +
-    `${stale ? ' (earlier summary)' : ''}.` +
-    (swaps ? ` ${swaps === 1 ? 'One line' : swaps + ' lines'} replaced by the rules.` : '') +
-    (r.source !== 'model' && r.note ? ' ' + r.note : '');
+  $('read-meta').textContent = `Updated at ${r.clock}${stale ? ' (earlier summary)' : ''}.`;
 }
 
 // ── Busy state ────────────────────────────────────────
@@ -713,9 +787,9 @@ function showUpdated() {
   if (lastStamp == null) return set(offline ? 'Offline' : fresh, loadFailed ? 'Readings did not load' : '', offline || loadFailed);
   const d = new Date(lastStamp);
   const day = t => new Date(t).toLocaleDateString('en-US', { timeZone: TZ });
-  const at = day(d) === day(Date.now()) ? clock(d)
+  const at = day(d) === day(readingsNow()) ? clock(d)
     : d.toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  const mins = Math.round((Date.now() - lastStamp) / 60000);
+  const mins = Math.round((readingsNow() - lastStamp) / 60000);
   const age = mins < 60 ? `${mins} min old` : mins < 48 * 60 ? `${Math.round(mins / 60)} h old` : `${Math.round(mins / 1440)} days old`;
   if (offline) return set('Offline', `Last reading ${at}`, true);
   if (mins > FRESH_MIN) return set(`As of ${at}`, age, true);
@@ -738,9 +812,9 @@ function stopSpin() {
   a.finished.then(() => { if (spin === a) spin = null; }, () => {});
 }
 
-// What the AI is doing, shown right after the Refresh button at the real moments: reading the sources, then writing.
+// What the server is doing, shown right after the Refresh button at the real moments: reading the sources, then writing.
 function setPhase(p) {
-  const ai = document.querySelector('section.ai'), step = $('s-step'); if (!ai || !step) return;
+  const ai = document.querySelector('section.sum-card'), step = $('s-step'); if (!ai || !step) return;
   if (p) { ai.dataset.phase = p; step.textContent = p === 'read' ? 'Reading the monitors and sources…' : 'Writing the summary…'; }
   else { delete ai.dataset.phase; step.textContent = ''; }
 }
@@ -748,9 +822,9 @@ function setPhase(p) {
 function setBusy(on) {
   busyCount = Math.max(0, busyCount + (on ? 1 : -1));
   const busy = busyCount > 0;
-  aiRipple(busy && manualBusy ? 'on' : 'off');   // the writing ripple only for a refresh the viewer asked for
+  busyRipple(busy && manualBusy ? 'on' : 'off');   // the writing ripple only for a refresh the viewer asked for
   if (!busy) manualBusy = false;
-  for (const el of [document.querySelector('section.ai'), $('read-refresh')]) el.setAttribute('aria-busy', String(busy));
+  for (const el of [document.querySelector('section.sum-card'), $('read-refresh')]) el.setAttribute('aria-busy', String(busy));
   busy ? startSpin() : stopSpin();
   if (!busy) setPhase(null);
   const lbl = $('read-refresh').querySelector('span'); if (lbl) lbl.textContent = busy ? 'Updating…' : 'Refresh';
@@ -763,8 +837,8 @@ function settle(el, before) {
   el.animate([{ opacity: .35 }, { opacity: 1 }], { duration: 420, easing: 'cubic-bezier(.2, .7, .2, 1)' });
 }
 
-// What the advice says, without the parts that change on every write (time, cost, cache flag).
-const readSig = r => JSON.stringify({ ...r, generated_at: 0, clock: 0, usage: 0, cached: 0, model: 0, model_name: 0 });
+// What the summary says, without the parts that change on every read (time).
+const readSig = r => JSON.stringify({ ...r, generated_at: 0, clock: 0 });
 let shownSig = null;
 
 async function loadRead(force) {
@@ -782,7 +856,7 @@ async function loadRead(force) {
     store.set({ at: Date.now(), read: r });
     // nothing new to show: leave the page alone (no re-render, no fade). A manual refresh always shows its result.
     if (!revealNext && readSig(r) === shownSig) {   // redraw only so passed times drop ("before 4 PM"), unless a sentence is open
-      if (r.summary && !$('summary').querySelector('details[open]')) SummaryCard.renderSummary($('summary'), r.summary, new Date(), { label: false });
+      if (r.summary && !$('summary').querySelector('details[open]')) SummaryCard.renderSummary($('summary'), r.summary, appNow(), { label: false });
       return;
     }
     const parts = ['summary'].map(id => [$(id), $(id).innerHTML]);
@@ -804,9 +878,18 @@ async function loadRead(force) {
 
 let inFlight = null, lastRefresh = 0;
 
+// A config but no AirGradient token yet: the header and one plain card. Everything that needs the monitors stays hidden.
+function showNoToken() {
+  bootRead = null;
+  document.body.classList.add('no-token');
+  $('no-token').hidden = false;
+  setBusy(false);
+}
+
 // manual: the person pressed refresh, so show the busy state from the first request and write a new read.
 // busy: show the updating state without asking for a new summary (the first load)
 function refresh({ manual = false, busy = false } = {}) {
+  if (APP.state === 'no_token') { showNoToken(); return Promise.resolve(); }
   if (inFlight) return inFlight;
   const showBusy = manual || busy;
   if (manual) manualBusy = true;
@@ -816,8 +899,9 @@ function refresh({ manual = false, busy = false } = {}) {
     try {
       if (showBusy) setPhase('read');
       forceNext = manual;
-      const nbP = getJSON('/api/neighborhood').catch(() => null);   // the slowest source; the rest doesn't wait for it
+      const nbP = SRC_ON.nearby === false ? Promise.resolve(null) : getJSON('/api/neighborhood').catch(() => null);   // the slowest source; the rest doesn't wait for it
       const [current, ctx] = await Promise.all([getJSON('/api/current'), getJSON('/api/context').catch(() => null)]);
+      if (current && current.state === 'no_token') { showNoToken(); return; }
       state.indoor = current.find(m => m.locationType === 'indoor') || null;
       state.outdoor = current.find(m => m.locationType === 'outdoor') || null;
       renderMonitors();
@@ -980,7 +1064,9 @@ if ('serviceWorker' in navigator) {
 // The summary byline shows its sources as a small stack of the Home panel's icons: gray at rest, in color and fanned out on hover,
 // with a dot on any source that isn't answering, and a card listing each source with its live status.
 const SOURCES = [['AirGradient ONE', 'one', 'Your indoor monitor'], ['AirGradient Open Air', 'openair', 'Your outdoor monitor'],
-  ['Open-Meteo', 'wx', 'Weather · Open-Meteo'], ['Google Pollen', 'pollen', 'Pollen · Google'], ['NOAA HMS', 'smoke', 'Smoke · NOAA'], ['BQE estimate', 'bqe', 'Traffic · BQE estimate']];
+  ['Open-Meteo', 'wx', 'Weather · Open-Meteo'], ['Google Pollen', 'pollen', 'Pollen · Google'], ['NOAA HMS', 'smoke', 'Smoke · NOAA'],
+  ...(APP.road ? [[`${APP.road.name} estimate`, 'bqe', `Traffic · ${APP.road.name} estimate`]] : [])]
+  .filter(([, id]) => sourcesOn(APP.sources, !!APP.road).includes(id));   // what the config turned off is not listed or counted
 function renderSources() {
   const box = $('s-src'); if (!box) return;
   const rows = [...document.querySelectorAll('.blocks .pr')];
@@ -991,7 +1077,7 @@ function renderSources() {
   box.innerHTML = `<span class="s-src-n">from ${SOURCES.length} sources${down ? `<em> · ${down} not answering</em>` : ''}</span>`;
   const list = $('s-src-list');
   if (list) list.innerHTML = SOURCES.map(([name, id, label]) => { const x = st(id);
-    return `<span class="s-src-row"><span class="s-src-ic">${icon(name)}</span><span>${label}</span><em class="${x.tone}">${esc(x.text || '…')}</em></span>`; }).join('');
+    return `<span class="s-src-row"><span class="s-src-ic">${icon(name)}</span><span>${esc(label)}</span><em class="${x.tone}">${esc(x.text || '…')}</em></span>`; }).join('');
 }
 renderSources();
 
@@ -1014,7 +1100,7 @@ $('s-src') && $('s-src').addEventListener('keydown', e => { if (e.key === 'Enter
 
 // Dev and local only: the build and a Clear cache button (the dev site registers a service worker that caches files).
 (() => {
-  if (location.hostname === 'air-quality-dashboard.up.railway.app' || /[?&]shot\b/.test(location.search)) return;   // never on production or in screenshots
+  if (!(APP.env === 'dev' || APP.env === 'preview') || /[?&]shot\b/.test(location.search)) return;   // only dev and preview, never in screenshots
   const bar = $('devbar'); if (!bar) return;
   $('build').textContent = document.body.dataset.build || 'local';
   bar.hidden = false;
@@ -1072,15 +1158,15 @@ document.querySelectorAll('a.addr').forEach(a => a.addEventListener('click', e =
 
 // Banner: "Updated 5 min ago" (relative, so it never clashes with the clock in Right now), refreshed every 30 s.
 function agoTick() { const el = document.getElementById('s-ago'); if (!el || !el.dataset.at) return;
-  const m = Math.round((Date.now() - Number(el.dataset.at)) / 60000);
+  const m = Math.round((readingsNow() - Number(el.dataset.at)) / 60000);
   el.textContent = m < 1 ? 'Updated just now' : m < 60 ? `Updated ${m} min ago` : `Updated ${Math.round(m / 60)} h ago`; }
 setInterval(agoTick, 30000);
 
 // The AI dot's ripple: rings spread from it when a fresh summary lands (once), and keep spreading while it's writing.
 // Event-driven on purpose: the only continuous pulse on the page is the green "live" dot.
-var rippleTimer = null, manualBusy = false;   // var: setBusy can call aiRipple during startup, before this line runs
-function aiRipple(mode) {
-  const rings = [...document.querySelectorAll('.s-tag-mark .rip')]; if (!rings.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+var rippleTimer = null, manualBusy = false;   // var: setBusy can call busyRipple during startup, before this line runs
+function busyRipple(mode) {
+  const rings = [...document.querySelectorAll('.s-busy-mark .rip')]; if (!rings.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const wave = () => rings.forEach((c, k) => setTimeout(() => c.querySelectorAll('animate').forEach(a => { try { a.beginElement(); } catch (e) {} }), k * 300));
   if (mode === 'once') { if (!rippleTimer) wave(); return; }
   if (mode === 'on') { if (!rippleTimer) { wave(); rippleTimer = setInterval(wave, 1900); } return; }

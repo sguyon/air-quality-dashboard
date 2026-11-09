@@ -1,0 +1,47 @@
+# The demo's home: made up, around the southeast corner of McCarren Park (Union Ave and Bayard St), rounded to
+# about 1 km. Read when DEMO=1, or when there is no config and no AIRGRADIENT_TOKEN.
+
+[place]
+name = "McCarren Park, Williamsburg"
+lat = 40.72
+lon = -73.95
+timezone = "America/New_York"
+indoor = "bedroom"
+outdoor = "balcony"
+pollen_zip = "11211"
+region = "New York"
+
+[needs]
+toddler = true
+sinus = true
+runner = true
+
+[sources]
+smoke = true
+pollen = true
+nearby = true
+
+# No toward: computed from the route, about 66 to 207 degrees from this point.
+[road]
+name = "BQE"
+kind = "expressway"
+route = "static/bqe.json"
+rush = [[7, 10, "morning"], [16, 20, "evening"]]
+
+[[pollen_seasons]]
+name = "Tree"
+start = [3, 10]
+peak = [[4, 1], [5, 10]]
+end = [5, 31]
+
+[[pollen_seasons]]
+name = "Grass"
+start = [5, 10]
+peak = [[6, 1], [6, 30]]
+end = [7, 31]
+
+[[pollen_seasons]]
+name = "Weed"
+start = [8, 15]
+peak = [[8, 25], [9, 20]]
+end = [10, 20]

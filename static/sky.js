@@ -1,21 +1,23 @@
-// Home Air Quality: the live sky behind the page and the Weather pill. Uses $, TZ, has, state and reading from app.js.
+// Home Air Quality: the live sky behind the page and the Weather pill. Uses $, APP, TZ, appNow, has, state and reading from app.js,
+// and bearingIn from home.js.
 // ── Sky band: real sun position, cloud cover, wind and PM2.5. Preview overrides from the Customize panel. ──
 var SKY = (() => {
-  const LAT = 40.73, LON = -73.95, reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const LAT = APP.place.lat, LON = APP.place.lon, reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Start from the last real weather this browser saw, so a reload never shows made-up defaults.
+  const LIVE_KEY = 'aq-sky-live' + (APP.now ? ':' + APP.now.moment : '');   // the demo keeps one per moment
   const live = { dir: 200, spd: 0, cloud: 0, pm: 0, rain: 0, thunder: false, temp: null, loaded: false };
   try {
-    const saved = JSON.parse(localStorage.getItem('aq-sky-live') || 'null');
+    const saved = JSON.parse(localStorage.getItem(LIVE_KEY) || 'null');
     if (saved && Date.now() - saved.at < 6 * 3600e3) Object.assign(live, saved.v, { loaded: true });
   } catch {}
-  const remember = () => { try { localStorage.setItem('aq-sky-live', JSON.stringify({ at: Date.now(), v: { dir: live.dir, spd: live.spd, cloud: live.cloud, pm: live.pm, rain: live.rain, thunder: live.thunder, temp: live.temp } })); } catch {} };
+  const remember = () => { try { localStorage.setItem(LIVE_KEY, JSON.stringify({ at: Date.now(), v: { dir: live.dir, spd: live.spd, cloud: live.cloud, pm: live.pm, rain: live.rain, thunder: live.thunder, temp: live.temp } })); } catch {} };
   let preview = null;
   const on = /[?&]shot\b/.test(location.search) ? { sky: false, wind: false, haze: false }   // screenshot mode
     : (() => { try { return JSON.parse(localStorage.getItem('aq-fx') || 'null') || { sky: true, wind: true, haze: true }; } catch { return { sky: true, wind: true, haze: true }; } })();
   const save = () => { if (/[?&]shot\b/.test(location.search)) return; try { localStorage.setItem('aq-fx', JSON.stringify(on)); } catch {} };
-  const nyMinutes = () => { const p = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(new Date()); const g = t => Number(p.find(x => x.type === t).value); return (g('hour') % 24) * 60 + g('minute'); };
+  const nyMinutes = () => { const p = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(appNow()); const g = t => Number(p.find(x => x.type === t).value); return (g('hour') % 24) * 60 + g('minute'); };
   function sunPos(minutes) {
-    const now = new Date();
+    const now = appNow();
     const tz = new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZoneName: 'shortOffset' }).formatToParts(now).find(x => x.type === 'timeZoneName').value;
     const offset = -60 * Number((tz.match(/GMT([+-]\d+)/) || [0, -5])[1]);
     const day = Math.floor((now - Date.UTC(now.getUTCFullYear(), 0, 0)) / 864e5);
@@ -74,7 +76,7 @@ var SKY = (() => {
     out.push(v.thunder ? seg(ic(ICO.bolt), 'Thunderstorm', 'storm') : (v.rain || 0) > .05 ? seg(ic(ICO.rain), (v.rain > .65 ? 'Heavy rain' : v.rain > .4 ? 'Rain' : 'Drizzle'), 'rainy') : seg(ic(ICO.cloud), skyW, '', 2));
     if (!preview && has(live.temp)) out.push(seg(ic(ICO.therm), fmtTemp(live.temp, { tight: true }), '', 3));   // the viewer's unit (fmtTemp is in app.js)
     out.push((v.spd || 0) < 2 ? seg(ic(ICO.arrow, ' style="opacity:.4"'), 'Calm')
-      : seg(ic(ICO.arrow, ` style="transform:rotate(${(v.dir + 180) % 360}deg)"`), `${card(v.dir)} ${v.spd} km/h`, 'wind', 0, `Wind from the ${card(v.dir)}${v.dir >= 80 && v.dir <= 200 ? ', carrying BQE exhaust this way' : ''}`));
+      : seg(ic(ICO.arrow, ` style="transform:rotate(${(v.dir + 180) % 360}deg)"`), `${card(v.dir)} ${v.spd} km/h`, 'wind', 0, `Wind from the ${card(v.dir)}${APP.road && bearingIn(v.dir, APP.road.toward) ? `, carrying ${esc(APP.road.name)} exhaust this way` : ''}`));
     if (air[1] !== 'good') out.push(seg(ic(ICO.alert), air[0], 'air ' + air[1]));   // only when the outside air is not clean
     return out.join('');
   };
@@ -193,7 +195,7 @@ var SKY = (() => {
     jag(x1, y1, mx, my, d / 2, out); jag(mx, my, x2, y2, d / 2, out); return out;
   };
   function strike(t) {
-    const cards = [...document.querySelectorAll('.card, section.ai')].map(el => [el, el.getBoundingClientRect()])
+    const cards = [...document.querySelectorAll('.card, section.sum-card')].map(el => [el, el.getBoundingClientRect()])
       .filter(([, r]) => r.width > 0 && r.top > 70 && r.top < H * .75);
     const front = cards.length > 0 && Math.random() < .7;
     let x0 = W * (.15 + Math.random() * .7), ex = x0 + (Math.random() - .5) * 220, ey = H * (.3 + Math.random() * .3), hit = null;
@@ -208,7 +210,7 @@ var SKY = (() => {
     if (front) {
       const ff = $('front-flash'); ff.style.setProperty('--bx', `${(ex / W * 100).toFixed(1)}%`);
       ff.animate([{ opacity: 0 }, { opacity: .55 }, { opacity: .05 }, { opacity: .4 }, { opacity: 0 }], { duration: 700, easing: 'ease-out' });
-      for (const [el, r] of [...document.querySelectorAll('.card, section.ai, .bar .custom, .bar .dsp')].map(el => [el, el.getBoundingClientRect()])) {
+      for (const [el, r] of [...document.querySelectorAll('.card, section.sum-card, .bar .custom, .bar .dsp')].map(el => [el, el.getBoundingClientRect()])) {
         if (r.bottom < 0 || r.top > H) continue;
         const dx = Math.max(-18, Math.min(18, (r.left + r.width / 2 - ex) / 30)), dy = Math.max(6, Math.min(22, (r.top - ey) / 25 + 10));
         const lit = `${dx.toFixed(1)}px ${dy.toFixed(1)}px 26px rgba(4, 10, 30, .38)`, rest = getComputedStyle(el).boxShadow;

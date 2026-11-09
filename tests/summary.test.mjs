@@ -95,3 +95,44 @@ test('the card header can leave its label to the page', () => {
   const h = kickHtml('Today', NEEDS, false);
   assert.doesNotMatch(h, /Today/); assert.match(h, /sx-nh/);
 });
+
+test('demo clock advances from the moment', () => {
+  const { appNow } = require('../static/summary.js');
+  const realNow = Date.now;
+  try {
+    delete globalThis.APP;
+    assert.ok(Math.abs(appNow() - realNow()) < 1000);   // a real home: the real clock
+    globalThis.APP = { now: { at: '2026-04-21T07:45:00-04:00', moment: 'rush', moments: [] } };
+    const start = realNow();
+    Date.now = () => start + 3 * 3600e3;   // the tab has been open three hours
+    const now = appNow();
+    assert.ok(Math.abs(now - Date.parse('2026-04-21T10:45:00-04:00')) < 5000);
+    // a "when" that passed meanwhile is dropped, as it is live
+    assert.equal(staleWhen({ when: 'after 10:30 AM', when_end: '2026-04-21T10:30:00-04:00' }, now), null);
+    assert.equal(staleWhen({ when: 'until 11 AM', when_end: '2026-04-21T11:00:00-04:00' }, now), 'until 11 AM');
+  } finally {
+    Date.now = realNow;
+    delete globalThis.APP;
+  }
+});
+
+test('demo readings stay fresh while the tab stays open', () => {
+  const { readingsNow, appNow } = require('../static/summary.js');
+  const { freshness } = require('../static/home.js');
+  const realNow = Date.now;
+  try {
+    delete globalThis.APP;
+    assert.ok(Math.abs(readingsNow() - realNow()) < 1000);   // a real home: readings age with the real clock
+    assert.equal(freshness({ timestamp: new Date(realNow() - 30 * 60e3).toISOString() }, readingsNow()).label, 'Late · 30 min');
+    globalThis.APP = { now: { at: '2026-04-21T07:45:00-04:00', moment: 'rush', moments: [] } };
+    const start = realNow();
+    Date.now = () => start + 3 * 3600e3;   // three hours later
+    assert.equal(+readingsNow(), Date.parse('2026-04-21T07:45:00-04:00'));   // the demo's readings are from its moment
+    assert.ok(appNow() > readingsNow());                                       // while its clock moves on
+    assert.equal(freshness({ timestamp: '2026-04-21T11:45:00.000Z' }, readingsNow()).label, 'Online');
+    assert.equal(freshness(null, readingsNow()).label, 'Offline');
+  } finally {
+    Date.now = realNow;
+    delete globalThis.APP;
+  }
+});

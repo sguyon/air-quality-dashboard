@@ -1,0 +1,53 @@
+[place]
+name = "Greenpoint"
+lat = 40.73
+lon = -73.95
+timezone = "America/New_York"
+indoor = "apartment"
+outdoor = "backyard"
+pollen_zip = "11222"
+region = "New York"
+
+[needs]
+toddler = true
+sinus = true
+runner = true
+
+[limits]
+co2 = 800
+pm = 15
+pm_high = 35
+rh_dry = 30
+rh_damp = 60
+rh_stop = 55
+pollen = 3
+
+[sources]
+smoke = true
+pollen = true
+nearby = true
+
+[road]
+name = "BQE"
+kind = "expressway"
+route = "static/bqe.json"
+rush = [[7, 10, "morning"], [16, 20, "evening"]]
+toward = [80, 200]
+
+[[pollen_seasons]]
+name = "Tree"
+start = [3, 10]
+peak = [[4, 1], [5, 10]]
+end = [5, 31]
+
+[[pollen_seasons]]
+name = "Grass"
+start = [5, 10]
+peak = [[6, 1], [6, 30]]
+end = [7, 31]
+
+[[pollen_seasons]]
+name = "Weed"
+start = [8, 15]
+peak = [[8, 25], [9, 20]]
+end = [10, 20]

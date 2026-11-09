@@ -67,10 +67,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .brand.noaa svg { width: 28px; height: 28px; }
 .k .brand.noaa svg { width: 22px; height: 22px; }
 .fold { justify-self: end; align-self: center; color: var(--soft); transition: transform .15s ease; }
-.edit { display: none; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 99px; padding: 6px 12px; font: 600 13px/1 Inter, sans-serif; }
-.custom[open] .edit { display: inline-flex; margin-left: auto; opacity: .4; cursor: not-allowed; }
 .custom[open] .fold { margin-left: 0; }
-.edit svg.i { width: 14px; height: 14px; }
 .fold { justify-self: end; align-self: center; margin-left: 0; color: var(--soft); transition: transform .15s ease; }
 .custom[open] .fold { transform: rotate(180deg); }
 .blocks { display: grid; gap: 14px; margin-top: 14px; }
@@ -78,10 +75,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .custom .view, .custom .sources { margin-top: 8px; }
 .sub .sources { margin-top: 0; }
 .custom .name svg.i { width: 16px; height: 16px; }
-.custom .view[aria-disabled="true"] .chip { background: var(--card); border-color: var(--line); color: var(--ink); font: 500 14px/1.2 Inter, sans-serif; padding: 6px 4px 6px 10px; }
-.custom .chip, .custom .add, .custom .src, .custom .x { cursor: not-allowed; }
-button.x { border: 0; background: transparent; color: var(--soft); padding: 0; }
-button.add:disabled, button.x:disabled { opacity: .4; }
+.custom .view.needs .chip { background: var(--card); border-color: var(--line); color: var(--ink); font: 500 14px/1.2 Inter, sans-serif; padding: 6px 10px; }
 .card .legend { margin-top: 8px; }
 .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 12px; margin-top: 14px; }
@@ -97,21 +91,18 @@ button.add:disabled, button.x:disabled { opacity: .4; }
 .site svg.mark { width: 30px; height: 30px; flex: none; }
 .live { display: inline-block; width: 8px; height: 8px; border-radius: 99px; background: var(--good); flex: none; }
 .ranges { display: flex; gap: 6px; }
-.ranges button, .icon-btn, .chip, .add, .name { border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.ranges button, .icon-btn, .chip, .name { border: 1px solid var(--line); background: var(--card); color: var(--ink); }
 .ranges button { border-radius: 99px; padding: 4px 8px; font: 500 12px/1 Inter, sans-serif; color: var(--soft); cursor: pointer; }
 .ranges .on { background: var(--ink); color: var(--card); border-color: var(--ink); }
 .icon-btn { width: 34px; height: 34px; border-radius: 99px; display: grid; place-items: center; padding: 0; }
 .view, .sources { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; }
-.view[aria-disabled="true"] { margin-top: 8px; gap: 2px; }
-.view[aria-disabled="true"] .name,
-.view[aria-disabled="true"] .chip { background: transparent; border-color: transparent; color: var(--faint); font: 500 13px/1.2 Inter, sans-serif; padding: 2px 6px; pointer-events: none; }
-.view[aria-disabled="true"] .name { color: var(--muted); }
-.view[aria-disabled="true"] svg.i { width: 16px; height: 16px; }
+.view.needs { margin-top: 8px; gap: 2px; }
+.view.needs .name,
+.view.needs .chip { background: transparent; border-color: transparent; color: var(--faint); font: 500 13px/1.2 Inter, sans-serif; padding: 2px 6px; pointer-events: none; }
+.view.needs .name { color: var(--muted); }
+.view.needs svg.i { width: 16px; height: 16px; }
 .name { background: var(--ink); color: var(--card); border-color: var(--ink); border-radius: 99px; padding: 8px 12px; font: 600 14px/1 Inter, sans-serif; display: inline-flex; align-items: center; gap: 8px; }
-.chip, .add { border-radius: 10px; padding: 6px 8px 6px 10px; display: inline-flex; align-items: center; gap: 7px; font: 500 14px/1.2 Inter, sans-serif; }
-.x { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--soft); }
-.x svg.i { width: 14px; height: 14px; }
-.add { border-style: dashed; color: var(--soft); padding: 6px 12px; }
+.chip { border-radius: 10px; padding: 6px 8px 6px 10px; display: inline-flex; align-items: center; gap: 7px; font: 500 14px/1.2 Inter, sans-serif; }
 .ico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; }
 .ico.sky { background: var(--ico-sky); color: var(--sky); }
 .ico.good { background: var(--ico-good); color: var(--good); }
@@ -130,7 +121,7 @@ button.add:disabled, button.x:disabled { opacity: .4; }
 .q:hover .bubble, .q:focus .bubble, .q:focus-visible .bubble { display: block; }
 .coach { font: 600 15px/1 Inter, sans-serif; color: var(--ink); }
 .updated { color: var(--soft); font-size: 13px; white-space: nowrap; }
-.ai { margin-top: 22px; position: relative; background: var(--ai-bg); border: 1px solid var(--ai-line); border-radius: 22px; padding: 16px 16px 14px; }
+.sum-card { margin-top: 22px; position: relative; background: var(--ai-bg); border: 1px solid var(--ai-line); border-radius: 22px; padding: 16px 16px 14px; }
 
 /* Left: what the section is. Right, pinned to the edge: status and the action. */
 .updated.stale { color: var(--warn); }
@@ -138,9 +129,9 @@ button.add:disabled, button.x:disabled { opacity: .4; }
 .icon-btn.pill { width: auto; height: 30px; padding: 0 12px 0 9px; gap: 6px; display: inline-flex; align-items: center; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); font: 500 13px/1 Inter, sans-serif; box-shadow: 0 1px 2px var(--shadow); }
 .icon-btn.pill svg.i { width: 15px; height: 15px; }
 .coach.stale { color: var(--warn); }
-.ai .q { background: var(--card); border-color: transparent; }
-.ai .advice { margin: 16px 4px 0; max-width: 680px; font: 400 22px/1.35 Inter, sans-serif; letter-spacing: -.02em; color: var(--ink); }
-.ai .v { background: var(--card); border-color: transparent; border-radius: 14px; box-shadow: 0 1px 2px var(--shadow); }
+.sum-card .q { background: var(--card); border-color: transparent; }
+.sum-card .advice { margin: 16px 4px 0; max-width: 680px; font: 400 22px/1.35 Inter, sans-serif; letter-spacing: -.02em; color: var(--ink); }
+.sum-card .v { background: var(--card); border-color: transparent; border-radius: 14px; box-shadow: 0 1px 2px var(--shadow); }
 .ahead { margin: 10px 4px 0; padding-top: 0; border-top: 0; color: var(--soft); font-size: 14px; }
 .ahead b { color: var(--ink); font-weight: 600; }
 .also { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; margin: 12px 0 0; padding: 10px 12px; background: var(--card); border-radius: 12px; font-size: 15px; }
@@ -160,6 +151,9 @@ svg.ts text { fill: var(--soft); font: 11px Inter, sans-serif; }
 
 h2 { margin: 32px 0 12px; font: 600 14px/1 Inter, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--soft); display: flex; align-items: center; gap: 8px; }
 .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+/* Parts of the page the home's config turns off (app.js applyConfig): a home without a road, a need that's off */
+[data-app][hidden], [data-need][hidden] { display: none !important; }
+@media (min-width: 901px) { .grid4:has(> .card[hidden]) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .card { padding: 18px 20px; }
 .who { font-size: 13px; color: var(--soft); }
@@ -223,15 +217,15 @@ a.place:hover { color: var(--ink); text-decoration-color: var(--ink); }
 .icon-btn[aria-busy="true"] { cursor: progress; color: var(--accent); }
 .icon-btn svg { will-change: transform; }
 /* While the summary refreshes: a light runs along the top edge; the text stays as it is. */
-.ai::before { content: ""; position: absolute; top: -1px; left: 26px; right: 26px; height: 2px; border-radius: 2px; pointer-events: none;
+.sum-card::before { content: ""; position: absolute; top: -1px; left: 26px; right: 26px; height: 2px; border-radius: 2px; pointer-events: none;
               background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent) no-repeat;
               background-size: 34% 100%; background-position: -60% 0; opacity: 0; transition: opacity .3s ease; }
-.ai[aria-busy="true"]::before { opacity: 1; animation: read-sweep 1.5s cubic-bezier(.45, 0, .55, 1) infinite; }
+.sum-card[aria-busy="true"]::before { opacity: 1; animation: read-sweep 1.5s cubic-bezier(.45, 0, .55, 1) infinite; }
 @keyframes read-sweep { from { background-position: -60% 0; } to { background-position: 160% 0; } }
 .updated { transition: color .2s ease; }
-.ai[aria-busy="true"] .updated { color: var(--accent); }
+.sum-card[aria-busy="true"] .updated { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
-  .ai[aria-busy="true"]::before { animation: none; background: var(--accent); opacity: .6; }
+  .sum-card[aria-busy="true"]::before { animation: none; background: var(--accent); opacity: .6; }
   .icon-btn { transition: none; }
   .icon-btn:active { transform: none; }
 }
@@ -240,10 +234,10 @@ svg.ts .ts-guide { stroke: var(--warn-fill); stroke-dasharray: 4 3; }
 svg.ts .ts-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 svg.ts .ts-in { stroke: var(--series-in); }
 svg.ts .ts-out { stroke: var(--series-out); }
-body, .card, .v, .custom, .ai, .also { transition: background-color .25s ease, border-color .25s ease, color .25s ease; }
+body, .card, .v, .custom, .sum-card, .also { transition: background-color .25s ease, border-color .25s ease, color .25s ease; }
 .stale-note { margin: 8px 4px 0; color: var(--muted); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) {
-  body, .card, .v, .custom, .ai, .also { transition: none; }
+  body, .card, .v, .custom, .sum-card, .also { transition: none; }
 }
 /* ── Page system: one background, white surfaces with a hairline, sentence-case section titles ── */
 .custom, .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 1px 2px var(--shadow); }
@@ -253,10 +247,10 @@ h2 span { font: 400 13.5px/1.2 Inter, sans-serif !important; color: var(--muted)
 .home b { font: 650 14px/1.2 Inter, sans-serif; color: var(--ink); }
 .home em { font-style: normal; font-size: 12.5px; color: var(--muted); }
 /* The summary: marked as AI by a thin gradient edge and a faint glow, not a colored slab. */
-.ai { background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(115deg, #c7d2fe, #a5e8f5 45%, #ddd0fb) border-box; border: 1px solid transparent;
+.sum-card { background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(115deg, #c7d2fe, #a5e8f5 45%, #ddd0fb) border-box; border: 1px solid transparent;
       box-shadow: 0 1px 2px var(--shadow), 0 18px 40px -18px rgba(79, 70, 229, .22); }
-:root[data-theme="dark"] .ai { background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(115deg, #3b4a8a, #1f5f6e 45%, #4b3d7a) border-box; }
-.ai .v, .ai .also { background: var(--bg); box-shadow: none; }
+:root[data-theme="dark"] .sum-card { background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(115deg, #3b4a8a, #1f5f6e 45%, #4b3d7a) border-box; }
+.sum-card .v, .sum-card .also { background: var(--bg); box-shadow: none; }
 /* Section title with its control */
 .sechead { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 40px 0 14px; }
 .sechead h2 { margin: 0; }
@@ -283,7 +277,7 @@ h2 span { font: 400 13.5px/1.2 Inter, sans-serif !important; color: var(--muted)
 .bar .home { text-align: right; margin: 0; }
 .bar .avatar { transition: box-shadow .15s ease; }
 .bar .custom-top:hover .avatar, .bar .custom[open] .avatar { box-shadow: 0 0 0 4px var(--accent-soft); }
-.bar .custom-top .fold, .bar .custom-top .edit { display: none; }
+.bar .custom-top .fold { display: none; }
 .bar .rows, .bar .custom[open] .rows { display: flex; align-items: flex-end; gap: 6px; }
 .bar .custom .blocks { position: absolute; right: 0; top: calc(100% + 10px); width: min(640px, calc(100vw - 32px)); z-index: 30; margin: 0;
                        background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; box-shadow: 0 18px 44px rgba(16, 24, 40, .16); }
@@ -303,7 +297,7 @@ h2 span { font: 400 13.5px/1.2 Inter, sans-serif !important; color: var(--muted)
 .mc-status.bad { color: var(--bad); }
 .mc-status .live { width: 7px; height: 7px; }
 /* ── Summary (board 18) ── */
-.ai { padding: 18px 22px 0; overflow: hidden; }
+.sum-card { padding: 18px 22px 0; overflow: hidden; }
 
 .s-src { margin-left: auto; font-weight: 500; font-size: 11.5px; color: var(--muted); }
 
@@ -481,7 +475,7 @@ svg.ts .ts-guide { stroke: var(--warn-fill); stroke-dasharray: 5 4; stroke-width
 .pg + .pg { margin-top: 14px; }
 .pg h4 { margin: 0 0 6px; font: 600 11.5px/1 Inter, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .pg .view { margin-top: 4px !important; gap: 6px; }
-.pg .view .chip { padding: 5px 4px 5px 9px !important; font-size: 13.5px !important; }
+.pg .view .chip { padding: 5px 9px !important; font-size: 13.5px !important; }
 /* Household settings in the Home panel: one compact row under the place (temperature unit) */
 /* temperature units: in the Weather & theme menu, under Theme, same look */
 .dsp-pop .temp-seg { display: grid !important; grid-template-columns: repeat(2, 1fr); width: 100%; margin-top: 2px; }
@@ -500,9 +494,6 @@ svg.ts .ts-guide { stroke: var(--warn-fill); stroke-dasharray: 5 4; stroke-width
 .pr-a .q { width: 26px; height: 26px; background: transparent; border-color: transparent; color: var(--muted); }
 .pr-a .q svg.i { width: 16px; height: 16px; }
 .pr-a .q .bubble { left: auto; right: 0; transform: none; }
-.pr-a .x { width: 26px; height: 26px; }
-.pr-add { grid-template-columns: 1fr; }
-.pr-add .add { width: 100%; justify-content: center; }
 /* Neighborhood: live dots, PM2.5 as the lead number, row hover */
 .nbt td.dot i { background: var(--good-fill); opacity: .85; }
 .nbt tr.you td.dot i { background: var(--accent); opacity: 1; }
@@ -827,8 +818,6 @@ html.theme-swap *, html.theme-swap *::before, html.theme-swap *::after { transit
 .pst.bad i { background: var(--bad); }
 .pst.warn { color: var(--warn); }
 .pst.bad { color: var(--bad); }
-.pr-add .pst { display: none; }
-.pr-add { grid-template-columns: 1fr !important; }
 /* the buttons take the same width on every row, so the statuses line up in one column */
 .pr .pr-a { justify-content: flex-end; min-width: 56px; }
 @media (max-width: 560px) {
@@ -836,9 +825,7 @@ html.theme-swap *, html.theme-swap *::before, html.theme-swap *::after { transit
   .pr .pst { grid-column: 2; grid-row: 2; margin-top: -4px; }
   .pr .pr-a { grid-column: 3; grid-row: 1 / span 2; }
 }
-/* Need chips explain themselves on hover; removing a need isn't built yet, so only the x stays inert. */
 .custom .view .chip[data-tip] { pointer-events: auto; cursor: help; }
-.custom .view .chip[data-tip] .x, .custom .view .chip[data-tip] button { pointer-events: none; }
 
 /* Home panel rows: subtitles stay on one line */
 .pr-t b, .pr-t em { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -871,7 +858,7 @@ h2 span { text-transform: none !important; }
 
 /* The row belongs to the card: much closer to it than to the header, and aligned to its edges */
 .now-bar { margin: 40px 0 8px; }
-.now-bar + .ai { margin-top: 0; }
+.now-bar + .sum-card { margin-top: 0; }
 
 /* Right now: a heading with the live weather under it, floating on the sky */
 .now-bar { margin: 44px 0 12px; }
@@ -880,7 +867,7 @@ html.sky-dark .now-h { color: #f2f6fb !important; }
 .now-bar .sky-cap { margin: 4px 0 0; padding: 0; height: 22px; line-height: 22px; border: 0; background: none !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .now-bar .sky-cap .cap-i { line-height: 22px; }
 /* Refresh and ⓘ live in the card's top-right corner */
-.ai { position: relative; }
+.sum-card { position: relative; }
 .s-tools { position: absolute; top: 16px; right: 18px; display: flex; align-items: center; gap: 8px; z-index: 2; font-size: 12.5px; color: var(--muted); }
 .s-tools .updated:empty { display: none; }
 .s-tools .q .bubble { left: auto; right: 0; transform: none; }
@@ -912,7 +899,7 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); }
 
 /* Refresh while busy: blue pill, "Updating…", a stronger light along the card's top edge */
 .icon-btn.pill[aria-busy="true"] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
-.ai::before { height: 3px; top: -1.5px; background: linear-gradient(90deg, transparent, var(--accent) 45%, #22c3d6 55%, transparent) no-repeat; background-size: 30% 100%; }
+.sum-card::before { height: 3px; top: -1.5px; background: linear-gradient(90deg, transparent, var(--accent) 45%, #22c3d6 55%, transparent) no-repeat; background-size: 30% 100%; }
 
 /* Byline sources: overlapping round icons, like a shared doc's people */
 .s-src { display: inline-flex; align-items: center; margin-left: 4px; cursor: default; }
@@ -970,26 +957,26 @@ svg.ts .ts-hd.out { fill: var(--series-out); }
 /* ── AI at work (refresh and first load) ── */
 @property --ai-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
 /* 1 · a gradient travels around the card's edge, with a soft glow */
-.ai[aria-busy="true"] { background: linear-gradient(var(--card), var(--card)) padding-box,
+.sum-card[aria-busy="true"] { background: linear-gradient(var(--card), var(--card)) padding-box,
     conic-gradient(from var(--ai-a), #a5b4fc, #67e8f9, #c4b5fd, #f0abfc, #a5b4fc) border-box !important;
   animation: ai-edge 2.6s linear infinite; box-shadow: 0 0 0 1px rgba(165, 180, 252, .25), 0 10px 40px rgba(120, 140, 255, .22) !important; }
 @keyframes ai-edge { to { --ai-a: 360deg; } }
-.ai[aria-busy="true"]::before { opacity: 0 !important; animation: none !important; }
+.sum-card[aria-busy="true"]::before { opacity: 0 !important; animation: none !important; }
 /* 2 · the byline names the step; while reading, the source icons light up one after another */
-.ai[data-phase] #s-by { color: var(--accent-ink); }
+.sum-card[data-phase] #s-by { color: var(--accent-ink); }
 /* 3 · a shimmer runs across the headline and its line while they're being rewritten */
-.ai[data-phase="write"] #lead, .ai[data-phase="write"] #why {
+.sum-card[data-phase="write"] #lead, .sum-card[data-phase="write"] #why {
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
   background-size: 250% 100%; animation: ai-shimmer 1.8s linear infinite; }
-.ai[data-phase="write"] #lead { background-image: linear-gradient(100deg, var(--warn) 30%, #8b9cff 46%, #c084fc 54%, var(--warn) 70%); }
-.ai[data-phase="write"] #why { background-image: linear-gradient(100deg, var(--soft) 30%, #8b9cff 46%, #c084fc 54%, var(--soft) 70%); }
+.sum-card[data-phase="write"] #lead { background-image: linear-gradient(100deg, var(--warn) 30%, #8b9cff 46%, #c084fc 54%, var(--warn) 70%); }
+.sum-card[data-phase="write"] #why { background-image: linear-gradient(100deg, var(--soft) 30%, #8b9cff 46%, #c084fc 54%, var(--soft) 70%); }
 @keyframes ai-shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .ai[aria-busy="true"], .ai[data-phase="write"] #lead, .ai[data-phase="write"] #why { animation: none !important; }
-  .ai[data-phase="write"] #lead, .ai[data-phase="write"] #why { -webkit-text-fill-color: currentColor; background: none; }
+  .sum-card[aria-busy="true"], .sum-card[data-phase="write"] #lead, .sum-card[data-phase="write"] #why { animation: none !important; }
+  .sum-card[data-phase="write"] #lead, .sum-card[data-phase="write"] #why { -webkit-text-fill-color: currentColor; background: none; }
 }
 /* the shimmer spans the text itself, not the full card width */
-.ai[data-phase="write"] #lead, .ai[data-phase="write"] #why { width: fit-content; max-width: 100%; }
+.sum-card[data-phase="write"] #lead, .sum-card[data-phase="write"] #why { width: fit-content; max-width: 100%; }
 
 /* Right now: the sky control sits right after the weather line */
 .now-line { display: flex; align-items: center; gap: 10px; min-width: 0; margin-top: 4px; }
@@ -1006,14 +993,14 @@ html.sky-dark .now-line .dsp-open .chev, html.sky-dark .now-line .dsp-top .chev 
 .now-line .dsp-pop { left: 0; right: auto; }
 .now-bar { display: block; }
 /* Calmer AI-at-work: no color shimmer on the advice; it breathes softly while it's rewritten */
-.ai[data-phase="write"] #lead, .ai[data-phase="write"] #why { background: none !important; -webkit-text-fill-color: currentColor !important; width: auto;
+.sum-card[data-phase="write"] #lead, .sum-card[data-phase="write"] #why { background: none !important; -webkit-text-fill-color: currentColor !important; width: auto;
   animation: ai-breathe 2.2s ease-in-out infinite !important; }
 @keyframes ai-breathe { 50% { opacity: .5; } }
-.ai[data-phase] #s-by { color: var(--muted); }
+.sum-card[data-phase] #s-by { color: var(--muted); }
 .s-step { margin-left: 8px; font-size: 13px; color: var(--accent-ink); white-space: nowrap; }
 .s-step:empty { display: none; }
 @media (prefers-reduced-motion: reduce) {
-  .ai[data-phase="write"] #lead, .ai[data-phase="write"] #why { animation: none !important; opacity: .7; }
+  .sum-card[data-phase="write"] #lead, .sum-card[data-phase="write"] #why { animation: none !important; opacity: .7; }
 }
 .nbbar i { transform-origin: left center; }
 /* ── Top of the page, tidied ── */
@@ -1078,6 +1065,24 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
 .ps-months em { transform: none; font-size: 10.5px; }
 /* Local conditions: links to the public source pages, at the bottom of each card */
 .grid4 > .card { display: flex; flex-direction: column; }
+/* The demo's banner: what this is, where the code is, and its three moments (a segmented row of links) */
+.demo-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 18px; font: 500 13px/1.4 Inter, sans-serif; color: var(--muted); }
+.demo-bar[hidden] { display: none; }
+.demo-bar p { margin: 0; }
+.demo-bar p a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
+.demo-moments a { color: var(--soft); font: 550 12.5px/1 Inter, sans-serif; padding: 7px 11px; border-radius: 7px; text-decoration: none; white-space: nowrap; transition: background-color .15s ease, color .15s ease; }
+.demo-moments a:hover { color: var(--ink); }
+.demo-moments a[aria-current] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(16, 24, 40, .12); }
+.demo-moments a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+html.sky-dark .demo-bar { color: rgba(236, 242, 250, .78); }
+html.sky-dark .demo-bar p a { color: #b9ccff; }
+html.sky-dark .demo-moments a { color: rgba(240, 245, 252, .85); }
+html.sky-dark .demo-moments a[aria-current] { color: var(--ink); }
+@media (max-width: 700px) {
+  .demo-bar { font-size: 12.5px; margin-bottom: 14px; }
+  .demo-moments { display: flex; width: 100%; }
+  .demo-moments a { flex: 1; text-align: center; padding: 7px 4px; }
+}
 /* Dev and local only: build and Clear cache, under the footer */
 .devbar { margin: -12px 0 24px; text-align: center; font: 400 11.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
 .devbar[hidden] { display: none; }
@@ -1087,7 +1092,7 @@ html.sky-dark .devbar button { color: #b9ccff; }
 /* Tighter top: less space above the page, between the header and Right now, and inside the card's first band */
 .page { padding-top: 20px !important; }
 .now-bar { margin-top: 18px !important; margin-bottom: 10px !important; }
-.ai { padding-top: 14px !important; }
+.sum-card { padding-top: 14px !important; }
 .s-bar { padding-bottom: 2px !important; }
 
 /* Tighter rhythm between sections: 32px above each section title, 10px from title to its content */
@@ -1098,8 +1103,6 @@ html.sky-dark .devbar button { color: #b9ccff; }
 .grid4 { margin-top: 10px !important; }
 .sechead h2:not(.now-h):not(.s-do) { margin-top: 0 !important; }
 .devbar { margin: 32px 0 28px !important; }
-.devbar a.prev { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
-html.sky-dark .devbar a.prev { color: #b9ccff; }
 /* Neighborhood: a wide map across the card, the nearest 8 below it, "Show all" for the rest */
 .nb-card { padding: 0 !important; overflow: hidden; }
 .nb-map { position: relative; width: 100%; aspect-ratio: 21 / 9; max-height: 480px; background: var(--meter); border-bottom: 1px solid var(--line); }
@@ -1387,12 +1390,12 @@ html.outside-dark:not(.outside-night) { --win-lit: #fde7b0; }
   .mc-hero { padding: 4px 0 16px; }
 }
 /* ── Summary card spacing ── */
-.ai { padding: 20px 28px 0 !important; }
+.sum-card { padding: 20px 28px 0 !important; }
 /* the summary card (static/summary.css) sits inside the box, which already gives it side padding */
-.ai > .sx { padding: 8px 0 16px; }
+.sum-card > .sx { padding: 8px 0 16px; }
 
 @media (max-width: 760px) {
-  .ai { padding: 16px 18px 0 !important; }
+  .sum-card { padding: 16px 18px 0 !important; }
 }
 
 /* scenes: radar rings from the monitor (longer and a little more visible), and the weather */
@@ -1512,26 +1515,26 @@ html.sky-dark .now-h { color: color-mix(in srgb, #f2f6fb 75%, transparent) !impo
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) { --brand-ink: #d6f1f7; --brand-dot-ink: #9fe0ee; }
 }
-.ai { background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(115deg, color-mix(in srgb, var(--brand-dot) 90%, transparent), color-mix(in srgb, var(--brand-dot) 45%, var(--card)) 60%, color-mix(in srgb, var(--brand-dot) 80%, transparent)) border-box !important;
+.sum-card { background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(115deg, color-mix(in srgb, var(--brand-dot) 90%, transparent), color-mix(in srgb, var(--brand-dot) 45%, var(--card)) 60%, color-mix(in srgb, var(--brand-dot) 80%, transparent)) border-box !important;
   border: 1.5px solid transparent !important; box-shadow: 0 1px 2px var(--shadow), 0 18px 40px -20px color-mix(in srgb, var(--brand-dot) 55%, transparent) !important; }
-.ai::before { background: linear-gradient(90deg, transparent, var(--brand-dot) 50%, transparent) no-repeat !important; background-size: 30% 100% !important; }
+.sum-card::before { background: linear-gradient(90deg, transparent, var(--brand-dot) 50%, transparent) no-repeat !important; background-size: 30% 100% !important; }
 .s-by .s-tag { background: color-mix(in srgb, var(--brand-dot) 24%, var(--card)) !important; color: var(--brand-ink) !important; }
-.s-by .s-tag .s-tag-mark { width: 14px; height: 14px; color: var(--brand-dot-ink); }
+.s-by .s-tag .s-busy-mark { width: 14px; height: 14px; color: var(--brand-dot-ink); }
 /* one card for the AI summary: what it is, for whom, when it refreshes, who wrote it, and the sources. Opens on the tag or the count. */
-.s-ai { position: relative; display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; outline: none; cursor: default; }
-.s-ai:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
-.s-ai .s-src { padding: 0; }
-.s-ai .s-ai-card { left: 0; top: calc(100% + 10px); width: 320px; }
-.s-ai:hover .s-ai-card, .s-ai:focus-visible .s-ai-card, .s-ai:focus-within .s-ai-card { display: grid; gap: 7px; }
-.s-ai-card > span:not(.s-src-row):not(.s-ai-list) { display: block; line-height: 1.4; }
-.s-ai-card b { color: inherit !important; font-weight: 600; }
-.s-ai-what { opacity: .85; }
-.s-ai-meta { opacity: .7; }
-.s-ai-sh { margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .14); font-weight: 600; }
-.s-ai-list { display: grid; gap: 7px; }
-.s-ai-card::after { content: "Click to change sources"; }
+.s-info { position: relative; display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; outline: none; cursor: default; }
+.s-info:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.s-info .s-src { padding: 0; }
+.s-info .s-info-card { left: 0; top: calc(100% + 10px); width: 320px; }
+.s-info:hover .s-info-card, .s-info:focus-visible .s-info-card, .s-info:focus-within .s-info-card { display: grid; gap: 7px; }
+.s-info-card > span:not(.s-src-row):not(.s-info-list) { display: block; line-height: 1.4; }
+.s-info-card b { color: inherit !important; font-weight: 600; }
+.s-info-what { opacity: .85; }
+.s-info-meta { opacity: .7; }
+.s-info-sh { margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .14); font-weight: 600; }
+.s-info-list { display: grid; gap: 7px; }
+.s-info-card::after { content: "Click to change sources"; }
 @media (max-width: 560px) {
-  .s-ai .s-ai-card { width: min(300px, calc(100vw - 48px)); }
+  .s-info .s-info-card { width: min(300px, calc(100vw - 48px)); }
 }
 /* Logo W6a: four panes, the top ones show the live sky (sky.js sets --scene-top), the reading in a lower pane */
 /* logo shortlist (?logo=v8 | v8c): a pale tile with a navy window; the top panes still take the live sky */
@@ -1539,10 +1542,10 @@ html.sky-dark .now-h { color: color-mix(in srgb, #f2f6fb 75%, transparent) !impo
 /* ── Logo: dark tile on light backgrounds, light tile on dark ones (dark theme, or the live sky at night) ── */
 /* slightly bigger in the header */
 /* "from 6 sources" behaves like the "AI summary" tag: same cursor, no help pointer, no dotted underline */
-.s-ai, .s-ai .s-src, .s-ai .s-src-n { cursor: default !important; }
-.s-ai .s-src-n { text-decoration: none !important; }
+.s-info, .s-info .s-src, .s-info .s-src-n { cursor: default !important; }
+.s-info .s-src-n { text-decoration: none !important; }
 /* the tag carries only the logo's reading dot */
-.s-by .s-tag .s-tag-mark { width: 12px; height: 12px; }
+.s-by .s-tag .s-busy-mark { width: 12px; height: 12px; }
 /* ── Scenes in dark mode: the same drawings in shadow (glass, glow and monitors stay light) ── */
 :root[data-theme="dark"] .mc-scene [fill="#f5f3ef"] { fill: #353d4a; }
 :root[data-theme="dark"] .mc-scene [fill="#e3d2bb"] { fill: #4a4033; }
@@ -1670,26 +1673,26 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
   border: 1px solid transparent; background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(110deg, #7fd3e6, #a5b4fc 55%, #7fd3e6) border-box !important;
   box-shadow: 0 2px 10px -4px color-mix(in srgb, #7fd3e6 70%, transparent); }
 .s-by .s-tag #s-tag-t { background: linear-gradient(90deg, #0f6278, #4f46e5); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.s-by .s-tag .s-tag-mark { width: 16px !important; height: 16px !important; color: #1fa3bf; overflow: visible; }
+.s-by .s-tag .s-busy-mark { width: 16px !important; height: 16px !important; color: #1fa3bf; overflow: visible; }
 :root[data-theme="dark"] .s-by .s-tag #s-tag-t { background-image: linear-gradient(90deg, #9fe0ee, #c7d2fe); }
-:root[data-theme="dark"] .s-by .s-tag .s-tag-mark { color: #7fd3e6; }
+:root[data-theme="dark"] .s-by .s-tag .s-busy-mark { color: #7fd3e6; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .s-by .s-tag #s-tag-t { background-image: linear-gradient(90deg, #9fe0ee, #c7d2fe); }
-  :root:not([data-theme="light"]) .s-by .s-tag .s-tag-mark { color: #7fd3e6; }
+  :root:not([data-theme="light"]) .s-by .s-tag .s-busy-mark { color: #7fd3e6; }
 }
 /* ── Refreshing: a comet of the brand gradient (cyan → violet, as on the "AI summary" tag) travels around the card's border ── */
 @property --ai-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-.ai::before { display: none !important; }
-.ai[aria-busy="true"] {
+.sum-card::before { display: none !important; }
+.sum-card[aria-busy="true"] {
   background: linear-gradient(var(--card), var(--card)) padding-box,
     conic-gradient(from var(--ai-a), color-mix(in srgb, #7fd3e6 40%, var(--card)) 0deg, color-mix(in srgb, #7fd3e6 40%, var(--card)) 250deg,
       #7fd3e6 300deg, #a5b4fc 335deg, color-mix(in srgb, #a5b4fc 40%, var(--card)) 360deg) border-box !important;
   animation: ai-orbit 2.8s linear infinite;
   box-shadow: 0 1px 2px var(--shadow), 0 18px 44px -20px color-mix(in srgb, #a5b4fc 55%, transparent) !important; }
 @keyframes ai-orbit { to { --ai-a: 360deg; } }
-.ai[aria-busy="true"] .updated { color: var(--brand-dot-ink) !important; }
+.sum-card[aria-busy="true"] .updated { color: var(--brand-dot-ink) !important; }
 @media (prefers-reduced-motion: reduce) {
-  .ai[aria-busy="true"] { animation: none; }
+  .sum-card[aria-busy="true"] { animation: none; }
 }
 /* ── One identity: navy + the logo's cyan (deep teal for text and lines on light), no violet; brand lines ~1.5 px in the UI ── */
 .site { font-weight: 650 !important; }
@@ -1700,33 +1703,33 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
   background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(110deg, #7fd3e6, #1f7d93 55%, #7fd3e6) border-box !important;
   box-shadow: 0 2px 10px -5px color-mix(in srgb, #1f7d93 55%, transparent) !important; }
 .s-by .s-tag #s-tag-t { background-image: linear-gradient(90deg, #0f2233, #1f7d93) !important; }
-.s-by .s-tag .s-tag-mark { color: #1f7d93 !important; }
+.s-by .s-tag .s-busy-mark { color: #1f7d93 !important; }
 :root[data-theme="dark"] .s-by .s-tag #s-tag-t { background-image: linear-gradient(90deg, #e3f4f8, #7fd3e6) !important; }
-:root[data-theme="dark"] .s-by .s-tag .s-tag-mark { color: #7fd3e6 !important; }
+:root[data-theme="dark"] .s-by .s-tag .s-busy-mark { color: #7fd3e6 !important; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .s-by .s-tag #s-tag-t { background-image: linear-gradient(90deg, #e3f4f8, #7fd3e6) !important; }
-  :root:not([data-theme="light"]) .s-by .s-tag .s-tag-mark { color: #7fd3e6 !important; }
+  :root:not([data-theme="light"]) .s-by .s-tag .s-busy-mark { color: #7fd3e6 !important; }
 }
 /* the card: a 1.5 px border in real cyan, deepening to teal at the corners */
-.ai { border-width: 1.5px !important;
+.sum-card { border-width: 1.5px !important;
   background: linear-gradient(var(--card), var(--card)) padding-box, linear-gradient(115deg, #7fd3e6, color-mix(in srgb, #7fd3e6 55%, var(--card)) 50%, #4fb3c8) border-box !important;
   box-shadow: 0 1px 2px var(--shadow), 0 18px 40px -22px color-mix(in srgb, #1f7d93 45%, transparent) !important; }
 /* refreshing: the comet in cyan with a teal head */
-.ai[aria-busy="true"] {
+.sum-card[aria-busy="true"] {
   background: linear-gradient(var(--card), var(--card)) padding-box,
     conic-gradient(from var(--ai-a), color-mix(in srgb, #7fd3e6 45%, var(--card)) 0deg, color-mix(in srgb, #7fd3e6 45%, var(--card)) 250deg,
       #7fd3e6 305deg, #1f7d93 345deg, color-mix(in srgb, #7fd3e6 45%, var(--card)) 360deg) border-box !important;
   box-shadow: 0 1px 2px var(--shadow), 0 18px 44px -20px color-mix(in srgb, #1f7d93 50%, transparent) !important; }
 /* ── AI card: the same border and shadow as every other card; the byline is plain text with the reading dot.
    Cyan shows only while it refreshes (the comet). Never a colored top edge. ── */
-.ai:not([aria-busy="true"]) { background: var(--card) !important; border: 1px solid var(--line) !important; box-shadow: 0 1px 2px var(--shadow) !important; }
-.ai[aria-busy="true"] { border-width: 1px !important; box-shadow: 0 1px 2px var(--shadow) !important; }
+.sum-card:not([aria-busy="true"]) { background: var(--card) !important; border: 1px solid var(--line) !important; box-shadow: 0 1px 2px var(--shadow) !important; }
+.sum-card[aria-busy="true"] { border-width: 1px !important; box-shadow: 0 1px 2px var(--shadow) !important; }
 .s-by .s-tag { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; gap: 6px !important;
   font: 600 12px/1.2 Inter, sans-serif !important; letter-spacing: .07em !important; text-transform: uppercase; }
 .s-by .s-tag #s-tag-t { background: none !important; color: var(--soft) !important; -webkit-text-fill-color: currentColor; }
-.s-by .s-tag .s-tag-mark { width: 14px !important; height: 14px !important; }
-.s-ai { gap: 6px; }
-.s-ai .s-src-n::before { content: "· "; }
+.s-by .s-tag .s-busy-mark { width: 14px !important; height: 14px !important; }
+.s-info { gap: 6px; }
+.s-info .s-src-n::before { content: "· "; }
 /* "Right now" sits as close to its card as the other section titles: the text aligns to the bottom of the row (the weather
    button is taller than the text), and the row's bottom margin is tightened to match */
 @media (min-width: 701px) {
@@ -1739,19 +1742,19 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
   .mc > .mc-head { margin-left: calc(-1 * var(--mc-pad, 24px)) !important; margin-right: calc(-1 * var(--mc-pad, 24px)) !important; }
 }
 /* ── AI card banner: the byline row as a slim tinted header, like the monitor cards' headers (smaller, no illustration) ── */
-.ai > .s-bar { margin: -20px -28px 16px !important; padding: 11px 28px !important; border-bottom: 1px solid var(--line);
+.sum-card > .s-bar { margin: -20px -28px 16px !important; padding: 11px 28px !important; border-bottom: 1px solid var(--line);
   background: linear-gradient(100deg, color-mix(in srgb, #7fd3e6 20%, var(--card)) 0%, color-mix(in srgb, #7fd3e6 8%, var(--card)) 55%, var(--card) 100%); }
-:root[data-theme="dark"] .ai > .s-bar { background: linear-gradient(100deg, color-mix(in srgb, #1f7d93 30%, var(--card)) 0%, color-mix(in srgb, #1f7d93 10%, var(--card)) 55%, var(--card) 100%); }
+:root[data-theme="dark"] .sum-card > .s-bar { background: linear-gradient(100deg, color-mix(in srgb, #1f7d93 30%, var(--card)) 0%, color-mix(in srgb, #1f7d93 10%, var(--card)) 55%, var(--card) 100%); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .ai > .s-bar { background: linear-gradient(100deg, color-mix(in srgb, #1f7d93 30%, var(--card)) 0%, color-mix(in srgb, #1f7d93 10%, var(--card)) 55%, var(--card) 100%); }
+  :root:not([data-theme="light"]) .sum-card > .s-bar { background: linear-gradient(100deg, color-mix(in srgb, #1f7d93 30%, var(--card)) 0%, color-mix(in srgb, #1f7d93 10%, var(--card)) 55%, var(--card) 100%); }
 }
-.ai > .s-bar .s-tag #s-tag-t { color: var(--ink) !important; }
+.sum-card > .s-bar .s-tag #s-tag-t { color: var(--ink) !important; }
 @media (max-width: 760px) {
-  .ai > .s-bar { margin: -16px -18px 14px !important; padding: 10px 18px !important; }
+  .sum-card > .s-bar { margin: -16px -18px 14px !important; padding: 10px 18px !important; }
 }
-:root[data-theme="dark"] .ai > .s-bar .s-tag #s-tag-t { background-image: none !important; color: var(--ink) !important; }
+:root[data-theme="dark"] .sum-card > .s-bar .s-tag #s-tag-t { background-image: none !important; color: var(--ink) !important; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .ai > .s-bar .s-tag #s-tag-t { background-image: none !important; color: var(--ink) !important; }
+  :root:not([data-theme="light"]) .sum-card > .s-bar .s-tag #s-tag-t { background-image: none !important; color: var(--ink) !important; }
 }
 /* every section title sits 16 px from its block */
 .sechead { margin-bottom: 16px !important; }
@@ -1760,30 +1763,30 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
 }
 /* ── AI banner, in the monitor headers' language: an identity tile (the reading dot, pulsing), a kind label and a status line,
    and as illustration faint rings spreading from the dot across the band ── */
-.ai > .s-bar { padding: 12px 28px !important; align-items: center;
+.sum-card > .s-bar { padding: 12px 28px !important; align-items: center;
   background:
     radial-gradient(circle at 46px 50%, transparent 0 25px, color-mix(in srgb, #7fd3e6 34%, transparent) 25px 26px, transparent 26px 42px,
       color-mix(in srgb, #7fd3e6 22%, transparent) 42px 43px, transparent 43px 62px, color-mix(in srgb, #7fd3e6 13%, transparent) 62px 63px, transparent 63px 86px,
       color-mix(in srgb, #7fd3e6 7%, transparent) 86px 87px, transparent 87px),
     linear-gradient(100deg, color-mix(in srgb, #7fd3e6 20%, var(--card)) 0%, color-mix(in srgb, #7fd3e6 7%, var(--card)) 55%, var(--card) 100%) !important; }
-.ai > .s-bar .s-ai { display: grid !important; grid-template-columns: 36px auto; grid-template-rows: auto auto; column-gap: 12px; row-gap: 3px; align-items: center; }
-.ai > .s-bar .s-tag { display: contents !important; }
-.ai > .s-bar .s-tag .s-tag-mark { grid-row: 1 / 3; grid-column: 1; width: 36px !important; height: 36px !important; padding: 8px; box-sizing: border-box; border-radius: 50%;
+.sum-card > .s-bar .s-info { display: grid !important; grid-template-columns: 36px auto; grid-template-rows: auto auto; column-gap: 12px; row-gap: 3px; align-items: center; }
+.sum-card > .s-bar .s-tag { display: contents !important; }
+.sum-card > .s-bar .s-tag .s-busy-mark { grid-row: 1 / 3; grid-column: 1; width: 36px !important; height: 36px !important; padding: 8px; box-sizing: border-box; border-radius: 50%;
   background: var(--card); box-shadow: 0 1px 3px rgba(15, 34, 51, .12), inset 0 0 0 1px color-mix(in srgb, #7fd3e6 45%, var(--card)); color: #1f7d93 !important; overflow: visible; }
-.ai > .s-bar .s-tag #s-tag-t { grid-row: 1; grid-column: 2; font: 650 12px/1.2 Inter, sans-serif !important; letter-spacing: .08em !important; text-transform: uppercase; color: #1f7d93 !important; align-self: end; }
-.ai > .s-bar .s-ai .s-src { grid-row: 2; grid-column: 2; align-self: start; }
-.ai > .s-bar .s-ai .s-src-n::before { content: none !important; }
-.ai > .s-bar .s-ai .s-src-n { font-size: 13px; color: var(--soft); }
-:root[data-theme="dark"] .ai > .s-bar .s-tag #s-tag-t { color: #7fd3e6 !important; }
-:root[data-theme="dark"] .ai > .s-bar .s-tag .s-tag-mark { background: color-mix(in srgb, #1f7d93 25%, var(--card)); color: #7fd3e6 !important; }
+.sum-card > .s-bar .s-tag #s-tag-t { grid-row: 1; grid-column: 2; font: 650 12px/1.2 Inter, sans-serif !important; letter-spacing: .08em !important; text-transform: uppercase; color: #1f7d93 !important; align-self: end; }
+.sum-card > .s-bar .s-info .s-src { grid-row: 2; grid-column: 2; align-self: start; }
+.sum-card > .s-bar .s-info .s-src-n::before { content: none !important; }
+.sum-card > .s-bar .s-info .s-src-n { font-size: 13px; color: var(--soft); }
+:root[data-theme="dark"] .sum-card > .s-bar .s-tag #s-tag-t { color: #7fd3e6 !important; }
+:root[data-theme="dark"] .sum-card > .s-bar .s-tag .s-busy-mark { background: color-mix(in srgb, #1f7d93 25%, var(--card)); color: #7fd3e6 !important; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .ai > .s-bar .s-tag #s-tag-t { color: #7fd3e6 !important; }
-  :root:not([data-theme="light"]) .ai > .s-bar .s-tag .s-tag-mark { background: color-mix(in srgb, #1f7d93 25%, var(--card)); color: #7fd3e6 !important; }
+  :root:not([data-theme="light"]) .sum-card > .s-bar .s-tag #s-tag-t { color: #7fd3e6 !important; }
+  :root:not([data-theme="light"]) .sum-card > .s-bar .s-tag .s-busy-mark { background: color-mix(in srgb, #1f7d93 25%, var(--card)); color: #7fd3e6 !important; }
 }
 @media (max-width: 760px) {
-  .ai > .s-bar { padding: 10px 18px !important; background-position: -10px 0, 0 0 !important; }
+  .sum-card > .s-bar { padding: 10px 18px !important; background-position: -10px 0, 0 0 !important; }
 }
-.ai > .s-bar .s-ai .s-src { padding: 0 !important; margin: 0 !important; }
+.sum-card > .s-bar .s-info .s-src { padding: 0 !important; margin: 0 !important; }
 /* the weather menu button matches the line's scale: 30 px instead of 38 */
 .now-line .dsp-top { height: 30px !important; padding: 2px !important; }
 .now-line .dsp-top .sky-quick, .now-line .dsp-open { width: 26px !important; height: 26px !important; }
@@ -1800,23 +1803,23 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
 .now-line .wx-b#wx-fs { width: 30px; }
 /* one pulsing dot on the page: the green "live" status; the AI dot stays still (the band rings and the refresh comet carry the AI motion) */
 /* ── AI banner, round 2: no tile (the dot is the source of the rings), "Written <time> · from 6 sources", a ghost Refresh ── */
-.ai > .s-bar { padding: 12px 28px !important;
+.sum-card > .s-bar { padding: 12px 28px !important;
   background:
     radial-gradient(circle at 39px 50%, transparent 0 10px, color-mix(in srgb, #7fd3e6 40%, transparent) 10px 11px, transparent 11px 19px,
       color-mix(in srgb, #7fd3e6 26%, transparent) 19px 20px, transparent 20px 30px, color-mix(in srgb, #7fd3e6 15%, transparent) 30px 31px, transparent 31px 43px,
       color-mix(in srgb, #7fd3e6 8%, transparent) 43px 44px, transparent 44px),
     linear-gradient(100deg, color-mix(in srgb, #7fd3e6 18%, var(--card)) 0%, color-mix(in srgb, #7fd3e6 6%, var(--card)) 55%, var(--card) 100%) !important; }
-.ai > .s-bar .s-ai { grid-template-columns: 22px auto !important; column-gap: 14px !important; }
-.ai > .s-bar .s-tag .s-tag-mark { width: 22px !important; height: 22px !important; padding: 0 !important; background: none !important; box-shadow: none !important; }
-.ai > .s-bar .s-src::before { content: attr(data-when); font: 400 13px/1.2 Inter, sans-serif; color: var(--muted); }
-.ai > .s-bar #read-refresh { background: transparent !important; border: 1px solid color-mix(in srgb, #1f7d93 28%, var(--line)) !important; box-shadow: none !important; color: var(--ink); }
-.ai > .s-bar #read-refresh:hover { background: color-mix(in srgb, #7fd3e6 16%, transparent) !important; }
+.sum-card > .s-bar .s-info { grid-template-columns: 22px auto !important; column-gap: 14px !important; }
+.sum-card > .s-bar .s-tag .s-busy-mark { width: 22px !important; height: 22px !important; padding: 0 !important; background: none !important; box-shadow: none !important; }
+.sum-card > .s-bar .s-src::before { content: attr(data-when); font: 400 13px/1.2 Inter, sans-serif; color: var(--muted); }
+.sum-card > .s-bar #read-refresh { background: transparent !important; border: 1px solid color-mix(in srgb, #1f7d93 28%, var(--line)) !important; box-shadow: none !important; color: var(--ink); }
+.sum-card > .s-bar #read-refresh:hover { background: color-mix(in srgb, #7fd3e6 16%, transparent) !important; }
 @media (max-width: 760px) {
-  .ai > .s-bar { background-position: -6px 0, 0 0 !important; }
+  .sum-card > .s-bar { background-position: -6px 0, 0 0 !important; }
 }
 /* header: one solid control (the Home pill); the theme button is translucent, like the weather button */
-.ai > .s-bar .s-ai .s-src-n { font: 400 13px/1.2 Inter, sans-serif !important; color: var(--muted) !important; }
-.ai > .s-bar .s-ai:hover .s-src-n, .ai > .s-bar .s-ai:focus-visible .s-src-n { color: var(--ink) !important; }
+.sum-card > .s-bar .s-info .s-src-n { font: 400 13px/1.2 Inter, sans-serif !important; color: var(--muted) !important; }
+.sum-card > .s-bar .s-info:hover .s-src-n, .sum-card > .s-bar .s-info:focus-visible .s-src-n { color: var(--ink) !important; }
 /* ── Weather & theme menu, production pass: sections without inner boxes, icon toggles, sky tiles, styled sliders ── */
 .dsp-pop { width: 344px !important; padding: 16px 18px 14px !important; border-radius: 18px !important; }
 .dsp-pop .pop-head { align-items: center; margin-bottom: 2px; }
@@ -1879,29 +1882,29 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
   html.wx-full .dsp-pop .pg:not(.fx-pv), html.wx-full .dsp-pop .pop-foot { display: none !important; }
 }
 /* ── AI banner B: one slim row — dot · AI SUMMARY · from 6 sources · Updated 5 min ago ↻ ── */
-:root .ai > .s-bar { padding: 9px 28px !important; justify-content: flex-start !important; gap: 0; }
-:root .ai > .s-bar .s-by { flex: none; }
-:root .ai > .s-bar .s-ai { display: flex !important; align-items: center; gap: 10px !important; }
-:root .ai > .s-bar .s-tag { display: inline-flex !important; align-items: center; gap: 10px !important; }
-:root .ai > .s-bar .s-tag .s-tag-mark { width: 18px !important; height: 18px !important; }
-:root .ai > .s-bar .s-src::before { content: none !important; }
-:root .ai > .s-bar .s-ai .s-src-n::before { content: "· " !important; }
-:root .ai > .s-bar .s-tools { display: flex; align-items: center; gap: 4px; margin-left: 10px !important; }
-:root .ai > .s-bar #s-ago { display: inline !important; font: 400 13px/1.2 Inter, sans-serif; color: var(--muted); }
-:root .ai > .s-bar #s-ago:not(:empty)::before { content: "· "; }
-:root .ai > .s-bar #read-refresh { width: 28px; height: 28px; padding: 0 !important; justify-content: center; border-color: transparent !important; border-radius: 50% !important; color: var(--soft); }
-:root .ai > .s-bar #read-refresh span { display: none; }
-:root .ai > .s-bar #read-refresh svg.i { width: 15px; height: 15px; }
-:root .ai > .s-bar #read-refresh:hover { color: var(--ink); }
-:root .ai > .s-bar { background:
+:root .sum-card > .s-bar { padding: 9px 28px !important; justify-content: flex-start !important; gap: 0; }
+:root .sum-card > .s-bar .s-by { flex: none; }
+:root .sum-card > .s-bar .s-info { display: flex !important; align-items: center; gap: 10px !important; }
+:root .sum-card > .s-bar .s-tag { display: inline-flex !important; align-items: center; gap: 10px !important; }
+:root .sum-card > .s-bar .s-tag .s-busy-mark { width: 18px !important; height: 18px !important; }
+:root .sum-card > .s-bar .s-src::before { content: none !important; }
+:root .sum-card > .s-bar .s-info .s-src-n::before { content: "· " !important; }
+:root .sum-card > .s-bar .s-tools { display: flex; align-items: center; gap: 4px; margin-left: 10px !important; }
+:root .sum-card > .s-bar #s-ago { display: inline !important; font: 400 13px/1.2 Inter, sans-serif; color: var(--muted); }
+:root .sum-card > .s-bar #s-ago:not(:empty)::before { content: "· "; }
+:root .sum-card > .s-bar #read-refresh { width: 28px; height: 28px; padding: 0 !important; justify-content: center; border-color: transparent !important; border-radius: 50% !important; color: var(--soft); }
+:root .sum-card > .s-bar #read-refresh span { display: none; }
+:root .sum-card > .s-bar #read-refresh svg.i { width: 15px; height: 15px; }
+:root .sum-card > .s-bar #read-refresh:hover { color: var(--ink); }
+:root .sum-card > .s-bar { background:
     linear-gradient(100deg, color-mix(in srgb, #7fd3e6 16%, var(--card)) 0%, color-mix(in srgb, #7fd3e6 5%, var(--card)) 50%, var(--card) 85%) !important; }
 @media (max-width: 760px) {
-  :root .ai > .s-bar { padding: 9px 18px !important; }
-  :root .ai > .s-bar .s-src { display: none; }
+  :root .sum-card > .s-bar { padding: 9px 18px !important; }
+  :root .sum-card > .s-bar .s-src { display: none; }
 }
 .s-ago { display: none; }
-:root .ai > .s-bar .s-ai { gap: 6px !important; }
-:root .ai > .s-bar .s-tools { margin-left: 6px !important; }
+:root .sum-card > .s-bar .s-info { gap: 6px !important; }
+:root .sum-card > .s-bar .s-tools { margin-left: 6px !important; }
 /* preview presets: compact chips in the page's style; the sky lives only in a small round swatch */
 .dsp-pop .fx-presets { gap: 6px !important; }
 .dsp-pop .fx-presets button { flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; gap: 7px !important; height: 34px !important; padding: 0 9px !important;
@@ -1936,29 +1939,29 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
 .dsp-pop .fx-play .fx-presets button[data-fx] { height: 30px !important; flex: none; }
 .dsp-pop .fx-play .fx-sliders { padding: 0; }
 /* banner B: every piece on one line, same box and line height, vertically centered */
-:root .ai > .s-bar .s-by, :root .ai > .s-bar .s-ai, :root .ai > .s-bar .s-tag,
-:root .ai > .s-bar .s-src, :root .ai > .s-bar .s-tools { display: inline-flex !important; align-items: center !important; }
-:root .ai > .s-bar .s-src { position: static !important; padding: 0 !important; margin: 0 !important; height: auto; transform: none !important; vertical-align: middle; }
-:root .ai > .s-bar #s-tag-t, :root .ai > .s-bar .s-src-n, :root .ai > .s-bar #s-ago { line-height: 20px !important; display: inline-block; margin: 0 !important; padding: 0 !important; }
+:root .sum-card > .s-bar .s-by, :root .sum-card > .s-bar .s-info, :root .sum-card > .s-bar .s-tag,
+:root .sum-card > .s-bar .s-src, :root .sum-card > .s-bar .s-tools { display: inline-flex !important; align-items: center !important; }
+:root .sum-card > .s-bar .s-src { position: static !important; padding: 0 !important; margin: 0 !important; height: auto; transform: none !important; vertical-align: middle; }
+:root .sum-card > .s-bar #s-tag-t, :root .sum-card > .s-bar .s-src-n, :root .sum-card > .s-bar #s-ago { line-height: 20px !important; display: inline-block; margin: 0 !important; padding: 0 !important; }
 /* Refresh: a proper target (32 px, 40 on phone), with its tooltip */
-:root .ai > .s-bar #read-refresh { width: 32px !important; height: 32px !important; }
-:root .ai > .s-bar #read-refresh svg.i { width: 16px !important; height: 16px !important; }
+:root .sum-card > .s-bar #read-refresh { width: 32px !important; height: 32px !important; }
+:root .sum-card > .s-bar #read-refresh svg.i { width: 16px !important; height: 16px !important; }
 @media (max-width: 760px) {
-  :root .ai > .s-bar #read-refresh { width: 40px !important; height: 40px !important; margin: -4px 0; }
+  :root .sum-card > .s-bar #read-refresh { width: 40px !important; height: 40px !important; margin: -4px 0; }
 }
 /* AI banner: tinted across the whole band like the monitor headers (never fades to plain card) */
-:root .ai > .s-bar, .ai > .s-bar { background:
+:root .sum-card > .s-bar, .sum-card > .s-bar { background:
     linear-gradient(100deg, color-mix(in srgb, #7fd3e6 20%, var(--card)) 0%, color-mix(in srgb, #7fd3e6 10%, var(--card)) 55%, color-mix(in srgb, #7fd3e6 15%, var(--card)) 100%) !important; }
-:root[data-theme="dark"] .ai > .s-bar { background:
+:root[data-theme="dark"] .sum-card > .s-bar { background:
     linear-gradient(100deg, color-mix(in srgb, #1f7d93 32%, var(--card)) 0%, color-mix(in srgb, #1f7d93 16%, var(--card)) 55%, color-mix(in srgb, #1f7d93 22%, var(--card)) 100%) !important; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .ai > .s-bar { background:
+  :root:not([data-theme="light"]) .sum-card > .s-bar { background:
     linear-gradient(100deg, color-mix(in srgb, #1f7d93 32%, var(--card)) 0%, color-mix(in srgb, #1f7d93 16%, var(--card)) 55%, color-mix(in srgb, #1f7d93 22%, var(--card)) 100%) !important; }
 }
 /* refresh steps show to the right of the button; "Updated… ago" steps aside meanwhile */
 .s-tools .s-step { margin-left: 4px; font: 500 13px/1.2 Inter, sans-serif; color: var(--brand-dot-ink, var(--accent-ink)); white-space: nowrap; }
-.ai[aria-busy="true"] .s-ago { display: none !important; }
-:root .ai[aria-busy="true"] > .s-bar #s-ago { display: none !important; }
+.sum-card[aria-busy="true"] .s-ago { display: none !important; }
+:root .sum-card[aria-busy="true"] > .s-bar #s-ago { display: none !important; }
 /* theme quick switch, in the weather pill between the sky toggle and the menu chevron */
 .now-line .dsp-top .theme-quick { width: 30px !important; height: 30px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important;
   display: inline-grid !important; place-items: center; background: transparent !important; color: inherit; cursor: pointer; }
@@ -1991,7 +1994,7 @@ html.wx-full .now-bar .wx-mode { background: none !important; border: 0 !importa
 html.wx-full .now-bar .wx-mode::before { content: ""; width: 1px; height: 18px; margin: 0 4px 0 2px; background: currentColor; opacity: .2; }
 
 /* phone: the banner keeps one line (the sources are in the Home menu) */
-@media (max-width: 760px) { :root .ai > .s-bar .s-src { display: none !important; } }
+@media (max-width: 760px) { :root .sum-card > .s-bar .s-src { display: none !important; } }
 
 /* weather view toolbar: glass that matches the text (dark glass in dark theme or under a dark sky), centered */
 html.wx-full .now-bar { left: 0 !important; right: 0 !important; margin: 0 auto !important; width: max-content; }
@@ -2000,7 +2003,7 @@ html.wx-full .now-bar { left: 0 !important; right: 0 !important; margin: 0 auto 
 @media (max-width: 700px) { html.wx-full .now-bar { left: 8px !important; right: 8px !important; width: auto; } }
 
 /* the AI dot's ripple rings overflow the dot */
-.s-tag-mark { overflow: visible; }
+.s-busy-mark { overflow: visible; }
 
 /* Random: the last chip in the preview list, with a shuffle icon */
 .dsp-pop .fx-presets .fx-rand { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 9px; border: 0; border-radius: 10px; background: var(--card); color: var(--soft);
@@ -2014,12 +2017,6 @@ html.wx-full .now-bar { left: 0 !important; right: 0 !important; margin: 0 auto 
 
   
 
-/* Home panel "Add" buttons: read as buttons (disabled until the editor exists), full width for sources */
-.plist .pr.pr-add { display: block !important; padding: 10px 0 0 !important; border: 0 !important; }
-.pr-add .add { width: 100% !important; justify-content: center; white-space: nowrap; height: 40px; }
-button.add { border: 1px dashed var(--line-strong) !important; background: transparent !important; color: var(--soft) !important; border-radius: 10px; }
-button.add:disabled { opacity: .7 !important; cursor: not-allowed; }
-button.add svg.i { width: 15px; height: 15px; }
 /* logo: the top panes are the sky from its top to its horizon, so dawn and dusk show their warm band */
 .site svg.mark .mk-sky { fill: url(#mk-g) !important; opacity: .85 !important; }
 html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5 !important; }
@@ -2040,8 +2037,8 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 
 /* the AI dot's still rings live in its own SVG (.halo), so they stay centered on the dot at every width
    (they used to be a banner background at a fixed 37 px, which missed the dot on phones) */
-:root[data-theme="dark"] .s-tag-mark .halo { opacity: .8; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .s-tag-mark .halo { opacity: .8; } }
+:root[data-theme="dark"] .s-busy-mark .halo { opacity: .8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .s-busy-mark .halo { opacity: .8; } }
 /* monitor headers on phones: a larger device drawing and scene; the device name on one line, the room beside the status */
 .mc-loc2 { display: none; }
 @media (max-width: 560px) {
@@ -2071,5 +2068,21 @@ html { touch-action: manipulation; }
 
 /* the summary box doesn't clip, so the Summary panel and the card's sentences can open past its bottom edge;
    the bar keeps the box's rounded top corners itself (the halo stays inside them) */
-.ai { overflow: visible !important; z-index: 5; }
-.ai > .s-bar { border-radius: 21px 21px 0 0; }
+.sum-card { overflow: visible !important; z-index: 5; }
+.sum-card > .s-bar { border-radius: 21px 21px 0 0; }
+
+/* A source that is off or not set up: the page's muted tone, no warning color, no dot */
+.nb-card[hidden], .maplink[hidden], #nb-sub[hidden] { display: none !important; }
+.pst.neutral { color: var(--muted); }
+.pst.neutral i { background: var(--line-strong); }
+.s-src-row em.neutral { color: var(--muted); opacity: .85; }
+
+/* A config but no token yet (app.js showNoToken): the header and one plain card */
+.no-token-card[hidden] { display: none; }
+.no-token-card { margin-top: 18px; }
+.no-token-card p { margin: 0; font: 500 15px/1.5 Inter, sans-serif; color: var(--ink); }
+body.no-token .page > :not(.bar):not(.no-token-card):not(.demo-bar) { display: none; }
+
+.nb-credit { margin: 0; padding: 0 24px 14px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.nb-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 640px) { .nb-credit { padding: 0 12px 12px; } }

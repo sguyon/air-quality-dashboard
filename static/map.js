@@ -1,10 +1,12 @@
 // Home Air Quality: the Neighborhood map. Loaded only when the section nears the screen.
-// MapLibre (open source) draws OpenFreeMap tiles: free, no key. The BQE path comes from OpenStreetMap routing (static/bqe.json).
-// Uses $, state, has, PM_FINE, TZ and the table rows (data-id) from app.js.
+// MapLibre (open source) draws OpenFreeMap tiles: free, no key. The road's path is the config's route file (/api/road/route),
+// from OpenStreetMap routing. Without a road: no route, no plume.
+// Uses $, APP, apiUrl, state, has, PM_FINE, TZ and the table rows (data-id) from app.js, and bearingIn from home.js.
 var NBMAP = (() => {
   const MAPLIBRE = 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min';
   const STYLE = { light: 'https://tiles.openfreemap.org/styles/positron', dark: 'https://tiles.openfreemap.org/styles/dark' };
-  const BQE_TOWARD = [80, 200];          // wind from these directions carries BQE exhaust toward home (same as server.py)
+  const ROAD = APP.road;   // its toward arc: wind from these directions carries the road's exhaust toward home (same as server.py)
+  const toward = () => !!ROAD && data.wind != null && bearingIn(data.wind, ROAD.toward);
   let map = null, bqe = null, data = null, hoverId = null, loading = null;
   const fc = f => ({ type: 'FeatureCollection', features: f });
   const theme = () => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
@@ -14,14 +16,15 @@ var NBMAP = (() => {
     const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = MAPLIBRE + '.css'; document.head.appendChild(css);
     loading = Promise.all([
       new Promise((ok, no) => { const s = document.createElement('script'); s.src = MAPLIBRE + '.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); }),
-      fetch('/static/bqe.json').then(r => r.json()).then(j => { bqe = j; }),
+      ROAD ? fetch(apiUrl('/api/road/route')).then(r => r.json()).then(j => { bqe = Array.isArray(j) ? j : null; }) : null,
     ]);
     return loading;
   }
 
   function plume(deg) {
     if (deg == null || !bqe) return fc([]);
-    const to = (deg + 180) * Math.PI / 180, kLat = 1 / 111.1, kLon = 1 / 84.2;
+    // degrees per km: a degree of longitude shrinks with the home's latitude
+    const to = (deg + 180) * Math.PI / 180, kLat = 1 / 111.1, kLon = 1 / (111.1 * Math.cos(APP.place.lat * Math.PI / 180));
     return fc([[0.6, .22], [1.2, .14], [1.9, .08]].map(([d, op]) => {
       const moved = bqe.map(([lo, la]) => [lo + Math.sin(to) * d * kLon, la + Math.cos(to) * d * kLat]);
       return { type: 'Feature', properties: { op }, geometry: { type: 'Polygon', coordinates: [[...bqe, ...moved.reverse(), bqe[0]]] } };
@@ -30,14 +33,15 @@ var NBMAP = (() => {
 
   function addLayers() {
     const dark = theme() === 'dark', ink = dark ? '#ececef' : '#18181b', halo = dark ? '#17181c' : '#ffffff';
-    const toward = data.wind != null && data.wind >= BQE_TOWARD[0] && data.wind <= BQE_TOWARD[1];
-    map.addSource('plume', { type: 'geojson', data: plume(data.wind) });
-    map.addLayer({ id: 'plume', type: 'fill', source: 'plume', paint: { 'fill-color': '#f59e0b', 'fill-opacity': ['*', ['get', 'op'], toward ? 1.15 : .75] } });
-    map.addSource('bqe', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: bqe } } });
-    map.addLayer({ id: 'bqe-case', type: 'line', source: 'bqe', paint: { 'line-color': halo, 'line-width': 8 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
-    map.addLayer({ id: 'bqe', type: 'line', source: 'bqe', paint: { 'line-color': dark ? '#a1a1aa' : '#71717a', 'line-width': 4 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
-    map.addLayer({ id: 'bqe-label', type: 'symbol', source: 'bqe', layout: { 'symbol-placement': 'line', 'text-field': 'BQE', 'text-size': 11, 'text-font': ['Noto Sans Bold'], 'symbol-spacing': 500 },
-      paint: { 'text-color': dark ? '#d4d4d8' : '#52525b', 'text-halo-color': halo, 'text-halo-width': 2 } });
+    if (bqe) {   // the road and its plume, when the home has one
+      map.addSource('plume', { type: 'geojson', data: plume(data.wind) });
+      map.addLayer({ id: 'plume', type: 'fill', source: 'plume', paint: { 'fill-color': '#f59e0b', 'fill-opacity': ['*', ['get', 'op'], toward() ? 1.15 : .75] } });
+      map.addSource('bqe', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: bqe } } });
+      map.addLayer({ id: 'bqe-case', type: 'line', source: 'bqe', paint: { 'line-color': halo, 'line-width': 8 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+      map.addLayer({ id: 'bqe', type: 'line', source: 'bqe', paint: { 'line-color': dark ? '#a1a1aa' : '#71717a', 'line-width': 4 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+      map.addLayer({ id: 'bqe-label', type: 'symbol', source: 'bqe', layout: { 'symbol-placement': 'line', 'text-field': ROAD.name, 'text-size': 11, 'text-font': ['Noto Sans Bold'], 'symbol-spacing': 500 },
+        paint: { 'text-color': dark ? '#d4d4d8' : '#52525b', 'text-halo-color': halo, 'text-halo-width': 2 } });
+    }
     map.addSource('mons', { type: 'geojson', data: fc(data.others.map(n => ({ type: 'Feature', id: n.id, properties: { pm: n.pm02, label: (Math.round(n.pm02 * 10) / 10 >= 10 ? String(Math.round(n.pm02)) : n.pm02.toFixed(1)) }, geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] } }))) });
     map.addLayer({ id: 'mons', type: 'circle', source: 'mons', paint: {
       'circle-radius': ['+', 6, ['min', 10, ['*', ['get', 'pm'], .9]]],
@@ -57,8 +61,8 @@ var NBMAP = (() => {
   function create() {
     const box = $('nb-map');
     try {
-      // centered on the block, at a neighborhood scale: the nearby BQE (~1 km) and the closest monitors in view
-      const home = data.you ? [data.you.longitude, data.you.latitude] : [-73.95, 40.73];
+      // centered on the block, at a neighborhood scale: the nearby road and the closest monitors in view
+      const home = data.you ? [data.you.longitude, data.you.latitude] : [APP.place.lon, APP.place.lat];
       map = new maplibregl.Map({ container: box, style: STYLE[theme()], center: home, zoom: box.clientWidth < 600 ? 12.1 : 12.7, attributionControl: false, dragRotate: false });
     } catch (e) {
       box.innerHTML = '<p class="nb-map-msg">The map needs WebGL, which this browser has turned off. The table below has every monitor.</p>';
@@ -95,10 +99,11 @@ var NBMAP = (() => {
   // every minute: new readings and wind, same map (no reload, no flash)
   function refresh() {
     if (!map || !map.getSource('mons')) return;
-    const dark = theme() === 'dark', toward = data.wind != null && data.wind >= BQE_TOWARD[0] && data.wind <= BQE_TOWARD[1];
-    map.getSource('plume').setData(plume(data.wind));
-    map.setPaintProperty('plume', 'fill-color', '#f59e0b');
-    map.setPaintProperty('plume', 'fill-opacity', ['*', ['get', 'op'], toward ? 1.15 : .75]);
+    if (map.getSource('plume')) {
+      map.getSource('plume').setData(plume(data.wind));
+      map.setPaintProperty('plume', 'fill-color', '#f59e0b');
+      map.setPaintProperty('plume', 'fill-opacity', ['*', ['get', 'op'], toward() ? 1.15 : .75]);
+    }
     map.getSource('mons').setData(fc(data.others.map(n => ({ type: 'Feature', id: n.id, properties: { pm: n.pm02, label: (Math.round(n.pm02 * 10) / 10 >= 10 ? String(Math.round(n.pm02)) : n.pm02.toFixed(1)) }, geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] } }))));
   }
   function theme_() { if (map) { map.setStyle(STYLE[theme()]); } }

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from summary import LIMITS, HOUSEHOLD, anchor_forecast, pm_outlook, candidates, select
+from summary import anchor_forecast, pm_outlook, candidates, select
 
 TZ = ZoneInfo("America/New_York")
 NOW = datetime(2026, 11, 8, 15, 40, tzinfo=TZ)
@@ -19,11 +19,6 @@ def outlook(peak=None, now_v=4, at_h=19, cause=None):
     o = pm_outlook(now_v, pts, NOW)
     o["cause"] = cause
     return o
-
-
-def test_limits_and_household():
-    assert LIMITS == {"co2": 800, "rh_damp": 60, "rh_dry": 30, "rh_stop": 55, "pm": 15, "pm_high": 35, "pollen": 3}
-    assert HOUSEHOLD["equipment"] == {"dehumidifier", "ac_dry"}
 
 
 def test_anchor_edges():
@@ -332,7 +327,7 @@ def busy(**k):
     args = dict(r=BUSY_R, cams=cams, hourly=hourly_for(at(11), 20), co2_pts=pts(at(12), at(15, 40), 1100),
                 rh_pts=pts(at(12), at(15, 40), 63), pm_past=pts(at(12), at(15, 40), 4), smoke=False,
                 pollen_today=None, pollen_tomorrow=None,
-                rush=[(at(16), at(20), True), (at(7, day=1), at(10, day=1), False)], sun=SUN, now=at(15, 40))
+                rush=[(at(16), at(20), True), (at(7, day=1), at(10, day=1), False)], sun=SUN, now=at(15, 40), road="BQE")
     args.update(k)
     return build_summary(**args)
 
@@ -361,12 +356,6 @@ def test_build_summary_tonight_and_clear():
 def test_tomorrow_pollen_goes_on_also():
     s = busy(pollen_tomorrow={"index": 4, "name": "Tree"})
     assert s["also"] == "Also: pollen high tomorrow (tree), keep windows shut overnight."
-
-
-def test_model_means_replace_effect():
-    s = busy(means={"co2": "Stale air makes sleep lighter."})
-    co2 = next(i for i in s["items"] if i["id"] == "co2")
-    assert co2["why"].startswith("Stale air makes sleep lighter.") and "Above 800" not in co2["why"]
 
 
 def test_night_without_yesterdays_sunset():
@@ -443,15 +432,6 @@ def test_since_names_yesterday():
     assert _since(pts(at(8, day=-1), at(8), 1000), 800, at(8)) is None   # over for the whole window: start unknown
 
 
-def test_model_means_replace_only_the_effect_sentence():
-    plain = next(i for i in busy()["items"] if i["id"] == "co2")["why"]
-    co2 = next(i for i in busy(means={"co2": "Stale air makes sleep lighter."})["items"] if i["id"] == "co2")["why"]
-    assert co2 == plain.replace("Above 800 the air feels stale, and focus and sleep can suffer.", "Stale air makes sleep lighter.")
-    plain = next(i for i in busy()["items"] if i["id"] == "pm")["why"]
-    pm = next(i for i in busy(means={"pm": "Fine dust irritates the airways."})["items"] if i["id"] == "pm")["why"]
-    assert pm.startswith("Fine dust irritates the airways. ") and pm.endswith(plain.split(". ", 1)[1].split("used here for any hour. ", 1)[-1])
-
-
 def test_damp_why_never_suggests_airing_when_the_action_is_the_dehumidifier():
     # outside is drier, but PM2.5 goes over 15 at 5 PM, so the action is the dehumidifier
     s = busy(r={"co2": 600, "rh": 70, "rh_out": 40, "t_in": 21, "t_out": 15, "pm_now": 4})
@@ -481,3 +461,16 @@ def test_air_before_a_dirty_stretch_that_has_not_started():
     assert (a["text"], a["when"]) == ("Open a window for 10 min", "before 11 PM")
     a = action(CO2_ITEM, {"co2": 900}, ol(over=[(at(21), at(23))], now_v=40, high=True), [], at(21, 30))
     assert (a["text"], a["when"]) == ("Air out", "after 11 PM")
+
+
+def test_no_road_no_rush_in_the_text():
+    s = busy(road=None, rush=[])
+    pm, co2 = s["items"][0], s["items"][1]
+    assert pm["ctx"] == "Peak 7 PM · now 4" and "rush" not in pm["why"]
+    assert co2["why"].endswith("Do it before 5 PM, when the air outside gets dirtier.")
+
+
+def test_rush_windows_arc_crossing_north():
+    hr = hourly_for(at(0), 48, wind=350)
+    rw = rush_windows(hr, at(15, 40), [(16, 20, "evening")], (300, 20))
+    assert [t for _, _, t in rw] == [True, True]
