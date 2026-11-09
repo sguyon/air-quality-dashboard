@@ -7,6 +7,15 @@ Two rules for the whole setup:
 - **Keys never pass through the chat.** Don't ask the user to paste a token or key into the conversation, and don't read, print or `cat` `.env`. The user types keys into `.env` themselves, or a command writes them there without showing them.
 - **`config.toml` and `.env` stay private.** Both are gitignored. Never commit them, and never paste their contents into an issue or PR.
 
+## 0. Get the code
+
+If you're not already in a copy of this repo, clone it and work from there:
+
+```bash
+git clone https://github.com/sguyon/home-air-quality
+cd home-air-quality
+```
+
 ## 1. Copy the config
 
 ```bash
@@ -73,7 +82,7 @@ Don't copy `.env.example` to `.env`: the first line for a key wins, so a placeho
 
 ## 6. Pollen: now or later
 
-Ask the user: set up pollen now, or later? Skipping is fine. Without a key the pollen card says "Not set up", and the sinus need uses humidity only. To turn pollen off entirely, set `pollen = false` under `[sources]`.
+Ask the user: set up pollen now, or later? Skipping is fine. Without a key the pollen card says "Off" ("Needs a Google Pollen key") and keeps its season calendar, and the sinus need uses humidity only. To turn pollen off entirely, set `pollen = false` under `[sources]`.
 
 The key comes from Google's Pollen API. It needs a Google Cloud project with billing turned on. The API has a free monthly allowance, and the app makes about one call a day, since it keeps each day's pollen.
 

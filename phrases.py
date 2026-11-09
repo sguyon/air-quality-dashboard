@@ -44,7 +44,10 @@ LIBRARY = {
         "now": ["The {rush_wind} wind carries {road} rush-hour fumes onto the block.",
                 "{smoke_on}NOAA reports wildfire smoke over the region.",
                 "The forecast peaks at {pm} around {peak_at}, from {pm_now} now."],
-        "timing": ["The forecast comes from the Copernicus model via Open-Meteo, adjusted to your {outdoor} monitor."],
+        # how the forecast was fitted to the monitor (summary.build_summary): scaled by a day of its readings, or started
+        # from its reading now; with neither (no reading, no model hour for now) it's the raw model and says nothing here
+        "timing": ["{calibrated_on}The forecast is Open-Meteo’s prediction for the wider area, scaled to what {monitor_label} measured over the last day.",
+                   "{anchored_on}The forecast is Open-Meteo’s prediction for the wider area, started from {monitor_label}’s reading now."],
     },
     "pollen": {
         "effect": ["{pollen_type_cap} pollen sets off sneezing and a stuffy nose for allergic sinuses."],
@@ -100,6 +103,11 @@ def _derived(facts):
         f["rush_wind"] = compass(f["wind_dir"])
     if f.get("smoke"):
         f["smoke_on"] = ""
+    # the PM2.5 forecast's fit, "calibrated" or "anchored" (summary.build_summary), and whose monitor it was fitted to:
+    # the home's outdoor one unless the caller names another ("this monitor" for a public monitor)
+    if f.get("forecast_fit") in ("calibrated", "anchored"):
+        f[f["forecast_fit"] + "_on"] = ""
+    f.setdefault("monitor_label", f"your {f['outdoor']} monitor")
     # the home's appliances (summary.build_summary): the AC as a second option, and "stop at" for whatever runs
     if f.get("ac_too"):
         f["ac_too_on"] = ""

@@ -32,7 +32,7 @@ def test_links_are_built_from_the_place(client):
     assert links["pollen"] == "https://www.pollen.com/forecast/current/pollen/11222"
     assert links["traffic"] == "https://www.google.com/maps/@40.73,-73.95,14z/data=!5m1!1e1"
     assert "lat=40.73" in links["map_home"] and "long=-73.95" in links["map_home"] and "zoom=15" in links["map_home"]
-    assert "zoom=12" in links["map_area"]
+    assert "map_area" not in links   # the neighborhood's rows link the map one by one (Task 6c)
 
 
 def test_road_distance_comes_from_the_route():

@@ -63,29 +63,42 @@
   const smokeMapText = region => `NOAA Hazard Mapping: wildfire smoke over ${region || 'this area'}.`;
   const pollenBarsTitle = region => `Bars: the usual ${region ? region + ' ' : ''}season, peak in amber. Right: today's level from Google.`;
 
-  // A source that is off in the config, or on but not set up: its card and status word, and one line on what it adds.
-  // null when it is on and set up (its card then shows the reading, or an error).
-  function sourceOff(id, state) {
-    if (state === 'not_set_up' && id === 'pollen') return { word: 'Not set up', line: 'Add a Google Pollen key to see daily pollen.' };
-    if (state === 'off') return { word: 'Off', line: id === 'road' ? 'No road set up.' : 'Turned off in the config.' };
+  // What each optional source adds, for its card and menu row when it's off (the page never mentions the config).
+  const ADDS = {
+    pollen: 'Adds daily pollen levels from Google.',
+    smoke: 'Adds wildfire smoke from NOAA\u2019s satellite map.',
+    nearby: 'Adds readings from public AirGradient monitors nearby.',
+  };
+  // A source that is off, or on but not set up: its card and status word, and one line on what it adds.
+  // null when it is on and set up (its card then shows the reading, or an error). `pub`: a public monitor's page, where
+  // pollen has no key, smoke is off outside North America and there is no road.
+  // calendar: the card keeps its season calendar, greyed (pollen without a key).
+  function sourceOff(id, state, pub = false) {
+    if (id === 'pollen' && (state === 'not_set_up' || (state === 'off' && pub))) return { word: 'Off', line: 'Needs a Google Pollen key', calendar: true };
+    if (id === 'smoke' && state === 'off' && pub) return { word: 'Off', line: 'NOAA\u2019s smoke map covers North America only.' };
+    if (id === 'road' && state === 'off' && pub) return { word: 'Off', line: 'No road set for this place. A home can add the busy road next to it.' };
+    if (state === 'off') return { word: 'Off', line: id === 'road' ? 'No road set up.' : ADDS[id] || '' };
     return null;
   }
 
-  // The sources this home uses, by id: pollen and smoke follow the config, the road follows the road.
-  function sourcesOn(sources, hasRoad) {
+  // The sources this home uses, by id: pollen and smoke follow the config, the road follows the road, the indoor monitor
+  // whether the view has one (a public monitor's page doesn't).
+  function sourcesOn(sources, hasRoad, hasIndoor = true) {
     const s = sources || {};
-    return ['one', 'openair', 'wx', ...(s.pollen !== false ? ['pollen'] : []), ...(s.smoke !== false ? ['smoke'] : []), ...(hasRoad ? ['bqe'] : [])];
+    return [...(hasIndoor ? ['one'] : []), 'openair', 'wx', ...(s.pollen !== false ? ['pollen'] : []), ...(s.smoke !== false ? ['smoke'] : []), ...(hasRoad ? ['bqe'] : [])];
   }
 
-  function sourcesLabel(sources, hasRoad) {
+  function sourcesLabel(sources, hasRoad, hasIndoor = true) {
     const s = sources || {};
     const names = ['weather', ...(s.pollen !== false ? ['pollen'] : []), ...(s.smoke !== false ? ['smoke'] : []), ...(hasRoad ? ['traffic'] : [])];
     const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
-    return `Sources: your 2 monitors${names.length > 1 ? ', ' : ' and '}${list}. Open to see them.`;
+    return `Sources: ${hasIndoor ? 'your 2 monitors' : 'this monitor'}${names.length > 1 ? ', ' : ' and '}${list}. Open to see them.`;
   }
 
   // How fresh a monitor's latest reading is at `now`: Online up to 10 min, Late up to an hour, then Offline.
-  function freshness(m, now) {
+  // absent: the view has no such monitor (a public monitor's page has no indoor one): disabled, "Not set up", never red.
+  function freshness(m, now, absent = false) {
+    if (absent) return { tone: 'off', label: 'Not set up' };
     if (!m || !m.timestamp) return { tone: 'bad', label: 'Offline' };
     const mins = Math.round((now - new Date(m.timestamp)) / 60000);
     if (mins <= 10) return { tone: 'good', label: 'Online' };
@@ -93,23 +106,193 @@
     return { tone: 'bad', label: 'Offline' };
   }
 
-  // The credit AirGradient's public data (CC-BY-SA 4.0) asks for, under the neighborhood table.
-  // `neighbors` are the public monitors shown; `esc` escapes every value from the API. The demo's monitors are made up.
-  function creditHtml(neighbors, isDemo, esc) {
+  // The Home pill's two monitor pictures, each with its freshness dot. `place` is APP.place (indoor null: the view has
+  // no indoor monitor, drawn disabled); `icons` the pictures by id ('one', 'openair').
+  function monitorPill(place, indoor, outdoor, now, icons) {
+    return [['one', 'Indoor · AirGradient ONE', indoor, place.indoor === null], ['openair', 'Outdoor · AirGradient Open Air', outdoor, false]]
+      .map(([id, name, m, absent]) => { const f = freshness(m, now, absent);
+        return `<span class="vhw${f.tone === 'off' ? ' off' : ''}" data-tip="${name}: ${f.label}">${(icons && icons[id]) || ''}<i class="${f.tone}"></i></span>`; }).join('');
+  }
+
+  // How many of the view's monitors are live, in words and as a tone for the avatar's dot: "2 monitors live" (good),
+  // "1 of 2 monitors live" (warn), "1 monitor, not live" (bad). A disabled monitor (tone off) isn't counted.
+  function monitorsLive(states) {
+    const have = states.filter(f => f.tone !== 'off'), ok = have.filter(f => f.tone === 'good').length, n = have.length;
+    const tone = ok === n ? 'good' : ok ? 'warn' : 'bad';
+    if (ok === n) return { text: `${n} monitor${n === 1 ? '' : 's'} live`, tone };
+    return { text: n === 1 ? '1 monitor, not live' : `${ok} of ${n} monitors live`, tone };
+  }
+
+  // A monitor's row in the open Home menu: its status words and tooltip, and whether the row is greyed (`off`: the view
+  // has no such monitor). `tz` is the home's timezone for the tooltip's time.
+  function monitorRow(m, now, absent, tz) {
+    const f = freshness(m, now, absent);
+    if (f.tone === 'off') return { tone: 'off', text: f.label, title: f.label, off: true };
+    const mins = m && m.timestamp ? Math.max(0, Math.round((now - new Date(m.timestamp)) / 60000)) : null;
+    const text = f.tone === 'good' ? `Live · ${mins < 1 ? 'just now' : mins + ' min ago'}` : f.label;
+    const title = m && m.timestamp ? 'Last reading ' + new Date(m.timestamp).toLocaleString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' }) : 'No reading';
+    return { tone: f.tone, text, title, off: false };
+  }
+
+  // A link from AirGradient's data, made safe to put in an href: https:// added when it has no scheme; '' unless http(s).
+  function safeUrl(raw) {
+    let url = raw ? String(raw).trim() : '';
+    if (url && !/^[a-z][a-z0-9+.-]*:/i.test(url)) url = 'https://' + url.replace(/^\/\//, '');
+    return /^https?:\/\/[^\s"'<>]+$/i.test(url) ? url : '';
+  }
+
+  // The credit AirGradient's public data (CC-BY-SA 4.0) asks for, under the neighborhood table. Each monitor's owner
+  // is named in its open row (nbDetailHTML). The demo's monitors are made up.
+  function creditHtml(isDemo) {
     if (isDemo) return 'Made-up monitors for the demo';
     const a = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
-    const seen = new Map();
-    for (const n of neighbors || []) {
-      const name = n && typeof n.publicContributorName === 'string' ? n.publicContributorName.trim() : '';
-      if (!name) continue;
-      let url = n.publicPlaceUrl ? String(n.publicPlaceUrl).trim() : '';
-      if (url && !/^[a-z][a-z0-9+.-]*:/i.test(url)) url = 'https://' + url.replace(/^\/\//, '');
-      if (!/^https?:\/\/[^\s"'<>]+$/i.test(url)) url = '';
-      if (!seen.has(name) || (!seen.get(name) && url)) seen.set(name, url);
+    return `Data provided by ${a('https://www.airgradient.com', 'AirGradient')} · Licensed under ${a('https://creativecommons.org/licenses/by-sa/4.0/', 'CC-BY-SA 4.0')}`;
+  }
+
+  // ── A public monitor's page (the demo's ?monitor=<id>) ──
+  const MAP_PAGE = 'https://www.airgradient.com/map/';
+  const SETUP_URL = 'https://github.com/sguyon/home-air-quality#installation';
+  const icon = d => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+
+  // The monitor card's last line: its owner (linked to their page when they have one), the map, the licence (CC BY-SA).
+  function monitorCredit(pub, esc) {
+    const name = pub && typeof pub.contributor === 'string' ? pub.contributor.trim() : '', url = safeUrl(pub && pub.url);
+    const who = !name ? '' : url ? `<a href="${esc(url)}" target="_blank" rel="noopener"><b>${esc(name)}</b></a>` : `<b>${esc(name)}</b>`;
+    return `Shared ${who ? `by ${who} ` : ''}on <a href="${MAP_PAGE}" target="_blank" rel="noopener">AirGradient's public map</a> · CC BY-SA`;
+  }
+
+  // The indoor monitor's slot when the view has none: what would go there, and how to get it.
+  function indoorSlotHTML() {
+    return `<article class="card mc-ph"><div class="mc-ph-in"><div class="mc-ph-ic">${icon('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>')}</div>` +
+      `<b>Your indoor readings go here</b><p>CO₂, humidity and particles inside, next to the outdoor ones.</p>` +
+      `<a href="${SETUP_URL}" target="_blank" rel="noopener">Set it up for your home →</a></div></article>`;
+  }
+
+  // History for a public monitor that AirGradient's map has no past readings for: one line instead of empty charts.
+  function noHistoryHTML() {
+    return `<span class="mc-ph-ic">${icon('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>')}</span>` +
+      `<div><b>No past readings for this monitor</b><span>AirGradient's map has none for it right now. Today's forecast is in the summary.</span></div>`;
+  }
+
+  // The neighborhood's words for the monitor the page shows: "This" on a public monitor's page, "You" at home.
+  function selfWords(pub) {
+    return pub ? { row: 'This', map: 'This monitor', legend: 'This monitor', block: 'this monitor', near: 'this monitor' }
+      : { row: 'You', map: 'You', legend: 'Your monitor', block: 'your block', near: 'home' };
+  }
+
+  // A neighbor's PM2.5: AirGradient's corrected reading (the server adds it, server._fetch_nearby), else the raw one.
+  // The same basis as the home's own monitors (app.js reads pm02_corrected first), so the table compares like with like.
+  function nbPm(n) {
+    const has = v => v !== null && v !== undefined && !Number.isNaN(v);
+    return n && has(n.pm02_corrected) ? n.pm02_corrected : n && has(n.pm02) ? n.pm02 : null;
+  }
+
+  // The shown monitor's row reads what its card reads: when it is the view's outdoor monitor, the card's PM2.5 (`cardPm`,
+  // app.js reading()), so the row, the lead and the map label match the card. Any other row comes back as it came.
+  function nbYou(you, outdoor, cardPm) {
+    return you && outdoor && you.locationId === outdoor.locationId ? { ...you, pm02_corrected: cardPm } : you;
+  }
+
+  // The neighborhood's lead: said only when the comparison changes a decision ('' otherwise). `you` is the shown
+  // monitor's row (or null), `others` the nearby ones, `limit` the PM2.5 limit, `self` selfWords(), f.esc/pm/num formatters.
+  function nbLead(you, others, limit, self, f) {
+    const vals = others.map(nbPm).sort((x, y) => x - y);
+    const median = vals.length ? vals[Math.floor(vals.length / 2)] : null;
+    const over = others.filter(n => pmOver(nbPm(n), limit)).sort((x, y) => x.distance_km - y.distance_km);
+    const mine = you ? nbPm(you) : null;
+    if (median != null && pmOver(median, limit)) {
+      return `<b class="warn">The whole area is elevated</b> (typical nearby reading ${f.num(median)} µg/m³). That points to something regional, such as wildfire smoke, not a source near ${self.near}.`;
     }
-    const who = [...seen].map(([name, url]) => url ? a(esc(url), esc(name)) : esc(name));
-    return `Data provided by ${a('https://www.airgradient.com', 'AirGradient')} · Licensed under ${a('https://creativecommons.org/licenses/by-sa/4.0/', 'CC-BY-SA 4.0')}` +
-      (who.length ? ` · Contributors: ${who.join(', ')}` : '');
+    if (you && median != null && pmOver(mine, limit) && mine > median * 2) {
+      return `<b class="warn">${cap(self.block)} reads well above the area</b> (${f.pm(mine)} against a typical ${f.pm(median)}). That points to a source close to ${self.near}: traffic, construction, or a neighbor's smoke.`;
+    }
+    if (over.length) {
+      const n0 = over[0];
+      return `<b class="warn">${over.length === 1 ? 'One nearby monitor is' : over.length + ' nearby monitors are'} over the ${limit} µg/m³ limit</b>: the nearest is ${f.esc(n0.locationName)}, ${f.pm(n0.distance_km)} km away.${you && mine <= limit ? ` ${cap(self.block)} is still clean.` : ''}`;
+    }
+    return '';
+  }
+
+  const NB_COLS = 8;   // the neighborhood table's columns (dot, dist, location, PM2.5, temp, humidity, bar, toggle): the open band spans them
+  const MIN_PER_H = 60;   // minutes in an hour: a last reading over an hour old reads "1 h 25 min ago"
+  const ARROW = icon('<path d="M7 17 17 7"/><path d="M8 7h9v9"/>'), CHEVRON = icon('<path d="m6 9 6 6 6-6"/>');
+
+  // One neighborhood row. `isYou`: the shown monitor's own row (named `name`, labelled self.row); `scale` has the
+  // PM2.5 limit, the bar's full scale (barMax) and the limit's place on it (limPct); f.esc/pm/num/temp format values.
+  // A real monitor (one with the server's map_url) gets a small link to it on AirGradient's map, and a chevron that opens
+  // it in place (`open`: the band follows the row, nbDetailHTML). The shown monitor and the demo's made-up ones don't open.
+  function nbRowHTML(n, isYou, self, name, scale, f, open = false) {
+    const pm = nbPm(n);
+    const tone = pmOver(pm, scale.limit) ? 'warn' : 'good';
+    const has = v => v !== null && v !== undefined && !Number.isNaN(v);
+    const url = safeUrl(n.map_url), can = !isYou && !!url;
+    const ext = url ? ` <a class="nb-ext" href="${f.esc(url)}" target="_blank" rel="noopener" title="Open on AirGradient's map" aria-label="Open ${f.esc(n.locationName)} on AirGradient's map">${ARROW}</a>` : '';
+    const cls = [isYou ? 'you' : '', can ? 'nb-can' : '', can && open ? 'nb-open' : ''].filter(Boolean).join(' ');
+    const toggle = can ? `<button type="button" class="nb-tgb" aria-expanded="${!!open}" aria-controls="${nbDetailId(n)}" aria-label="Details: ${f.esc(n.locationName)}">${CHEVRON}</button>` : '';
+    return `<tr class="${cls}" data-id="${Number(n.locationId)}"><td class="dot"><i></i></td><td class="dist">${isYou ? self.row : f.num(n.distance_km) + ' km'}</td>` +
+      `<td class="loc" title="${f.esc(n.locationName)}">${f.esc(isYou ? name : n.locationName)}${ext}</td>` +
+      `<td class="r pm ${tone}">${f.pm(pm)}</td><td class="r">${has(n.atmp) ? f.temp(n.atmp) : '—'}</td><td class="r">${has(n.rhum) ? Math.round(n.rhum) + '%' : '—'}</td>` +
+      `<td class="nbbar"><span style="--lim:${scale.limPct}%"><i style="width:${Math.max(1.5, pm / scale.barMax * 100).toFixed(1)}%" class="${tone}"></i></span></td>` +
+      `<td class="nb-tg">${toggle}</td></tr>` + (can && open ? nbDetailHTML(n, scale, f) : '');
+  }
+
+  // The open band's id, which its row's toggle names in aria-controls. locationId is AirGradient's number.
+  const nbDetailId = n => `nbd-${Number(n.locationId)}`;
+
+  // An open neighbor row's band. On a phone: PM2.5 now with its word, humidity and temperature (the columns a phone
+  // hides), the owner and the last reading, then the action full width. On a wide screen (app.css) one line: the word,
+  // the owner, the last reading, the action at the right. One action: the monitor on AirGradient's map.
+  // `scale.limit`/`scale.high` are the home's PM2.5 limits; f.when(timestamp) is lastReadingText at the page's clock.
+  function nbDetailHTML(n, scale, f) {
+    const has = v => v !== null && v !== undefined && !Number.isNaN(v);
+    const pm = nbPm(n), lvl = pmLevel(pm, { pm: scale.limit, pm_high: scale.high });
+    const owner = typeof n.publicContributorName === 'string' ? n.publicContributorName.trim() : '';
+    const when = f.when ? f.when(n.timestamp) : '';
+    const meta = [owner && `Shared by ${f.esc(owner)}`, when && `${owner ? 'last' : 'Last'} reading ${f.esc(when)}`].filter(Boolean).join(' · ');
+    return `<tr class="nb-detail" id="${nbDetailId(n)}"><td colspan="${NB_COLS}"><div class="nbd">` +
+      `<dl class="nbd-kv"><div><dt>PM2.5 now</dt><dd class="${lvl.tone}">${f.pm(pm)} <small>µg/m³</small> · ${lvl.word}</dd></div>` +
+      `<div><dt>Humidity</dt><dd>${has(n.rhum) ? Math.round(n.rhum) + '%' : '—'}</dd></div>` +
+      `<div><dt>Temperature</dt><dd>${has(n.atmp) ? f.temp(n.atmp) : '—'}</dd></div></dl>` +
+      `<p class="nbd-meta"><b class="nbd-band ${lvl.tone}">${lvl.word}</b>${meta ? `<span class="nbd-sep"> · </span>${meta}` : ''}</p>` +
+      `<a class="nbd-q" href="${f.esc(safeUrl(n.map_url))}" target="_blank" rel="noopener">${ARROW}Open on AirGradient's map</a></div></td></tr>`;
+  }
+
+  // A neighbor's last reading for its open row: "7:38 AM, 7 min ago" in the home's timezone `tz`, at `now`. '' without one.
+  function lastReadingText(ts, now, tz) {
+    const t = ts ? new Date(ts) : null;
+    if (!t || Number.isNaN(t.getTime())) return '';
+    const mins = Math.max(0, Math.round((now - t) / 60000)), h = Math.floor(mins / MIN_PER_H), m = mins % MIN_PER_H;
+    const ago = mins < 1 ? 'just now' : !h ? `${mins} min ago` : m ? `${h} h ${m} min ago` : `${h} h ago`;
+    return `${t.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })}, ${ago}`;
+  }
+
+  // The pollen card's season calendar: the home's usual seasons (config dates, [month, day]) across the year, today's
+  // mark, today's level per type from Google (`levels`; "—" without one) and a line on what's in season and what's next.
+  // `now` is the home's local date and time. '' when there are no seasons.
+  function pollenSeasonHTML(seasons, levels, now, limits, region, esc) {
+    if (!seasons || !seasons.length) return '';
+    const y = now.getFullYear();
+    const doy = d => Math.round((d - new Date(y, 0, 1)) / 864e5), at = ([m, dd], yr = y) => new Date(yr, m - 1, dd);
+    const today = doy(now), pct = n => (n / 365 * 100).toFixed(2);
+    const fmt = d => { const m = d.toLocaleDateString('en-US', { month: 'long' }), n = d.getDate(); return n <= 10 ? `early ${m}` : n <= 20 ? `mid-${m}` : `late ${m}`; };
+    const active = seasons.filter(p => now >= at(p.start) && now <= at(p.end));
+    // the next season to start (this year or next)
+    const next = seasons.map(p => { const st = at(p.start), s2 = st > now ? st : at(p.start, y + 1); return { ...p, when: s2 }; }).sort((a, b) => a.when - b.when)[0];
+    const weeks = Math.round((next.when - now) / 6048e5), months = Math.round((next.when - now) / (30.4 * 864e5));
+    const inTime = weeks <= 6 ? `in about ${weeks} week${weeks === 1 ? '' : 's'}` : `in about ${months} months`;
+    let line;
+    if (active.length) {
+      const p = active[0], inPeak = now >= at(p.peak[0]) && now <= at(p.peak[1]);
+      line = `<b>Now: ${p.name.toLowerCase()} season</b>${inPeak ? ', at its peak' : now < at(p.peak[0]) ? `, peaks in ${at(p.peak[0]).toLocaleDateString('en-US', { month: 'long' })}` : ', easing off'}, until ${fmt(at(p.end))}. Next: ${next.name.toLowerCase()} from ${fmt(next.when)}.`;
+    } else line = `<b>Next: ${next.name.toLowerCase()} pollen</b>, usually from ${fmt(next.when)} (${inTime}).`;
+    const lvl = i => ['None', 'Very low', 'Low', 'Moderate', 'High', 'Very high'][i] || '—';
+    const level = name => { const t = (levels || []).find(x => x.name === name), i = t ? (t.index || 0) : null; return i == null ? '—' : `<b class="${pollenHigh(i, limits) ? 'warn' : i ? 'good' : ''}">${lvl(i)}</b>`; };
+    return `<div class="ps-grid" title="${esc(pollenBarsTitle(region))}">${seasons.map(p => `<div class="ps-row"><span>${p.name}</span><div class="ps-track">
+      <i class="ps-season" style="left:${pct(doy(at(p.start)))}%;width:${pct(doy(at(p.end)) - doy(at(p.start)))}%"></i>
+      <i class="ps-peak" style="left:${pct(doy(at(p.peak[0])))}%;width:${pct(doy(at(p.peak[1])) - doy(at(p.peak[0])))}%"></i></div>${level(p.name)}</div>`).join('')}
+      <div class="ps-row ps-months"><span></span><div class="ps-track">${[0, 3, 6, 9].map(i => `<em style="left:${pct(doy(new Date(y, i, 1)))}%">${new Date(y, i, 1).toLocaleDateString('en-US', { month: 'short' })}</em>`).join('')}</div><span></span></div>
+      <div class="ps-today" style="--x:${pct(today)}" title="Today"></div></div>
+    <p class="ps-line">${line}</p>`;
   }
 
   // Whether a pollen level (0 to 5) reaches the home's pollen limit (APP.limits.pollen, [limits] pollen in the config).
@@ -133,7 +316,7 @@
     return { word: 'Unhealthy', tone: 'bad' };
   }
 
-  const api = { pmOver, pmLevel, pollenHigh, creditHtml, freshness, sourceOff, sourcesOn, sourcesLabel, smokeText, smokeMapText, pollenBarsTitle, needsFor, bearingIn, compassIn, compassAway, hourRange, cap, roadClockText, roadWindText, roadWhyText, roadLabel };
+  const api = { MAP_PAGE, pmOver, pmLevel, pollenHigh, creditHtml, freshness, monitorPill, monitorsLive, monitorRow, safeUrl, monitorCredit, indoorSlotHTML, noHistoryHTML, selfWords, nbPm, nbYou, nbLead, nbRowHTML, nbDetailHTML, lastReadingText, pollenSeasonHTML, sourceOff, sourcesOn, sourcesLabel, smokeText, smokeMapText, pollenBarsTitle, needsFor, bearingIn, compassIn, compassAway, hourRange, cap, roadClockText, roadWindText, roadWhyText, roadLabel };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   Object.assign(root, api);
 })(typeof window !== 'undefined' ? window : globalThis);

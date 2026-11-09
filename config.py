@@ -3,6 +3,7 @@ import json
 import math
 import os
 import tomllib
+from collections import namedtuple
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -35,6 +36,9 @@ def env_key(name: str, env: Mapping[str, str] = os.environ) -> str:
 
 class ConfigError(Exception):
     """The message names the source and the problem."""
+
+
+Here = namedtuple("Here", "key lat lon tz")   # a place the fetchers can look at: a cache key, coordinates, a timezone name
 
 
 @dataclass(frozen=True)
@@ -276,16 +280,19 @@ def road_distance_km(lat: float, lon: float, road: Road, root: Path = ROOT) -> f
     return max(0.5, round(d * 2) / 2)
 
 
-def _links(p: Place) -> dict:
-    """Outside pages about the home, built from its place. NWS and pollen.com are US only."""
+def airgradient_map(lat, lon, zoom=15) -> str:
+    """AirGradient's public map centered on a place: the home's monitor in the Home menu, each neighbor's row."""
+    return (f"https://www.airgradient.com/map?zoom={zoom}&long={lon}&lat={lat}&meas=ug_m3&wind_layer=false"
+            "&fires_layer=false&map_theme=light&org=ag&embedded=false&sidebar=1")
+
+
+def place_links(p: Place) -> dict:
+    """Outside pages about a place (anything with lat, lon and pollen_zip), the home's by default. NWS and pollen.com are US only."""
     lat, lon = round(p.lat, 2), round(p.lon, 2)
-    ag = ("https://www.airgradient.com/map?zoom={z}&long={lon}&lat={lat}&meas=ug_m3&wind_layer=false"
-          "&fires_layer=false&map_theme=light&org=ag&embedded=false&sidebar=1")
     links = {
         "forecast": f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}",
         "traffic": f"https://www.google.com/maps/@{lat},{lon},14z/data=!5m1!1e1",
-        "map_home": ag.format(z=15, lat=lat, lon=lon),
-        "map_area": ag.format(z=12, lat=lat, lon=lon),
+        "map_home": airgradient_map(lat, lon),
     }
     if p.pollen_zip:
         links["pollen"] = f"https://www.pollen.com/forecast/current/pollen/{p.pollen_zip}"
@@ -300,7 +307,7 @@ def public_view(cfg: Config, root: Path = ROOT) -> dict:
             "name": p.name, "lat": round(p.lat, 2), "lon": round(p.lon, 2), "timezone": p.timezone,
             "indoor": p.indoor, "outdoor": p.outdoor, "pollen_zip": p.pollen_zip, "region": p.region,
         },
-        "links": _links(p),
+        "links": place_links(p),
         "road": None,
         "needs": dict(cfg.needs),
         "limits": dict(cfg.limits),

@@ -101,6 +101,11 @@ MOMENTS = {
 }
 
 
-def moment_for(key):
-    """The moment for ?moment=; anything unknown (or none) is the default."""
+SAMPLES = ("rush", "clear", "humid")   # ?sample=1, 2, 3: the banner's "Sample data 1 2 3"
+
+
+def moment_for(key, sample=None):
+    """The moment for ?sample= (1 to 3) or ?moment= (a key); the sample wins. Anything unknown (or none) is the default."""
+    if sample in ("1", "2", "3"):
+        key = SAMPLES[int(sample) - 1]
     return MOMENTS.get(key or DEFAULT) or MOMENTS[DEFAULT]

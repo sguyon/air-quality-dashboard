@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 const root = new URL('../', import.meta.url);
 const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1')
   .replace(/'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"/g, "''");
-const files = ['static/app.js', 'static/sky.js', 'static/summary.js', 'static/home.js'].map(f => strip(readFileSync(new URL(f, root), 'utf8')));
+const files = ['static/app.js', 'static/sky.js', 'static/summary.js', 'static/home.js', 'static/picker.js'].map(f => strip(readFileSync(new URL(f, root), 'utf8')));
 const all = files.join('\n');
 
 const declared = new Set();
@@ -113,10 +113,10 @@ test('a region names the place in the smoke and pollen sentences; without one th
 });
 
 test('a source that is off or not set up says so in plain words, with one line on what it adds', () => {
-  assert.deepEqual(home.sourceOff('pollen', 'not_set_up'), { word: 'Not set up', line: 'Add a Google Pollen key to see daily pollen.' });
-  assert.deepEqual(home.sourceOff('pollen', 'off'), { word: 'Off', line: 'Turned off in the config.' });
-  assert.deepEqual(home.sourceOff('smoke', 'off'), { word: 'Off', line: 'Turned off in the config.' });
-  assert.deepEqual(home.sourceOff('nearby', 'off'), { word: 'Off', line: 'Turned off in the config.' });
+  assert.deepEqual(home.sourceOff('pollen', 'not_set_up'), { word: 'Off', line: 'Needs a Google Pollen key', calendar: true });
+  assert.deepEqual(home.sourceOff('pollen', 'off'), { word: 'Off', line: 'Adds daily pollen levels from Google.' });
+  assert.deepEqual(home.sourceOff('smoke', 'off'), { word: 'Off', line: 'Adds wildfire smoke from NOAA\u2019s satellite map.' });
+  assert.deepEqual(home.sourceOff('nearby', 'off'), { word: 'Off', line: 'Adds readings from public AirGradient monitors nearby.' });
   assert.deepEqual(home.sourceOff('road', 'off'), { word: 'Off', line: 'No road set up.' });
   for (const s of ['ok', 'error', undefined]) assert.equal(home.sourceOff('pollen', s), null);
 });
@@ -145,36 +145,20 @@ test('home menu has no editing controls (configuration is done in the config fil
   assert.doesNotMatch(css, /\.edit\b|button\.x\b|\.pr-add\b|button\.add\b/);
 });
 
-// AirGradient's public data is CC-BY-SA 4.0: the neighborhood says so, names the contributors and links them.
+// AirGradient's public data is CC-BY-SA 4.0: the neighborhood's footer says so; each owner is named in their open row (Task 6d).
 const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-test('the neighborhood credits AirGradient and CC-BY-SA 4.0, with links', () => {
-  const html = home.creditHtml([], false, escHtml);
-  assert.match(html, /Data provided by <a href="https:\/\/www\.airgradient\.com"[^>]*>AirGradient<\/a>/);
-  assert.match(html, /Licensed under <a href="https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\/"[^>]*>CC-BY-SA 4\.0<\/a>/);
+test('the neighborhood credits AirGradient and CC-BY-SA 4.0, with links, and lists no contributors', () => {
+  const html = home.creditHtml(false);
+  assert.equal(html, 'Data provided by <a href="https://www.airgradient.com" target="_blank" rel="noopener">AirGradient</a> · ' +
+    'Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC-BY-SA 4.0</a>');
   assert.doesNotMatch(html, /Contributors/);
-});
-
-test('contributors are named once each, linked when they have a link, and escaped', () => {
-  const ns = [
-    { publicContributorName: 'Peter Guo', publicPlaceUrl: null },
-    { publicContributorName: 'SEEN/SEEDS', publicPlaceUrl: 'www.seen.team' },
-    { publicContributorName: 'SEEN/SEEDS', publicPlaceUrl: 'www.seen.team' },
-    { publicContributorName: '<b>x</b>', publicPlaceUrl: 'javascript:alert(1)' },
-    { publicContributorName: null },
-  ];
-  const html = home.creditHtml(ns, false, escHtml);
-  assert.match(html, /Contributors: /);
-  assert.match(html, /<a href="https:\/\/www\.seen\.team" target="_blank" rel="noopener">SEEN\/SEEDS<\/a>/);
-  assert.equal(html.split('SEEN/SEEDS').length, 2);
-  assert.match(html, /Peter Guo/);
-  assert.doesNotMatch(html, /<b>x|javascript:/);
-  assert.match(html, /&lt;b&gt;x&lt;\/b&gt;/);
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  assert.doesNotMatch(app, /creditHtml\(others/);
 });
 
 test('in the demo the line says the monitors are made up and links nothing', () => {
-  const html = home.creditHtml([{ publicContributorName: 'Someone', publicPlaceUrl: 'x.com' }], true, escHtml);
-  assert.equal(html, 'Made-up monitors for the demo');
+  assert.equal(home.creditHtml(true), 'Made-up monitors for the demo');
 });
 
 test('the page has the credit line in the neighborhood section', () => {
@@ -257,4 +241,364 @@ test('home menu rows carry their explanation as a row tooltip, not an (i) button
   }
   assert.match(css, /\.pr\.has-tip:hover \.pr-tip, \.pr\.has-tip:focus \.pr-tip \{ display: block; \}/);
   assert.doesNotMatch(css, /\.pr-a\b/);
+});
+
+// ── A public monitor's page (the demo's ?monitor=<id>): what the page draws when the view has no indoor monitor ──
+const NOW = new Date('2026-11-09T12:00:00Z');
+const FRESH = { timestamp: '2026-11-09T11:58:00Z' };
+
+test('an indoor monitor the view does not have is disabled: tone off, Not set up, never Offline', () => {
+  assert.deepEqual(home.freshness(null, NOW, true), { tone: 'off', label: 'Not set up' });
+  assert.deepEqual(home.freshness(FRESH, NOW, true), { tone: 'off', label: 'Not set up' });
+  assert.equal(home.freshness(null, NOW).label, 'Offline');   // a home's indoor monitor that stopped: still red
+  const pill = home.monitorPill({ indoor: null, outdoor: 'Roof' }, null, FRESH, NOW, { one: '<svg id="one"/>', openair: '<svg id="oa"/>' });
+  const [indoor, outdoor] = pill.split(/(?=<span class="vhw)/);
+  assert.match(indoor, /^<span class="vhw off" data-tip="Indoor · AirGradient ONE: Not set up"><svg id="one"\/><i class="off"><\/i><\/span>$/);
+  assert.match(outdoor, /class="vhw" data-tip="Outdoor · AirGradient Open Air: Online"/);
+  assert.doesNotMatch(pill, /Offline|class="bad"/);
+  const home2 = home.monitorPill({ indoor: 'Living room', outdoor: 'Roof' }, null, FRESH, NOW, {});
+  assert.match(home2, /class="vhw" data-tip="Indoor · AirGradient ONE: Offline"><i class="bad">/);
+});
+
+test('the menu counts only the monitors the view has', () => {
+  assert.deepEqual(home.monitorsLive([{ tone: 'off' }, { tone: 'good' }]), { text: '1 monitor live', tone: 'good' });
+  assert.deepEqual(home.monitorsLive([{ tone: 'good' }, { tone: 'good' }]), { text: '2 monitors live', tone: 'good' });
+  assert.deepEqual(home.monitorsLive([{ tone: 'bad' }, { tone: 'good' }]), { text: '1 of 2 monitors live', tone: 'warn' });
+  assert.deepEqual(home.monitorsLive([{ tone: 'bad' }, { tone: 'warn' }]), { text: '0 of 2 monitors live', tone: 'bad' });
+  assert.deepEqual(home.monitorsLive([{ tone: 'off' }, { tone: 'bad' }]), { text: '1 monitor, not live', tone: 'bad' });
+  assert.deepEqual(home.sourcesOn({ pollen: false, smoke: true }, false, false), ['openair', 'wx', 'smoke']);
+});
+
+test('pollen without a key (a public monitor, or a home with no key) is Off, keeps its calendar, and never names the config', () => {
+  for (const o of [home.sourceOff('pollen', 'not_set_up'), home.sourceOff('pollen', 'off', true)]) {
+    assert.deepEqual(o, { word: 'Off', line: 'Needs a Google Pollen key', calendar: true });
+  }
+  assert.deepEqual(home.sourceOff('pollen', 'off'), { word: 'Off', line: 'Adds daily pollen levels from Google.' });   // a home that turned it off
+  const smoke = home.sourceOff('smoke', 'off', true);   // a public monitor outside North America
+  assert.equal(smoke.word, 'Off');
+  assert.doesNotMatch(smoke.line, /config/i);
+  // the Off card keeps the season calendar: drawn with no level for today, "—" for each type
+  const SEASONS = [{ name: 'Tree', start: [3, 1], end: [5, 31], peak: [[4, 1], [4, 30]] },
+    { name: 'Grass', start: [5, 1], end: [7, 31], peak: [[6, 1], [6, 30]] }];
+  const cal = home.pollenSeasonHTML(SEASONS, [], new Date(2026, 3, 15, 9), { pollen: 3 }, null, escHtml);
+  assert.match(cal, /class="ps-grid"/);
+  assert.equal((cal.match(/<\/div>—<\/div>/g) || []).length, 2);   // no level from Google
+  assert.match(cal, /<b>Now: tree season<\/b>, at its peak/);
+  assert.equal(home.pollenSeasonHTML([], [], new Date(2026, 3, 15), { pollen: 3 }, null, escHtml), '');   // a place without seasons: no calendar
+  assert.match(home.pollenSeasonHTML(SEASONS, [{ name: 'Tree', index: 4 }], new Date(2026, 3, 15, 9), { pollen: 3 }, null, escHtml), /<b class="warn">High<\/b>/);
+});
+
+test('the page never mentions the config', () => {
+  const html = readFileSync(new URL('index.html', root), 'utf8').replace(/<!--[\s\S]*?-->/g, '').replace(/<script>[\s\S]*?<\/script>/g, '')
+    .replace(/<article class="card no-token-card"[\s\S]*?<\/article>/, '');   // the setup state ("Config loaded, add your token"): for whoever is setting it up, decided in the spec
+  assert.doesNotMatch(html, /config/i);
+  for (const id of ['pollen', 'smoke', 'nearby', 'road']) for (const st of ['off', 'not_set_up']) for (const pub of [false, true]) {
+    const o = home.sourceOff(id, st, pub);
+    if (o) assert.doesNotMatch(o.line, /config/i, `${id} ${st} ${pub}`);
+  }
+  const strings = s => (s.replace(/\/\/.*$/gm, '').match(/'[^'\n]*'|`[^`]*`|"[^"\n]*"/g) || []).join('\n');
+  for (const f of ['static/app.js', 'static/home.js', 'static/picker.js', 'static/summary.js']) assert.doesNotMatch(strings(readFileSync(new URL(f, root), 'utf8')), /\bconfig\b/i, f);
+});
+
+test('a public monitor has no road: its card reads Off with a plain line', () => {
+  assert.deepEqual(home.sourceOff('road', 'off', true), { word: 'Off', line: 'No road set for this place. A home can add the busy road next to it.' });
+});
+
+test("a public monitor's card credits its owner, linked when there's a link, escaped", () => {
+  const c = home.monitorCredit({ contributor: 'Dana <b>K</b>', url: 'www.example.org/roof' }, escHtml);
+  assert.equal(c, 'Shared by <a href="https://www.example.org/roof" target="_blank" rel="noopener"><b>Dana &lt;b&gt;K&lt;/b&gt;</b></a> on ' +
+    `<a href="https://www.airgradient.com/map/" target="_blank" rel="noopener">AirGradient's public map</a> · CC BY-SA`);
+  assert.match(home.monitorCredit({ contributor: 'Ann', url: 'javascript:alert(1)' }, escHtml), /^Shared by <b>Ann<\/b> on /);
+  assert.match(home.monitorCredit({ contributor: null, url: null }, escHtml), /^Shared on <a /);
+});
+
+test('the indoor slot: three lines, the setup link, no device picture', () => {
+  const html = home.indoorSlotHTML();
+  assert.match(html, /<b>Your indoor readings go here<\/b>/);
+  assert.match(html, /<p>CO₂, humidity and particles inside, next to the outdoor ones\.<\/p>/);
+  assert.match(html, /<a href="https:\/\/github\.com\/sguyon\/home-air-quality#installation"[^>]*>Set it up for your home →<\/a>/);
+  assert.doesNotMatch(html, /airgradient|AirGradient ONE/i);
+});
+
+test("a public monitor with no history: one line, not three empty charts", () => {
+  const html = home.noHistoryHTML();
+  assert.match(html, /<b>No past readings for this monitor<\/b>/);
+  assert.match(html, /<span>AirGradient's map has none for it right now\. Today's forecast is in the summary\.<\/span>/);
+  assert.match(readFileSync(new URL('index.html', root), 'utf8'), /id="hist-none"[^>]* hidden/);
+});
+
+test('the neighborhood calls the shown monitor This on a public page, You at home', () => {
+  assert.deepEqual(home.selfWords(true), { row: 'This', map: 'This monitor', legend: 'This monitor', block: 'this monitor', near: 'this monitor' });
+  assert.deepEqual(home.selfWords(false), { row: 'You', map: 'You', legend: 'Your monitor', block: 'your block', near: 'home' });
+  const f = { esc: escHtml, pm: v => (v >= 10 ? String(Math.round(v)) : v.toFixed(1)), num: v => v.toFixed(1) };   // app.js pmNum, num
+  const others = [{ pm02: 5, distance_km: 1, locationName: 'A' }, { pm02: 6, distance_km: 2, locationName: 'B' }, { pm02: 7, distance_km: 3, locationName: 'C' }];
+  const lead = home.nbLead({ pm02: 40 }, others, 15, home.selfWords(true), f);
+  assert.match(lead, /This monitor reads well above the area.*a source close to this monitor: traffic/);
+  const area = [{ pm02: 30, distance_km: 1, locationName: 'A' }, { pm02: 31, distance_km: 2, locationName: 'B' }];
+  assert.match(home.nbLead(null, area, 15, home.selfWords(true), f), /not a source near this monitor\./);
+  assert.match(home.nbLead(null, area, 15, home.selfWords(false), f), /not a source near home\./);
+  assert.doesNotMatch(lead, /Your block|your block/);
+  assert.match(home.nbLead({ pm02: 40 }, others, 15, home.selfWords(false), f), /Your block reads well above the area/);
+  const one = home.nbLead({ pm02: 5 }, [{ pm02: 30, distance_km: 1.1, locationName: 'X' }, ...others], 15, home.selfWords(true), f);
+  assert.match(one, /the nearest is X, 1\.1 km away\. This monitor is still clean\./);
+  assert.match(readFileSync(new URL('static/map.js', root), 'utf8'), /selfWords\(/);
+});
+
+test('the model past hours are a dotted line over a pale fill, labeled as the model', () => {
+  const summary = require('../static/summary.js');
+  const col = { muted: '#777', card: '#fff', fill: '#7f93a6' };
+  const model = summary.pmPastSvg('model', 'M0 50 L100 30', 'M0 50 L100 30 L 100 96 L 0 96 Z', { x: 2, y: 22 }, col);
+  assert.match(model, />PM2\.5 outside · model<\/text>/);
+  assert.match(model, /stroke-dasharray="2 3"/);
+  assert.match(model, /fill="#7f93a6" fill-opacity="\.14"/);
+  const measured = summary.pmPastSvg(undefined, 'M0 50 L100 30', 'M0 50 L100 30 L 100 96 L 0 96 Z', { x: 2, y: 22 }, col);
+  assert.equal(measured, '<path d="M0 50 L100 30 L 100 96 L 0 96 Z" fill="url(#sx-fp)"/>');
+});
+
+test("the open menu's indoor row on a public monitor's page: greyed (off), Not set up, no reading time", () => {
+  const r = home.monitorRow(null, NOW, true, 'America/New_York');
+  assert.deepEqual(r, { tone: 'off', text: 'Not set up', title: 'Not set up', off: true });
+  const live = home.monitorRow(FRESH, NOW, false, 'America/New_York');
+  assert.equal(live.off, false); assert.equal(live.tone, 'good'); assert.equal(live.text, 'Live · 2 min ago');
+  assert.match(live.title, /^Last reading Nov 9, 6:58\sAM$/);
+  assert.deepEqual(home.monitorRow(null, NOW, false, 'UTC'), { tone: 'bad', text: 'Offline', title: 'No reading', off: false });
+});
+
+test('the neighborhood row for the shown monitor reads This on a public page, You at home', () => {
+  const f = { esc: escHtml, pm: v => String(v), num: v => v.toFixed(1), temp: v => `${v}°C` };
+  const scale = { limit: 15, barMax: 55, limPct: '27.3' };
+  const n = { locationId: 5, locationName: 'Eckford <b>st</b>', pm02: 22, distance_km: 0, atmp: 15, rhum: 92.6 };
+  const row = home.nbRowHTML(n, true, home.selfWords(true), 'Roof & co', scale, f);
+  assert.match(row, /^<tr class="you" data-id="5">/);
+  // the id is AirGradient's number: anything else in it can't reach the markup (as in the open band's id)
+  assert.match(home.nbRowHTML({ ...n, locationId: '5"><b>x' }, false, home.selfWords(false), 'x', scale, f), /^<tr class="" data-id="NaN">/);
+  assert.match(row, /<td class="dist">This<\/td>/);
+  assert.match(row, /<td class="loc" title="Eckford &lt;b&gt;st&lt;\/b&gt;">Roof &amp; co<\/td>/);
+  assert.match(row, /<td class="r pm warn">22<\/td><td class="r">15°C<\/td><td class="r">93%<\/td>/);
+  assert.match(home.nbRowHTML(n, true, home.selfWords(false), 'Home', scale, f), /<td class="dist">You<\/td>/);
+  assert.match(home.nbRowHTML({ ...n, atmp: null }, false, home.selfWords(true), 'x', scale, f), /<td class="dist">0\.0 km<\/td>.*<td class="r">—<\/td>/);
+});
+
+// ── Neighbors on the corrected PM2.5, like the home's own monitors (Task 6c) ──
+const NB_F = { esc: escHtml, pm: v => (v >= 10 ? String(Math.round(v)) : v.toFixed(1)), num: v => v.toFixed(1), temp: v => `${v}°C` };
+
+test("a neighbor's PM2.5 is the corrected one, the raw only without it", () => {
+  assert.equal(home.nbPm({ pm02: 22, pm02_corrected: 12.4 }), 12.4);
+  assert.equal(home.nbPm({ pm02: 22 }), 22);
+  assert.equal(home.nbPm({ pm02: 22, pm02_corrected: null }), 22);
+  assert.equal(home.nbPm({ pm02: 0, pm02_corrected: 0 }), 0);   // zero is a reading
+  assert.equal(home.nbPm({}), null);
+});
+
+test('the neighborhood row shows the corrected PM2.5, its tone and its bar', () => {
+  const scale = { limit: 15, barMax: 50, limPct: '30.0' };
+  const row = home.nbRowHTML({ locationId: 1, locationName: 'A', pm02: 22, pm02_corrected: 10, distance_km: 1 }, false, home.selfWords(false), 'Home', scale, NB_F);
+  assert.match(row, /<td class="r pm good">10<\/td>/);
+  assert.match(row, /<i style="width:20\.0%" class="good">/);
+  assert.doesNotMatch(row, />22</);
+});
+
+test('the lead counts the monitors over the limit on the corrected PM2.5', () => {
+  const self = home.selfWords(false);
+  // raw over the limit, corrected under it: nothing to say
+  const clean = [{ pm02: 22, pm02_corrected: 12, distance_km: 1, locationName: 'A' }, { pm02: 4, pm02_corrected: 4.5, distance_km: 2, locationName: 'B' },
+    { pm02: 5, pm02_corrected: 5, distance_km: 3, locationName: 'C' }];
+  assert.equal(home.nbLead({ pm02: 6, pm02_corrected: 6 }, clean, 15, self, NB_F), '');
+  // raw under, corrected over: counted, with the shown monitor still clean on its corrected reading
+  const over = [{ pm02: 14, pm02_corrected: 18, distance_km: 1.2, locationName: 'Near' }, { pm02: 4, pm02_corrected: 4.5, distance_km: 2, locationName: 'B' },
+    { pm02: 5, pm02_corrected: 5, distance_km: 3, locationName: 'C' }];
+  assert.match(home.nbLead({ pm02: 20, pm02_corrected: 9 }, over, 15, self, NB_F),
+    /One nearby monitor is over the 15 µg\/m³ limit<\/b>: the nearest is Near, 1\.2 km away\. Your block is still clean\./);
+  // the median and "well above the area" read the corrected values too
+  const area = [{ pm02: 40, pm02_corrected: 5, distance_km: 1, locationName: 'A' }, { pm02: 40, pm02_corrected: 6, distance_km: 2, locationName: 'B' }];
+  assert.match(home.nbLead({ pm02: 10, pm02_corrected: 30 }, area, 15, self, NB_F), /Your block reads well above the area<\/b> \(30 against a typical 6\.0\)/);
+});
+
+test("each real neighbor row links to AirGradient's map in a new tab; made-up ones don't", () => {
+  const scale = { limit: 15, barMax: 55, limPct: '27.3' };
+  const url = 'https://www.airgradient.com/map?zoom=15&long=100.5&lat=13.9&meas=ug_m3';
+  const row = home.nbRowHTML({ locationId: 3, locationName: 'Soi <b>7</b>', pm02: 5, distance_km: 2, map_url: url }, false, home.selfWords(false), 'Home', scale, NB_F);
+  assert.match(row, /<a class="nb-ext" href="https:\/\/www\.airgradient\.com\/map\?zoom=15&amp;long=100\.5&amp;lat=13\.9&amp;meas=ug_m3" target="_blank" rel="noopener" title="Open on AirGradient's map" aria-label="Open Soi &lt;b&gt;7&lt;\/b&gt; on AirGradient's map">/);
+  const fake = home.nbRowHTML({ locationId: 4, locationName: 'Demo monitor · X', pm02: 5, distance_km: 2 }, false, home.selfWords(false), 'Home', scale, NB_F);
+  assert.doesNotMatch(fake, /<a /);
+  const bad = home.nbRowHTML({ locationId: 5, locationName: 'Y', pm02: 5, distance_km: 2, map_url: 'javascript:alert(1)' }, false, home.selfWords(false), 'Home', scale, NB_F);
+  assert.doesNotMatch(bad, /<a /);
+});
+
+test("the neighborhood header has no map button; the map reads the corrected PM2.5", () => {
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  assert.doesNotMatch(html, /Open the map/);
+  assert.doesNotMatch(html, /data-app="map-area"/);
+  const map = readFileSync(new URL('static/map.js', root), 'utf8');
+  assert.doesNotMatch(map, /\.pm02\b/);
+  assert.match(map, /nbPm\(/);
+  // an unknown monitor's page ({id, error}) shows the default sample: the map calls the home's monitor "You"
+  assert.match(map, /selfWords\(!!\(APP\.public && !APP\.public\.error\)\)/);
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  const nb = app.slice(app.indexOf('function renderNeighborhood'), app.indexOf('// ── Charts'));
+  assert.doesNotMatch(nb, /\.pm02\b/);
+});
+
+// ── A neighbor row opens in place (Task 6d) ──
+const OPEN_SCALE = { limit: 15, high: 35, barMax: 55, limPct: '27.3' };
+const OPEN_F = { ...NB_F, when: ts => home.lastReadingText(ts, new Date('2026-11-09T12:45:00Z'), 'America/New_York') };
+const REAL = { locationId: 5107, locationName: 'Eckford <b>&</b> Meserole', publicContributorName: ' Rosa <i>D</i> ', pm02: 30, pm02_corrected: 25,
+  rhum: 90.6, atmp: 15.2, distance_km: 1.9, timestamp: '2026-11-09T12:38:00Z', map_url: 'https://www.airgradient.com/map?zoom=15&long=-73.9&lat=40.7&meas=ug_m3' };
+
+test('a real neighbor row has a chevron toggle with aria-expanded; open, the band follows the row', () => {
+  const closed = home.nbRowHTML(REAL, false, home.selfWords(false), 'Home', OPEN_SCALE, OPEN_F);
+  assert.match(closed, /^<tr class="nb-can" data-id="5107">/);
+  assert.match(closed, /<td class="nb-tg"><button type="button" class="nb-tgb" aria-expanded="false" aria-controls="nbd-5107" aria-label="Details: Eckford &lt;b&gt;&amp;&lt;\/b&gt; Meserole">/);
+  assert.doesNotMatch(closed, /nb-detail/);
+  const open = home.nbRowHTML(REAL, false, home.selfWords(false), 'Home', OPEN_SCALE, OPEN_F, true);
+  assert.match(open, /^<tr class="nb-can nb-open" data-id="5107">/);
+  assert.match(open, /aria-expanded="true"/);
+  assert.match(open, /<\/tr><tr class="nb-detail" id="nbd-5107"><td colspan="8">/);   // the id the toggle's aria-controls names
+  assert.equal(open.split('<tr').length - 1, 2);
+});
+
+test('the shown monitor and the demo samples\' made-up neighbors do not open', () => {
+  const you = home.nbRowHTML(REAL, true, home.selfWords(false), 'Home', OPEN_SCALE, OPEN_F, true);
+  assert.match(you, /^<tr class="you" data-id="5107">/);
+  assert.match(you, /<td class="nb-tg"><\/td><\/tr>$/);
+  const fake = home.nbRowHTML({ locationId: 4, locationName: 'Demo monitor · X', pm02: 5, distance_km: 2 }, false, home.selfWords(false), 'Home', OPEN_SCALE, OPEN_F, true);
+  assert.match(fake, /^<tr class="" data-id="4">/);
+  assert.doesNotMatch(fake, /<button|nb-detail|aria-expanded/);
+});
+
+test("the open band: PM2.5 now with its word, humidity, temperature, the owner, the last reading, and the map action only", () => {
+  for (const self of [home.selfWords(false), home.selfWords(true)]) {   // a real home, and a public monitor's page on the demo
+    const band = home.nbDetailHTML(REAL, OPEN_SCALE, OPEN_F);
+    assert.equal(home.nbRowHTML(REAL, false, self, 'x', OPEN_SCALE, OPEN_F, true).endsWith(band), true);
+    assert.match(band, /<dt>PM2\.5 now<\/dt><dd class="warn">25 <small>µg\/m³<\/small> · Moderate<\/dd>/);
+    assert.match(band, /<dt>Humidity<\/dt><dd>91%<\/dd>/);
+    assert.match(band, /<dt>Temperature<\/dt><dd>15\.2°C<\/dd>/);
+    assert.match(band, /<p class="nbd-meta"><b class="nbd-band warn">Moderate<\/b><span class="nbd-sep"> · <\/span>Shared by Rosa &lt;i&gt;D&lt;\/i&gt; · last reading 7:38\sAM, 7 min ago<\/p>/);
+    // one action: a quiet link to the monitor on AirGradient's map, in a new tab
+    assert.equal(band.split('<a ').length - 1, 1);
+    assert.match(band, /<a class="nbd-q" href="https:\/\/www\.airgradient\.com\/map\?zoom=15&amp;long=-73\.9&amp;lat=40\.7&amp;meas=ug_m3" target="_blank" rel="noopener"><svg[^>]*>.*<\/svg>Open on AirGradient's map<\/a>/);
+    assert.doesNotMatch(band, /Switch|\?monitor=|<button/);
+    assert.doesNotMatch(band, /<b>&|<i>D/);
+  }
+  // no owner: the reading time starts the line; no time: the owner alone
+  assert.match(home.nbDetailHTML({ ...REAL, publicContributorName: null }, OPEN_SCALE, OPEN_F), /<span class="nbd-sep"> · <\/span>Last reading 7:38\sAM, 7 min ago<\/p>/);
+  assert.match(home.nbDetailHTML({ ...REAL, timestamp: null }, OPEN_SCALE, OPEN_F), /<span class="nbd-sep"> · <\/span>Shared by Rosa &lt;i&gt;D&lt;\/i&gt;<\/p>/);
+  assert.match(home.nbDetailHTML({ ...REAL, pm02_corrected: 9 }, OPEN_SCALE, OPEN_F), /<dd class="good">9\.0 <small>µg\/m³<\/small> · Good<\/dd>/);
+});
+
+test("a neighbor's last reading: its time in the home's timezone and how long ago", () => {
+  const now = new Date('2026-11-09T12:45:00Z'), tz = 'America/New_York';
+  assert.match(home.lastReadingText('2026-11-09T12:38:00Z', now, tz), /^7:38\sAM, 7 min ago$/);
+  assert.match(home.lastReadingText('2026-11-09T12:44:40Z', now, tz), /^7:44\sAM, just now$/);
+  assert.match(home.lastReadingText('2026-11-09T11:20:00Z', now, tz), /^6:20\sAM, 1 h 25 min ago$/);
+  assert.match(home.lastReadingText('2026-11-09T11:45:00Z', now, tz), /^6:45\sAM, 1 h ago$/);
+  assert.equal(home.lastReadingText(null, now, tz), '');
+  assert.equal(home.lastReadingText('nope', now, tz), '');
+});
+
+test('the page opens one row at a time, in place, and the neighborhood links to no other monitor page', () => {
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  const nb = app.slice(app.indexOf('// ── Neighborhood'), app.indexOf('// ── Charts'));
+  assert.match(nb, /state\.nbOpen = state\.nbOpen === id \? null : id/);
+  assert.match(nb, /closest\('a'\)/);   // the row's ↗ opens the map, it doesn't toggle the row
+  assert.match(nb, /nbRowHTML\([^)]*n\.locationId === state\.nbOpen\)/);
+  const h = readFileSync(new URL('static/home.js', root), 'utf8'), rowsJs = h.slice(h.indexOf('const NB_COLS'), h.indexOf('function lastReadingText'));
+  for (const text of [nb, rowsJs]) assert.doesNotMatch(text, /\?monitor=|Switch to this monitor/);
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  assert.match(html, /<th class="nbbar">.*<\/th><th class="nb-tg"><\/th><\/tr><\/thead><tbody id="nb">/);
+});
+
+test("on a phone the row's ↗ lives only in the open band, a full-width action at least 44 px tall", () => {
+  const css = readFileSync(new URL('static/app.css', root), 'utf8');
+  assert.match(css, /@media \(max-width: 700px\) \{\s*\.nbt td\.loc \.nb-ext \{ display: none; \}/);
+  const q = css.match(/\.nbd-q \{[^}]*\}/)[0];
+  assert.match(q, /width: 100%/);
+  assert.match(q, /min-height: 44px/);
+  assert.doesNotMatch(q, /background: var\(--accent\)/);   // quiet: no fill
+});
+
+test("at home, the You row reads the outdoor card's PM2.5 (the row, the lead and the map label alike)", () => {
+  const you = { locationId: 7, pm02: 20, pm02_corrected: 9, rhum: 80 };
+  assert.deepEqual(home.nbYou(you, { locationId: 7, pm02: 21, pm02_corrected: 11.2 }, 11.2), { ...you, pm02_corrected: 11.2 });
+  assert.equal(home.nbYou(you, { locationId: 8 }, 3), you);   // the indoor monitor's row, or another: as it came
+  assert.equal(home.nbYou(you, null, null), you);
+  assert.equal(home.nbYou(undefined, { locationId: 7 }, 3), undefined);
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  assert.match(app, /const you = nbYou\(live\.find\(n => own\.has\(n\.locationId\)\), state\.outdoor, pick\(state\.outdoor, 'pm02_corrected', 'pm02'\)\)/);
+});
+
+test('nearby turned off: the page does not throw without the section subtitle', () => {
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  assert.doesNotMatch(app, /^\s*\$\('nb-sub'\)\.hidden = true/m);
+  assert.match(app, /if \(\$\('nb-sub'\)\) \$\('nb-sub'\)\.hidden = true/);
+});
+
+
+// ── The map's first view: the nearest neighbors in view, centered on the block (map.js create) ──
+// map.js runs in a sandbox with a fake MapLibre that records the camera it's asked for.
+function mapWith(others, width) {
+  const vm = require('node:vm');
+  const rec = { jumps: [], asks: [] };
+  class LngLatBounds {
+    constructor(a, b) { this.w = a[0]; this.s = a[1]; this.e = b[0]; this.n = b[1]; }
+    extend([x, y]) { this.w = Math.min(this.w, x); this.e = Math.max(this.e, x); this.s = Math.min(this.s, y); this.n = Math.max(this.n, y); return this; }
+  }
+  class Map {
+    constructor(o) { rec.opts = o; this.scrollZoom = { disable() {} }; }
+    addControl() {} on() {} once() {}
+    // a stand-in for MapLibre's fit: one zoom level out for each doubling of the box past 0.02°
+    cameraForBounds(b, o) { rec.asks.push({ b, o }); return { zoom: Math.min(o.maxZoom, 12.7 - Math.log2(Math.max(b.e - b.w, b.n - b.s) / 0.02)) }; }
+    jumpTo(c) { rec.jumps.push(c); }
+  }
+  const el = () => ({ set onload(f) { this._ok = f; }, get onload() { return this._ok; } });
+  const box = { clientWidth: width, querySelectorAll: () => [], innerHTML: '' };
+  const document = { documentElement: { dataset: {} }, body: { dataset: {} }, createElement: el,
+    head: { appendChild: x => x.onload && x.onload() }, querySelectorAll: () => [] };
+  const ctx = { window: {}, document, maplibregl: { Map, LngLatBounds, NavigationControl: class {}, AttributionControl: class {} },
+    $: id => (id === 'nb-map' ? box : null), APP: { place: { lat: 13.75, lon: 100.48 }, road: null },
+    apiUrl: x => x, selfWords: home.selfWords, bearingIn: home.bearingIn, nbPm: home.nbPm, Promise };
+  vm.createContext(ctx);
+  vm.runInContext(readFileSync(new URL('static/map.js', root), 'utf8') + ';this.NBMAP = NBMAP;', ctx);
+  const you = { locationId: 1, longitude: 100.48, latitude: 13.75, pm02: 9 };
+  ctx.NBMAP.update(you, others, null);
+  return new Promise(r => setTimeout(() => r(rec), 0));
+}
+const east = km => ({ locationId: 100 + km, longitude: 100.48 + km / 108, latitude: 13.75, pm02: 5 });   // ~108 km per degree here
+
+test("the map opens with the six nearest neighbors in view, centered on the block, never past the city's scale", async () => {
+  const map = readFileSync(new URL('static/map.js', root), 'utf8');
+  assert.match(map, /const FIT_NEAREST = 6, FIT_PAD = 40, FIT_MIN_ZOOM = 10\.5;/);
+  // Bangkok-like: the nearest is 1 km away, the sixth 6 km, the seventh 14 km (left out)
+  const rec = await mapWith([1, 2, 3, 4, 5, 6, 14].map(east), 1200);
+  assert.equal(rec.opts.zoom, 12.7);
+  assert.equal(rec.asks.length, 1);
+  const { b, o } = rec.asks[0];
+  assert.deepEqual({ ...o }, { padding: 40, maxZoom: 12.7 });
+  assert.ok(Math.abs((b.w + b.e) / 2 - 100.48) < 1e-9 && Math.abs(b.e - (100.48 + 6 / 108)) < 1e-9);   // centered; the 6th, not the 7th
+  assert.equal(rec.jumps.length, 1);
+  assert.deepEqual([...rec.jumps[0].center], [100.48, 13.75]);
+  assert.ok(rec.jumps[0].zoom < 12.7 && rec.jumps[0].zoom >= 10.5);
+  // neighbors far out: no wider than FIT_MIN_ZOOM; all close by: the usual zoom (the phone's under 600 px)
+  assert.equal((await mapWith([20, 30].map(east), 1200)).jumps[0].zoom, 10.5);
+  assert.equal((await mapWith([0.2].map(east), 390)).jumps[0].zoom, 12.1);
+  assert.equal((await mapWith([], 390)).jumps.length, 0);   // no neighbors: the map stays where it opened
+});
+
+
+test("a public monitor's empty week isn't kept, so a slow first answer from the map doesn't hide History", () => {
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  const week = app.slice(app.indexOf('function loadWeek'), app.indexOf('function chartsLoading'));
+  assert.match(week, /if \(!ih \|\| !oh \|\| \(PUB && !oh\.length\)\) throw new Error\('history'\);\s*hist\.week = \{ ih, oh, to \}/);
+});
+
+
+test('on a phone the "Today" heading is for screen readers only; on a desktop it shows', () => {
+  const css = readFileSync(new URL('static/app.css', root), 'utf8');
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  assert.match(html, /<h2 class="now-h" id="now-title">Today<\/h2>/);   // still in the page, so still read out
+  const phone = css.match(/@media \(max-width: 700px\) \{\s*\.now-text \{ flex-wrap: wrap;[^@]*?\n\}/)[0];
+  assert.match(phone, /\.now-text \.now-h \{ position: absolute !important; width: 1px; height: 1px;[^}]*clip: rect\(0 0 0 0\)/);
+  assert.doesNotMatch(phone, /\.now-h \{[^}]*display: none/);   // not display:none, which would hide it from screen readers too
+  const outside = css.replace(phone, '');   // desktop: unchanged (html.wx-full's own rule aside, as before)
+  assert.doesNotMatch(outside.replace('html.wx-full .now-bar .now-h { display: none !important; }', ''), /\.now-h[^{]*\{[^}]*(?:clip: rect|display: none)/);
 });

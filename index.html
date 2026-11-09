@@ -32,11 +32,8 @@
 </head>
 <body>
 <div class="sky" id="sky" aria-hidden="true"><div class="sky-grad" id="sky-grad"></div><canvas id="sky-stars"></canvas><div class="sky-sun" id="sky-sun"></div><canvas id="sky-clouds"></canvas><canvas id="sky-wind"></canvas><canvas id="sky-rain"></canvas><div class="sky-flash" id="sky-flash"></div><div class="sky-haze" id="sky-haze"></div></div><div class="sky-front" id="sky-front" aria-hidden="true"><div class="front-flash" id="front-flash"></div><canvas id="sky-bolt"></canvas></div>
+<div class="demo-bar" id="demo-bar" role="region" aria-label="Demo" hidden></div>   <!-- the demo's strip: static/picker.js draws it -->
 <div class="page">
-  <div class="demo-bar" id="demo-bar" hidden>
-    <p>Demo with made-up data · <a href="https://github.com/sguyon/home-air-quality" target="_blank" rel="noopener">Source and setup on GitHub</a></p>
-    <nav class="seg demo-moments" id="demo-moments" aria-label="Demo moments"></nav>
-  </div>
   <div class="bar">
     <div class="site-wrap">
     <div class="site">
@@ -46,7 +43,7 @@
     </div>
     <details class="custom">
     <summary class="custom-top">
-      <span class="who"><span class="avatar" id="avatar" role="img" aria-label="Home · 2 monitors live · 5 sources" data-tip="2 monitors live · 5 sources"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><i class="av-dot good" id="dot-sum"></i></span><span class="home"><b>Home</b><em data-app="place"></em></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
+      <span class="who"><span class="avatar" id="avatar" role="img" aria-label="Home · 2 monitors live · 5 sources" data-tip="2 monitors live · 5 sources"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><i class="av-dot good" id="dot-sum"></i></span><span class="home"><b data-app="home-name">Home</b><em data-app="place"></em></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
       <span class="vsum">
         <span class="vsum-hw" id="vsum-hw" aria-label="Your monitors"></span><span class="vh" data-app="needs-label"></span>
       </span>
@@ -113,7 +110,7 @@
     <p class="stale-note" id="stale-note" hidden></p>
   </section>
 
-  <div class="sechead"><h2>Home monitors</h2></div>
+  <div class="sechead"><h2 data-app="monitors-title">Home monitors</h2></div>
   <div class="grid2" id="monitors"></div>
   <h2>Local conditions</h2>
   <div class="grid4">
@@ -129,8 +126,8 @@
       <div class="sub" id="pollen-sub"></div>
       <dl class="kv" id="pollen-kv"></dl>
       <div class="pseason" id="pollen-season"></div></article>
-    <article class="card" data-app="road-only">
-      <div class="card-top"><div class="k"><a class="k-link" data-app="traffic" href="" target="_blank" rel="noopener" title=""><span class="brand bqe" data-app="road-estimate-title" title=""><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#1b3348"/><path fill="#e7eef5" d="M7.4 20 10.2 4h3.6L16.6 20z"/><path stroke="#1b3348" stroke-width="1.2" stroke-linecap="round" d="M12 7.4v1.7M12 11.3v1.7M12 15.2v1.7"/></svg></span><span data-app="road"></span><em class="srcl">· traffic estimate</em><svg class="i k-arr" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a></div><button class="q" data-app="road-about-label" aria-label=""><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="bubble"><strong>Hour × wind</strong><span>Not a traffic count, and not Google Maps.</span><span data-app="road-clock"></span><span data-app="road-wind"></span><span>Pressure is those two multiplied.</span></span></button></div>
+    <article class="card" data-app="road-card">
+      <div class="card-top"><div class="k"><a class="k-link" data-app="traffic" href="" target="_blank" rel="noopener" title=""><span class="brand bqe" data-app="road-estimate-title" title=""><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#1b3348"/><path fill="#e7eef5" d="M7.4 20 10.2 4h3.6L16.6 20z"/><path stroke="#1b3348" stroke-width="1.2" stroke-linecap="round" d="M12 7.4v1.7M12 11.3v1.7M12 15.2v1.7"/></svg></span><span data-app="road">Road</span><em class="srcl" data-app="road-only">· traffic estimate</em><svg class="i k-arr" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a></div><button class="q" data-app="road-about-label" aria-label="" data-road-q><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="bubble"><strong>Hour × wind</strong><span>Not a traffic count, and not Google Maps.</span><span data-app="road-clock"></span><span data-app="road-wind"></span><span>Pressure is those two multiplied.</span></span></button></div>
       <div class="hero" id="bqe-hero">—</div>
       <div class="sub" id="bqe-sub"></div>
       <dl class="kv" id="bqe-kv"></dl></article>
@@ -142,7 +139,8 @@
   </div>
 
   <div class="chart-bar"><span>History</span><div class="seg" id="ranges" role="radiogroup" aria-label="Chart range"><button type="button" role="radio" aria-checked="true" class="on" data-range="1h">1 h</button><button type="button" role="radio" aria-checked="false" data-range="6h">6 h</button><button type="button" role="radio" aria-checked="false" data-range="24h">24 h</button><button type="button" role="radio" aria-checked="false" data-range="7d">7 d</button></div></div>
-  <div class="grid2">
+  <article class="card hist-off" id="hist-none" hidden></article>   <!-- a public monitor with no history: app.js fills it (home.js noHistoryHTML) -->
+  <div class="grid2" id="hist-charts">
     <article class="card">
       <div class="chart-head"><b>PM2.5 <em>fine particles</em></b><span class="who" id="pm-note">µg/m³</span></div>
       <svg id="chart-pm" class="ts" viewBox="0 0 560 210" role="img" aria-label="PM2.5 over the selected range"></svg>
@@ -157,13 +155,13 @@
     </article>
   </div>
 
-  <div class="sechead"><h2>Neighborhood <span style="font-weight:500;letter-spacing:0;text-transform:none" id="nb-sub">Public AirGradient monitors within 15 km · PM2.5 µg/m³</span></h2><a class="maplink" data-app="map-area" href="" target="_blank" rel="noopener">Open the map <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a></div>
+  <div class="sechead"><h2>Neighborhood <span style="font-weight:500;letter-spacing:0;text-transform:none" id="nb-sub">Public AirGradient monitors within 15 km · PM2.5 µg/m³</span></h2></div>
   <p class="lead" id="nb-lead">Loading nearby monitors…</p>
   <article class="card nb-card">
     <div class="nb-mapwrap"><div class="nb-map" id="nb-map" data-app="nb-map" aria-label=""><p class="nb-map-msg" id="nb-map-msg">Loading the map…</p></div>
-    <div class="nb-legend" aria-hidden="true"><span><i class="lg-you"></i>Your monitor</span><span><i class="lg-dot"></i>Public monitors (PM2.5)</span><span data-app="road-only"><i class="lg-bqe"></i><span data-app="road"></span></span><span data-app="road-only"><i class="lg-plume"></i><span data-app="road-exhaust"></span></span></div></div>
+    <div class="nb-legend" aria-hidden="true"><span><i class="lg-you"></i><span data-app="self-legend">Your monitor</span></span><span><i class="lg-dot"></i>Public monitors (PM2.5)</span><span data-app="road-only"><i class="lg-bqe"></i><span data-app="road"></span></span><span data-app="road-only"><i class="lg-plume"></i><span data-app="road-exhaust"></span></span></div></div>
     <div class="nb">
-    <table class="nbt"><thead><tr><th class="dot"></th><th>Dist</th><th>Location</th><th class="r">PM2.5</th><th class="r">Temp</th><th class="r">Humid</th><th class="nbbar"><span class="scale-h" title="PM2.5 scale in µg/m³; the tick marks the limit"><span class="scale-k"><i>0</i><i class="lim" id="nb-limpos">limit</i><i id="nb-max">55</i></span></span></th></tr></thead><tbody id="nb"></tbody></table>
+    <table class="nbt"><thead><tr><th class="dot"></th><th>Dist</th><th>Location</th><th class="r">PM2.5</th><th class="r">Temp</th><th class="r">Humid</th><th class="nbbar"><span class="scale-h" title="PM2.5 scale in µg/m³; the tick marks the limit"><span class="scale-k"><i>0</i><i class="lim" id="nb-limpos">limit</i><i id="nb-max">55</i></span></span></th><th class="nb-tg"></th></tr></thead><tbody id="nb"></tbody></table>
     <button type="button" class="nb-more" id="nb-more" hidden></button>
     <div class="nb-foot"><span id="nb-wind"></span></div>
     <p class="nb-credit" id="nb-credit"></p>
@@ -175,6 +173,7 @@
 
 <script src="/static/summary.js"></script>
 <script src="/static/home.js"></script>
+<script src="/static/picker.js"></script>
 <script src="/static/app.js"></script>
 <script src="/static/sky.js"></script>
 <script src="/static/map.js"></script>

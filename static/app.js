@@ -5,10 +5,17 @@ let svgCopy = 0;
 const uniq = svg => { const n = ++svgCopy; return svg.replace(/id="([^"]+)"/g, `id="$1-${n}"`).replace(/url\(#([^)]+)\)/g, `url(#$1-${n})`); };
 // The home (place, links, road, needs, limits, pollen seasons) comes from the server's config: window.APP, set in index().
 const APP = window.APP;
+// A public AirGradient monitor's page (the demo's ?monitor=<id>): {id, name, street, contributor, url}. One that can't
+// be shown ({id, error}) gets the default sample's page instead, with the reason in the demo banner (picker.js).
+// A public monitor's view has no indoor monitor; neither has a view whose place names none (APP.place.indoor null).
+const PUB = APP.public && !APP.public.error ? APP.public : null;
+const NO_INDOOR = APP.place.indoor === null || !!PUB;
+const VIEW_PLACE = NO_INDOOR ? { ...APP.place, indoor: null } : APP.place;   // what home.js reads to draw the indoor slot disabled
+const SELF = selfWords(!!PUB);   // the neighborhood's words for the shown monitor: This / You
 // The page's clock (summary.js): the demo's story moment (APP.now), or the real time. What the page shows uses it;
-// timers and cache stamps keep Date.now(). The demo also names its moment on every /api call.
+// timers and cache stamps keep Date.now(). The demo also names its moment, or its public monitor, on every /api call.
 const appNow = SummaryCard.appNow, readingsNow = SummaryCard.readingsNow;   // readingsNow: what the readings' age is judged against
-const apiUrl = url => APP.now ? `${url}${url.includes('?') ? '&' : '?'}moment=${encodeURIComponent(APP.now.moment)}` : url;
+const apiUrl = url => Picker.apiUrl(APP, url);   // ?monitor=<id> on a public monitor's page, ?moment= on a sample (picker.js)
 const TZ = APP.place.timezone;
 const PM_FINE = APP.limits.pm, PM_HIGH = APP.limits.pm_high, CO2_OPEN = APP.limits.co2;
 const RH_LOW = APP.limits.rh_dry, RH_GOOD = APP.limits.rh_good, RH_DAMP = APP.limits.rh_damp;
@@ -33,9 +40,10 @@ function applyConfig() {
   const set = (el, attr, v) => { if (v) el.setAttribute(attr, v); else el.removeAttribute(attr); };
   const runner = `Runner: adds the run check, saying when the outdoor air${road ? ` and ${road.name} traffic` : ''} make${road ? '' : 's'} a run worth it.`;
   const fill = {
-    'place': el => { el.textContent = place.name; },
+    'place': el => { el.textContent = PUB ? PUB.street || '' : place.name; el.hidden = !!PUB && !PUB.street; },   // the pill: a monitor's street
+    'home-name': el => { if (PUB) el.textContent = PUB.name; },   // the pill names the monitor, not "Home"
+    'road-card': el => { el.hidden = !road && !PUB; },   // a public monitor shows the road as Off, like pollen
     'map-home': el => { el.href = links.map_home; el.textContent = place.name; },
-    'map-area': el => { el.href = links.map_area; },
     'nearby-about': el => { el.textContent = `Other AirGradient monitors around ${place.name}.`; },
     'forecast': el => { el.href = links.forecast; el.title = `Hourly forecast for ${place.name}, National Weather Service`; },
     'wx-about': el => { el.textContent = road ? `Open-Meteo. Wind direction changes how ${road.name} exhaust drifts.` : 'Open-Meteo.'; },
@@ -54,7 +62,9 @@ function applyConfig() {
     'smoke-about': el => { el.textContent = smokeText(place.region); },
     'smoke-card-about': el => { el.textContent = smokeMapText(place.region); },
     'needs-for': el => { const t = needsFor(needs); el.textContent = t; el.parentElement.hidden = !t; },
-    'sources-label': el => { el.setAttribute('aria-label', sourcesLabel(APP.sources, !!road)); },
+    'sources-label': el => { el.setAttribute('aria-label', sourcesLabel(APP.sources, !!road, !NO_INDOOR)); },
+    'monitors-title': el => { if (PUB) el.textContent = 'Monitor'; },
+    'self-legend': el => { el.textContent = SELF.legend; },
   };
   if (road) Object.assign(fill, {
     'road': el => { el.textContent = roadLabel(road); },
@@ -67,23 +77,26 @@ function applyConfig() {
     'road-wind': el => { el.textContent = roadWindText(road); },
   });
   document.querySelectorAll('[data-app]').forEach(el => { const f = fill[el.dataset.app]; if (f) f(el); });
+  if (!road) {   // the Off road card (a public monitor's): no link, no estimate to explain
+    const link = document.querySelector('[data-app="traffic"]'); if (link) { link.removeAttribute('href'); link.removeAttribute('target'); const arr = link.querySelector('.k-arr'); if (arr) arr.remove(); }
+    const q = document.querySelector('[data-road-q]'); if (q) q.hidden = true;
+  }
   document.querySelectorAll('[data-need]').forEach(el => { el.hidden = !needs[el.dataset.need]; });
 }
 applyConfig();
-if ($('nb-credit')) $('nb-credit').innerHTML = creditHtml([], !!APP.now, esc);   // the demo's line, or AirGradient's credit, before any monitor loads
+if ($('nb-credit')) $('nb-credit').innerHTML = creditHtml(!!APP.now);   // the demo's line, or AirGradient's credit
+if (PUB && $('hist-none')) $('hist-none').innerHTML = noHistoryHTML();   // shown only if AirGradient's map has no past readings
 
-// The demo's banner (only with APP.now): the three story moments, each its own link; the one shown is marked.
-if (APP.now && $('demo-bar') && !/[?&]shot\b/.test(location.search)) {   // not in screenshots: the README says they come from the demo
-  $('demo-moments').innerHTML = (APP.now.moments || []).map(m =>
-    `<a href="?moment=${encodeURIComponent(m.key)}"${m.key === APP.now.moment ? ' aria-current="page"' : ''}>${esc(m.label)}</a>`).join('');
-  $('demo-bar').hidden = false;
+// The demo's banner (a sample, or a public monitor's page): the samples 1 2 3, the monitor picker, Source and setup.
+if ((APP.now || APP.public) && $('demo-bar') && !/[?&]shot\b/.test(location.search)) {   // not in screenshots: the README says they come from the demo
+  Picker.mount($('demo-bar'), APP);
 }
 // Nearby monitors turned off in the config: the section says so in one line instead of showing an empty table and map.
 if ((APP.sources || {}).nearby === false) {
   const lead = document.getElementById('nb-lead'), card = document.querySelector('.nb-card');
-  if (lead) lead.textContent = 'Off. Turned off in the config.';
+  if (lead) lead.textContent = 'Off. ' + sourceOff('nearby', 'off').line;
   if (card) card.hidden = true;
-  document.querySelectorAll('.maplink, #nb-sub').forEach(el => { el.hidden = true; });
+  if ($('nb-sub')) $('nb-sub').hidden = true;
 }
 // Zero is a real reading; only null and undefined mean missing.
 const has = v => v !== null && v !== undefined && !Number.isNaN(v);
@@ -137,9 +150,9 @@ function setStatus(id, tone, text, title) {
   else if (id in srcOk && id !== 'bqe') srcOk[id] = tone === 'good';
 }
 function monitorStatus(id, m) {
-  const f = freshness(m, readingsNow()), mins = m && m.timestamp ? Math.max(0, Math.round((readingsNow() - new Date(m.timestamp)) / 60000)) : null;
-  const text = f.tone === 'good' ? `Live · ${mins < 1 ? 'just now' : mins + ' min ago'}` : f.label;
-  setStatus(id, f.tone, text, m && m.timestamp ? 'Last reading ' + new Date(m.timestamp).toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' }) : 'No reading');
+  const r = monitorRow(m, readingsNow(), id === 'one' && NO_INDOOR, TZ);
+  const row = $('st-' + id) && $('st-' + id).closest('.pr'); if (row) row.classList.toggle('off', r.off);   // greyed device
+  setStatus(id, r.tone, r.text, r.title);
 }
 function sourceSummary() {
   const all = Object.keys(srcOk).length, known = Object.values(srcOk).filter(v => v !== null);
@@ -198,7 +211,10 @@ function tempScale(tC, otherC, indoor) {
 function monitorCard(m, indoor) {
   const f = freshness(m, readingsNow()), r = reading(m, indoor);
   const pl = pmLevel(has(r.pm) ? r.pm : null, APP.limits), cl = co2Level(r.co2), hl = rhLevel(r.rh, indoor);
-  const voc = m && m.tvocIndex, nox = m && m.noxIndex, wifi = m && m.wifi;
+  const voc = m && m.tvocIndex, nox = m && m.noxIndex, wifi = PUB ? null : m && m.wifi;   // a public monitor's Wi‑Fi isn't ours to show
+  // a public monitor is named by its owner's name for it, then "public monitor"; a home's by the device and its place
+  const pubName = !indoor && PUB && PUB.name ? PUB.name : null;
+  const what = pubName ? 'public monitor' : esc(indoor ? APP.place.indoor : APP.place.outdoor);
   const bar = (pct, tone) => `<div class="mc-bar"><i style="width:${Math.max(0, Math.min(100, pct)).toFixed(0)}%;background:${TONE[tone]}"></i></div>`;
   const metric = (label, value, unit, color, extra, sub) =>
     `<div class="mc-m"><span>${label}</span><b${color ? ` style="color:${color}"` : ''}>${value}${unit ? `<small>${unit}</small>` : ''}</b>${extra || ''}<em>${sub || ''}</em></div>`;
@@ -212,7 +228,7 @@ function monitorCard(m, indoor) {
     : { word: fT < 40 ? 'Cold' : fT < 60 ? 'Cool' : fT < 75 ? 'Mild' : fT < 85 ? 'Warm' : 'Hot', tone: 'muted' };
   return `<article class="card mc ${indoor ? 'mc-in' : 'mc-out'}" style="--tint:${indoor ? 'var(--series-in)' : 'var(--series-out)'}">
     <div class="mc-head">${uniq(indoor ? ICONS.sceneIn : ICONS.sceneOut).replace('<svg ', '<svg preserveAspectRatio="xMidYMax slice" ')}
-      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${uniq(indoor ? ICONS.one : ICONS.openair)}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name">${indoor ? 'AirGradient ONE' : 'AirGradient Open Air'}<span class="mc-loc"> · ${esc(indoor ? APP.place.indoor : APP.place.outdoor)}</span></div><div class="mc-status ${f.tone}" title="${(m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i><span class="mc-st">${f.label}<span class="mc-loc2" aria-hidden="true"> · ${esc(indoor ? APP.place.indoor : APP.place.outdoor)}</span>${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi"> · Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</span></div></div></div>
+      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${uniq(indoor ? ICONS.one : ICONS.openair)}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name${pubName ? ' mc-pub' : ''}">${pubName ? esc(pubName) : indoor ? 'AirGradient ONE' : 'AirGradient Open Air'}<span class="mc-loc"> · ${what}</span></div><div class="mc-status ${f.tone}" title="${(m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i><span class="mc-st">${f.label}<span class="mc-loc2" aria-hidden="true"> · ${what}</span>${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi"> · Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</span></div></div></div>
     </div>
     <div class="mc-hero ${pl.tone}">
       ${pmRing(r.pm, pl.tone)}
@@ -233,25 +249,30 @@ function monitorCard(m, indoor) {
         <div><span>PM1</span><b>${pmNum(m && m.pm01)}<small>µg/m³</small></b></div>
         <div><span>PM10</span><b>${pmNum(pick(m, 'pm10_corrected', 'pm10'))}<small>µg/m³</small></b></div>
       </div></div>
-    </div>
+    </div>${pubName ? `
+    <p class="mc-credit">${monitorCredit(PUB, esc)}</p>` : ''}
   </article>`;
+}
+
+// The Monitor section: the home's two cards; a view without an indoor monitor shows the outdoor one first, then the slot.
+function monitorsHTML() {
+  return NO_INDOOR ? monitorCard(state.outdoor, false) + indoorSlotHTML() : monitorCard(state.indoor, true) + monitorCard(state.outdoor, false);
 }
 
 // Monitor status sits on the avatar as a dot; the words are its tooltip.
 function updateStatus() {
   setTimeout(renderSources, 0);
-  const okN = [freshness(state.indoor, readingsNow()), freshness(state.outdoor, readingsNow())].filter(f => f.tone === 'good').length;
+  const live = monitorsLive([freshness(state.indoor, readingsNow(), NO_INDOOR), freshness(state.outdoor, readingsNow())]);
   monitorStatus('one', state.indoor); monitorStatus('openair', state.outdoor);
-  const status = `${okN === 2 ? '2 monitors live' : okN + ' of 2 monitors live'} · ${sourceSummary()}`;
+  const status = `${live.text} · ${sourceSummary()}`;
   $('avatar').dataset.tip = status; $('avatar').setAttribute('aria-label', 'Home · ' + status);
-  $('dot-sum').className = 'av-dot ' + (okN === 2 ? 'good' : okN ? 'warn' : 'bad');
+  $('dot-sum').className = 'av-dot ' + live.tone;
   const hw = $('vsum-hw');
-  if (hw) hw.innerHTML = [[ICONS.one, state.indoor, 'Indoor · AirGradient ONE'], [ICONS.openair, state.outdoor, 'Outdoor · AirGradient Open Air']]
-    .map(([ic, m, name]) => { const f = freshness(m, readingsNow()); return `<span class="vhw" data-tip="${name}: ${f.label}">${uniq(ic)}<i class="${f.tone}"></i></span>`; }).join('');
+  if (hw) hw.innerHTML = monitorPill(VIEW_PLACE, state.indoor, state.outdoor, readingsNow(), { one: uniq(ICONS.one), openair: uniq(ICONS.openair) });
 }
 
 function renderMonitors() {
-  $('monitors').innerHTML = monitorCard(state.indoor, true) + monitorCard(state.outdoor, false);
+  $('monitors').innerHTML = monitorsHTML();
   if (typeof SKY !== 'undefined' && SKY) SKY.pm(reading(state.outdoor, false).pm);
   updateStatus();
   const stamps = [state.indoor, state.outdoor].filter(m => m && m.timestamp).map(m => new Date(m.timestamp));
@@ -271,30 +292,8 @@ function kv(rows) {
 // Live levels come from Google; these dates are the usual calendar, not a forecast.
 const POLLEN_SEASONS = APP.pollen_seasons || [];
 function renderPollenSeason(levels) {
-  const box = $('pollen-season'); if (!box || !POLLEN_SEASONS.length) return;
-  const now = new Date(appNow().toLocaleString('en-US', { timeZone: TZ })), y = now.getFullYear();
-  const doy = d => Math.round((d - new Date(y, 0, 1)) / 864e5), at = ([m, dd], yr = y) => new Date(yr, m - 1, dd);
-  const today = doy(now), pct = n => (n / 365 * 100).toFixed(2);
-  const fmt = d => { const m = d.toLocaleDateString('en-US', { month: 'long' }), n = d.getDate(); return n <= 10 ? `early ${m}` : n <= 20 ? `mid-${m}` : `late ${m}`; };
-  const active = POLLEN_SEASONS.filter(p => now >= at(p.start) && now <= at(p.end));
-  // the next season to start (this year or next)
-  const next = POLLEN_SEASONS.map(p => { const st = at(p.start), s2 = st > now ? st : at(p.start, y + 1); return { ...p, when: s2 }; }).sort((a, b) => a.when - b.when)[0];
-  const weeks = Math.round((next.when - now) / 6048e5), months = Math.round((next.when - now) / (30.4 * 864e5));
-  const inTime = weeks <= 6 ? `in about ${weeks} week${weeks === 1 ? '' : 's'}` : `in about ${months} months`;
-  let line;
-  if (active.length) {
-    const p = active[0], inPeak = now >= at(p.peak[0]) && now <= at(p.peak[1]);
-    line = `<b>Now: ${p.name.toLowerCase()} season</b>${inPeak ? ', at its peak' : now < at(p.peak[0]) ? `, peaks in ${at(p.peak[0]).toLocaleDateString('en-US', { month: 'long' })}` : ', easing off'}, until ${fmt(at(p.end))}. Next: ${next.name.toLowerCase()} from ${fmt(next.when)}.`;
-  } else line = `<b>Next: ${next.name.toLowerCase()} pollen</b>, usually from ${fmt(next.when)} (${inTime}).`;
-  const M = 'JFMAMJJASOND';
-  const lvl = i => ['None', 'Very low', 'Low', 'Moderate', 'High', 'Very high'][i] || '—';
-  const level = name => { const t = (levels || []).find(x => x.name === name), i = t ? (t.index || 0) : null; return i == null ? '—' : `<b class="${pollenHigh(i, APP.limits) ? 'warn' : i ? 'good' : ''}">${lvl(i)}</b>`; };
-  box.innerHTML = `<div class="ps-grid" title="${esc(pollenBarsTitle(APP.place.region))}">${POLLEN_SEASONS.map(p => `<div class="ps-row"><span>${p.name}</span><div class="ps-track">
-      <i class="ps-season" style="left:${pct(doy(at(p.start)))}%;width:${pct(doy(at(p.end)) - doy(at(p.start)))}%"></i>
-      <i class="ps-peak" style="left:${pct(doy(at(p.peak[0])))}%;width:${pct(doy(at(p.peak[1])) - doy(at(p.peak[0])))}%"></i></div>${level(p.name)}</div>`).join('')}
-      <div class="ps-row ps-months"><span></span><div class="ps-track">${[0, 3, 6, 9].map(i => `<em style="left:${pct(doy(new Date(y, i, 1)))}%">${new Date(y, i, 1).toLocaleDateString('en-US', { month: 'short' })}</em>`).join('')}</div><span></span></div>
-      <div class="ps-today" style="--x:${pct(today)}" title="Today"></div></div>
-    <p class="ps-line">${line}</p>`;
+  const box = $('pollen-season'); if (!box) return;
+  box.innerHTML = pollenSeasonHTML(POLLEN_SEASONS, levels, new Date(appNow().toLocaleString('en-US', { timeZone: TZ })), APP.limits, APP.place.region, esc);
 }
 
 function setEdges() {
@@ -317,7 +316,7 @@ function contextStatus(ctx) {
   setStatus('wx', has(w.temperature) ? 'good' : 'bad', has(w.temperature) ? 'Live' : 'No data', has(w.temperature) ? 'Current weather from Open-Meteo' : 'Open-Meteo did not answer');
   // Google returns every pollen type even out of season, so an empty list means no answer.
   const st = (ctx && ctx.status) || {};
-  const offOf = id => sourceOff(id, st[id] || (SRC_ON[id] === false ? 'off' : ''));
+  const offOf = id => sourceOff(id, st[id] || (SRC_ON[id] === false ? 'off' : ''), !!PUB);
   for (const id of ['pollen', 'smoke']) {
     const o = offOf(id);
     if (o) setStatus(id, 'neutral', o.word, o.line);
@@ -330,12 +329,15 @@ function contextStatus(ctx) {
 }
 
 // A source that is off or not set up: its card says so in the page's muted tone, with one line on what it adds.
-function idleCard(id, { word, line }) {
+// The card greys out (.card.off); pollen without a key keeps its season calendar (calendar: true), greyed too.
+function idleCard(id, { word, line, calendar }) {
+  $(id + '-hero').closest('.card').classList.add('off');
   $(id + '-hero').textContent = word;
   $(id + '-hero').style.setProperty('--c', 'var(--soft)');
   $(id + '-sub').textContent = line;
   $(id + '-kv').innerHTML = '';
   const season = $(id + '-season'); if (season) season.innerHTML = '';
+  if (calendar) renderPollenSeason([]);   // the usual seasons, with no level for today
 }
 
 function renderContext(ctx) {
@@ -363,8 +365,9 @@ function renderContext(ctx) {
     $('wx-kv').innerHTML = '';
   }
 
-  const st = ctx.status || {}, pollenOff = sourceOff('pollen', st.pollen || (SRC_ON.pollen === false ? 'off' : ''));
-  const smokeOff = sourceOff('smoke', st.smoke || (SRC_ON.smoke === false ? 'off' : ''));
+  const st = ctx.status || {}, pollenOff = sourceOff('pollen', st.pollen || (SRC_ON.pollen === false ? 'off' : ''), !!PUB);
+  const smokeOff = sourceOff('smoke', st.smoke || (SRC_ON.smoke === false ? 'off' : ''), !!PUB);
+  for (const id of ['pollen', 'smoke']) $(id + '-hero').closest('.card').classList.remove('off');   // idleCard greys it again if still off
   if (pollenOff) idleCard('pollen', pollenOff);
   else if (pollen.length) {
     const top = Math.max(...pollen.map(p => p.index || 0));
@@ -383,6 +386,8 @@ function renderContext(ctx) {
     $('pollen-kv').innerHTML = '';
   }
 
+  $('bqe-hero').closest('.card').classList.remove('off');
+  if (!APP.road && PUB) idleCard('bqe', sourceOff('road', 'off', true));   // a public monitor has no road: Off, greyed
   if (APP.road) {
     const t = String(b.traffic || '');
     const peak = t.startsWith('PEAK'), high = t.startsWith('HIGH'), rushName = (t.match(/^PEAK \((.+) rush\)/) || [])[1];
@@ -422,6 +427,15 @@ function renderContext(ctx) {
 document.addEventListener('mouseover', e => { const tr = e.target.closest && e.target.closest('#nb tr[data-id]'); if (tr && typeof NBMAP !== 'undefined') NBMAP.highlight(Number(tr.dataset.id)); });
 document.addEventListener('mouseout', e => { const tr = e.target.closest && e.target.closest('#nb tr[data-id]'); if (tr && !tr.contains(e.relatedTarget) && typeof NBMAP !== 'undefined') NBMAP.highlight(null); });
 $('nb-more') && $('nb-more').addEventListener('click', () => { state.nbAll = !state.nbAll; renderNeighborhood(); });
+// A real neighbor's row opens in place (its chevron, or anywhere on the row); one row open at a time. Its ↗ opens the map.
+$('nb') && $('nb').addEventListener('click', e => {
+  if (e.target.closest('a')) return;
+  const tr = e.target.closest('tr.nb-can'); if (!tr || !state.nb) return;
+  const id = Number(tr.dataset.id), focused = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#nb .nb-tgb'));
+  state.nbOpen = state.nbOpen === id ? null : id;
+  drawNbRows();
+  if (focused) { const b = $('nb').querySelector(`tr[data-id="${id}"] .nb-tgb`); if (b) b.focus(); }   // the keyboard stays on the toggle
+});
 
 function growBars() {
   const table = document.querySelector('.nbt'); if (!table || reduceMotion.matches) return;
@@ -433,57 +447,33 @@ function growBars() {
 
 function renderNeighborhood() {
   const own = new Set([state.indoor, state.outdoor].filter(Boolean).map(m => m.locationId));
-  const live = state.neighbors.filter(n => !n.offline && has(n.pm02) && (!n.timestamp || readingsNow() - new Date(n.timestamp) < 2 * 3600e3));
-  const you = live.find(n => own.has(n.locationId));
+  // each neighbor's PM2.5 is the corrected one when the server could correct it (nbPm, home.js), like the home's own monitors
+  const live = state.neighbors.filter(n => !n.offline && has(nbPm(n)) && (!n.timestamp || readingsNow() - new Date(n.timestamp) < 2 * 3600e3));
+  // the shown monitor's row reads what its outdoor card reads (nbYou, home.js)
+  const you = nbYou(live.find(n => own.has(n.locationId)), state.outdoor, pick(state.outdoor, 'pm02_corrected', 'pm02'));
   const others = live.filter(n => !own.has(n.locationId));
   const rows = (you ? [you] : []).concat(others);
-  $('nb-credit').innerHTML = creditHtml(others, !!APP.now, esc);
   setStatus('nearby', others.length ? 'good' : 'bad', others.length ? `${others.length} reporting` : 'No answer', others.length ? `${others.length} nearby monitors sent a reading in the last 2 hours` : 'Nearby monitors did not answer');
   if (!rows.length) {
     $('nb-lead').textContent = 'Nearby monitors did not answer.';
     $('nb').innerHTML = '';
     return;
   }
-  const peakRow = others.reduce((a, n) => (!a || n.pm02 > a.pm02 ? n : a), null);
-  const scale = Math.max(peakRow ? peakRow.pm02 : 0, you ? you.pm02 : 0, PM_FINE);
   // Speak only when the comparison changes a decision; otherwise stay silent.
-  const vals = others.map(n => n.pm02).sort((x, y) => x - y);
-  const median = vals.length ? vals[Math.floor(vals.length / 2)] : null;
-  const over = others.filter(n => pmOver(n.pm02, PM_FINE)).sort((x, y) => x.distance_km - y.distance_km);
-  let lead = '';
-  if (has(median) && pmOver(median, PM_FINE)) {
-    lead = `<b class="warn">The whole area is elevated</b> (typical nearby reading ${num(median)} µg/m³). That points to something regional, such as wildfire smoke, not a source near home.`;
-  } else if (you && has(median) && pmOver(you.pm02, PM_FINE) && you.pm02 > median * 2) {
-    lead = `<b class="warn">Your block reads well above the area</b> (${pmNum(you.pm02)} against a typical ${pmNum(median)}). That points to a source close to home: traffic, construction, or a neighbor's smoke.`;
-  } else if (over.length) {
-    const n0 = over[0];
-    lead = `<b class="warn">${over.length === 1 ? 'One nearby monitor is' : over.length + ' nearby monitors are'} over the ${PM_FINE} µg/m³ limit</b>: the nearest is ${esc(n0.locationName)}, ${pmNum(n0.distance_km)} km away.${you && you.pm02 <= PM_FINE ? ' Your block is still clean.' : ''}`;
-  }
+  const lead = nbLead(you, others, PM_FINE, SELF, { esc, pm: pmNum, num });
   $('nb-lead').innerHTML = lead;
   $('nb-lead').hidden = !lead;
   $('nb-sub').textContent = `${others.length} public AirGradient monitors within 15 km · PM2.5 µg/m³`;
-  const barMax = Math.max(55, Math.ceil(Math.max(...rows.map(n => n.pm02))));
+  const barMax = Math.max(55, Math.ceil(Math.max(...rows.map(nbPm))));
   const limPct = (PM_FINE / barMax * 100).toFixed(1);
   $('nb-max').textContent = barMax; $('nb-limpos').style.left = limPct + '%';
   $('nb-limpos').textContent = `${PM_FINE} limit`;
   $('nb-limpos').parentElement.parentElement.title = `PM2.5 scale in µg/m³; the tick marks the ${PM_FINE} limit`;
-  $('nb').innerHTML = rows.map(n => {
-    const isYou = n === you, tone = pmOver(n.pm02, PM_FINE) ? 'warn' : 'good';
-    const tTxt = has(n.atmp) ? fmtTemp(n.atmp, { tight: true }) : '—';
-    return `<tr class="${isYou ? 'you' : ''}" data-id="${n.locationId}"><td class="dot"><i></i></td><td class="dist">${isYou ? 'You' : num(n.distance_km) + ' km'}</td>` +
-      `<td class="loc" title="${esc(n.locationName)}">${esc(isYou ? APP.place.name : n.locationName)}</td>` +
-      `<td class="r pm ${tone}">${pmNum(n.pm02)}</td><td class="r">${tTxt}</td><td class="r">${has(n.rhum) ? Math.round(n.rhum) + '%' : '—'}</td>` +
-      `<td class="nbbar"><span style="--lim:${limPct}%"><i style="width:${Math.max(1.5, n.pm02 / barMax * 100).toFixed(1)}%" class="${tone}"></i></span></td></tr>`;
-  }).join('');
+  const fmt = { esc, pm: pmNum, num, temp: v => fmtTemp(v, { tight: true }), when: ts => lastReadingText(ts, readingsNow(), TZ) };
+  state.nb = { rows, you, scale: { limit: PM_FINE, high: PM_HIGH, barMax, limPct }, fmt };
+  if (!rows.some(n => n.locationId === state.nbOpen)) state.nbOpen = null;   // the open monitor stopped reporting
+  drawNbRows();
   if (!growBars.done) { growBars.done = true; growBars(); }   // once, when the table first fills
-  // the table shows the nearest 8 under the map; "Show all" opens the rest
-  const more = $('nb-more'), extra = rows.length - 8;
-  document.querySelector('.nb-card').classList.toggle('nb-all', !!state.nbAll);
-  more.hidden = extra <= 0;
-  more.innerHTML = state.nbAll ? 'Show the nearest 8 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>'
-    : `Show ${extra} more monitor${extra === 1 ? '' : 's'} <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
-  more.setAttribute('aria-expanded', String(!!state.nbAll));
-  [...$('nb').rows].forEach((tr, i) => { tr.classList.toggle('nb-extra', i >= 8); });
   // the map: same monitors, the road, and where the wind takes its exhaust
   const w = window.__wx || {}, road = APP.road;
   // what the map means for the block: toward comes from the server (/api/context road.toward); away is the arc opposite the road's
@@ -496,6 +486,19 @@ function renderNeighborhood() {
     : `${ex} passes beside your block, not over it.`) +
     ` <span class="nb-why">${esc(roadWhyText(road))}</span>` : '';
   if (typeof NBMAP !== 'undefined') NBMAP.update(you, others, has(w.wind_direction) ? w.wind_direction : null);
+}
+
+// The table's rows (the open one with its band), and the nearest 8 under the map with "Show all" for the rest.
+function drawNbRows() {
+  const { rows, you, scale, fmt } = state.nb;
+  $('nb').innerHTML = rows.map(n => nbRowHTML(n, n === you, SELF, APP.place.name, scale, fmt, n.locationId === state.nbOpen)).join('');
+  const more = $('nb-more'), extra = rows.length - 8;
+  document.querySelector('.nb-card').classList.toggle('nb-all', !!state.nbAll);
+  more.hidden = extra <= 0;
+  more.innerHTML = state.nbAll ? 'Show the nearest 8 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>'
+    : `Show ${extra} more monitor${extra === 1 ? '' : 's'} <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+  more.setAttribute('aria-expanded', String(!!state.nbAll));
+  [...$('nb').querySelectorAll('tr[data-id]')].forEach((tr, i) => { tr.classList.toggle('nb-extra', i >= 8); });   // an open row's band hides with it (app.css)
 }
 
 // ── Charts ────────────────────────────────────────────
@@ -578,7 +581,7 @@ function draw(id, a, b, times, range, spec) {
   }
   // legend, top right
   const over = limitNear && values.some(v => v > spec.limit), lx = over ? -112 : 0;
-  g += `<g class="ts-legend" transform="translate(${L + iw + R - 4},12)"><rect x="${-150 + lx}" y="-5" width="14" height="4" rx="2" class="ts-sw ts-in"/><text x="${-131 + lx}" y="0">Indoor</text>` +
+  g += `<g class="ts-legend" transform="translate(${L + iw + R - 4},12)">` + (NO_INDOOR ? '' : `<rect x="${-150 + lx}" y="-5" width="14" height="4" rx="2" class="ts-sw ts-in"/><text x="${-131 + lx}" y="0">Indoor</text>`) +
        `<rect x="${-76 + lx}" y="-5" width="14" height="4" rx="2" class="ts-sw ts-out"/><text x="${-57 + lx}" y="0">Outdoor</text>` +
        (over ? `<rect x="-100" y="-7" width="14" height="9" rx="2" class="ts-sw-over"/><text x="-81" y="0">Over the limit</text>` : '') + `</g>`;
   if (!limitNear) g += `<text class="ts-under" x="${L}" y="12">All under the limit of ${spec.limit.toLocaleString()}</text>`;
@@ -616,11 +619,16 @@ function draw(id, a, b, times, range, spec) {
 const hist = { week: null, at: 0, pending: null };
 const fetchHist = (from, to) => Promise.all([state.indoor, state.outdoor].map(m =>
   m ? getJSON(`/api/history/${m.locationId}?from=${from.toISOString()}&to=${to.toISOString()}`).catch(() => null) : Promise.resolve([])));
+// A public monitor's empty week isn't kept: the server answers [] when AirGradient's map is slow or down too, and a
+// kept one would hide History for 30 minutes. The next loadCharts asks again.
 function loadWeek() {   // once per visit, then at most every 30 minutes
   if (hist.pending) return hist.pending;
   if (hist.week && Date.now() - hist.at < 30 * 60e3) return Promise.resolve(hist.week);
   const to = readingsNow(), from = new Date(to - 168 * 3600e3);
-  hist.pending = fetchHist(from, to).then(([ih, oh]) => { if (!ih || !oh) throw new Error('history'); hist.week = { ih, oh, to }; hist.at = Date.now(); return hist.week; }).finally(() => { hist.pending = null; });
+  hist.pending = fetchHist(from, to).then(([ih, oh]) => {
+    if (!ih || !oh || (PUB && !oh.length)) throw new Error('history');
+    hist.week = { ih, oh, to }; hist.at = Date.now(); return hist.week;
+  }).finally(() => { hist.pending = null; });
   return hist.pending;
 }
 function chartsLoading(on) {
@@ -628,8 +636,17 @@ function chartsLoading(on) {
   document.querySelectorAll('#chart-pm, #chart-co2').forEach(svg => svg.closest('.card').classList.toggle('loading', on));
 }
 
+// A public monitor's history is all or nothing (AirGradient's map has it or doesn't): its charts, or one line.
+function showHistory(on) {
+  $('hist-none').hidden = on;
+  document.querySelector('.chart-bar').classList.toggle('none', !on);
+  $('hist-charts').hidden = !on;
+}
+
 async function loadCharts({ fresh = false, quiet = false } = {}) {
   const range = state.range;
+  // a public monitor's history is decided on the week (a quiet last hour isn't "no history"), fetched next to the range
+  const weekP = PUB && !hist.week ? loadWeek().catch(() => {}) : null;
   document.querySelectorAll('#ranges button').forEach(btn => {
     const on = btn.dataset.range === range;
     btn.classList.toggle('on', on); btn.setAttribute('aria-checked', String(on));
@@ -647,11 +664,15 @@ async function loadCharts({ fresh = false, quiet = false } = {}) {
     try { [ih, oh] = await fetchHist(from, to); } finally { if (range === state.range) chartsLoading(false); }
     loadWeek().catch(() => {});                     // the week for instant switching, once per visit
   }
+  if (weekP) await weekP;
   if (range !== state.range) return;                // a newer range was picked meanwhile
   if (!ih || !oh) {                                 // a fetch failed: keep what's drawn rather than blanking it
     if ($('chart-co2').childElementCount) return;
     ih = ih || []; oh = oh || [];
   }
+  const none = !!PUB && !oh.length && !(hist.week && hist.week.oh.length);
+  showHistory(!none);
+  if (none) return;
   const n = Math.min(96, Math.max(ih.length, oh.length, 2));
   const times = Array.from({ length: n }, (_, i) => new Date(+from + (i + 0.5) * (to - from) / n));
   const pm = row => pick(row, 'pm02_corrected', 'pm02');
@@ -706,7 +727,7 @@ function broadcastHover(t) {
       g.style.display = ''; g.querySelector('.ts-xh').setAttribute('x1', xx); g.querySelector('.ts-xh').setAttribute('x2', xx);
       for (const [cls, arr] of [['in', h.a], ['out', h.b]]) { const c = g.querySelector('.ts-hd.' + cls); if (has(arr[i])) { c.style.display = ''; c.setAttribute('cx', xx); c.setAttribute('cy', h.y(arr[i]).toFixed(1)); } else c.style.display = 'none'; }
       const f = v => has(v) ? h.spec.fmt(v) : '—';
-      h.note.textContent = `${atLabel(h.times[i])} · Indoor ${f(h.a[i])} · Outdoor ${f(h.b[i])} ${h.spec.unit}`;
+      h.note.textContent = `${atLabel(h.times[i])} · ${NO_INDOOR ? '' : `Indoor ${f(h.a[i])} · `}Outdoor ${f(h.b[i])} ${h.spec.unit}`;
     } else {
       const inRange = t != null && t >= h.t0 && t <= h.t1;
       if (!inRange) { h.mark.style.display = 'none'; h.readout.textContent = h.label; h.readout.classList.remove('over'); continue; }
@@ -1021,7 +1042,7 @@ function setTempUnit(u) {
   const changed = u !== tempPref;
   tempPref = u; syncTempSeg();
   if (!changed) return;
-  if (state.indoor || state.outdoor) $('monitors').innerHTML = monitorCard(state.indoor, true) + monitorCard(state.outdoor, false);
+  if (state.indoor || state.outdoor) $('monitors').innerHTML = monitorsHTML();
   if (state.ctx) renderContext(state.ctx);   // the weather card and the neighborhood table
   else if (state.neighbors.length) renderNeighborhood();
   if (typeof SKY !== 'undefined' && SKY) SKY.units();   // the weather line in the header
@@ -1067,10 +1088,10 @@ if ('serviceWorker' in navigator) {
 
 // The summary byline shows its sources as a small stack of the Home panel's icons: gray at rest, in color and fanned out on hover,
 // with a dot on any source that isn't answering, and a card listing each source with its live status.
-const SOURCES = [['AirGradient ONE', 'one', 'Your indoor monitor'], ['AirGradient Open Air', 'openair', 'Your outdoor monitor'],
+const SOURCES = [['AirGradient ONE', 'one', 'Your indoor monitor'], ['AirGradient Open Air', 'openair', PUB ? 'This monitor' : 'Your outdoor monitor'],
   ['Open-Meteo', 'wx', 'Weather · Open-Meteo'], ['Google Pollen', 'pollen', 'Pollen · Google'], ['NOAA HMS', 'smoke', 'Smoke · NOAA'],
   ...(APP.road ? [[`${APP.road.name} estimate`, 'bqe', `Traffic · ${APP.road.name} estimate`]] : [])]
-  .filter(([, id]) => sourcesOn(APP.sources, !!APP.road).includes(id));   // what the config turned off is not listed or counted
+  .filter(([, id]) => sourcesOn(APP.sources, !!APP.road, !NO_INDOOR).includes(id));   // what the config turned off is not listed or counted
 function renderSources() {
   const box = $('s-src'); if (!box) return;
   const rows = [...document.querySelectorAll('.blocks .pr')];

@@ -35,8 +35,8 @@ If the maintainer's private rules (`internal/AGENTS.local.md`) list services, up
 - `summary.py`: the rules that pick the actions, the needs and the day chart's data. No network.
 - `phrases.py`: the sentences behind each explanation, filled from the readings and the limits.
 - `config.py`: reads `config.toml` (or the `CONFIG_TOML` or `CONFIG_FILE` variable) and checks it. `config.example.toml` is the commented starter.
-- `index.html` and `static/`: the page, with no build step. `app.js` (data, readings, charts), `summary.js` (the summary card), `home.js` (the home's needs and road in words), `sky.js` (the live sky), `map.js` (the neighborhood map).
-- `demo/`: the demo's home (`config.toml`), its made-up data (`data.py`) and its three moments (`moments.py`).
+- `index.html` and `static/`: the page, with no build step. `app.js` (data, readings, charts), `summary.js` (the summary card), `home.js` (the home's needs and road in words), `sky.js` (the live sky), `map.js` (the neighborhood map), `picker.js` (the demo's banner and its monitor picker).
+- `demo/`: the demo's home (`config.toml`), its made-up data (`data.py`), its three moments (`moments.py`) and the public monitors' pages at `?monitor=<id>` (`public.py`).
 - `scripts/`: `check_config.py`, `screenshot.sh` (the README's images, from the demo), `vercel_build.sh` (the demo's build on Vercel).
 - `Dockerfile`, `docker-compose.yml` and `.dockerignore`: the container (DEPLOYMENT.md, "Docker"). `.github/workflows/image.yml` publishes the image to `ghcr.io/sguyon/home-air-quality` from `main`.
 - `tests/`: Python tests (pytest) and page tests (`*.test.mjs`, Node's test runner).

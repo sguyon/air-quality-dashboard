@@ -19,7 +19,8 @@ import requests
 
 import phrases
 import summary as summary_rules
-from config import APPLIANCES, DEFAULT_LIMITS, ConfigError, bearing_in, env_key, load_config, public_view, real_value, route_path
+from config import (APPLIANCES, DEFAULT_LIMITS, ConfigError, Here, airgradient_map, bearing_in, env_key, load_config, public_view,
+                    real_value, route_path)
 
 # One shared pool for short-lived upstream calls (weather / smoke / pollen).
 _UPSTREAM_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="upstream")
@@ -148,6 +149,7 @@ app = Flask(__name__)
 API_BASE = "https://api.airgradient.com/public/api/v1"   # AirGradient's public API: the monitors and the world map
 TOKEN = env_key("AIRGRADIENT_TOKEN")   # .env.example's placeholder counts as no token
 NEARBY_RADIUS_KM = 15   # km: public monitors closer than this show as Nearby monitors (the source note says 15 km)
+MAP_LINK_DECIMALS = 4   # a neighbor's link on AirGradient's map: its coordinates to about 10 m (the list gives 14 digits)
 
 
 def use_config(cfg):
@@ -220,9 +222,20 @@ use_config(boot_config())
 MODE = server_mode(CFG, TOKEN)   # "demo", "live" or "no_token", fixed at start
 
 
-def local_now():
-    """The clock at home. Railway runs in UTC, so a bare datetime.now() gives the wrong hour there."""
-    return datetime.now(HOME_TZ) if HOME_TZ else datetime.now(timezone.utc)
+def home_here():
+    """The configured home as a Here (key "home": its cache keys stay the ones they always were)."""
+    return Here("home", HOME_LAT, HOME_LON, CFG.place.timezone if CFG and CFG.place else None)
+
+
+def _cache_key(base, here):
+    """The home keeps its plain cache key; any other place adds its own."""
+    return base if here.key == "home" else f"{base}:{here.key}"
+
+
+def local_now(here=None):
+    """The clock at home, or at another place. Railway runs in UTC, so a bare datetime.now() gives the wrong hour there."""
+    tz = ZoneInfo(here.tz) if here is not None and here.tz else HOME_TZ
+    return datetime.now(tz) if tz else datetime.now(timezone.utc)
 
 
 def get_build_info():
@@ -262,19 +275,19 @@ def api_get(path, params=None):
         raise RuntimeError(f"AirGradient API unreachable ({type(e).__name__})") from None
 
 
-def _fetch_weather():
+def _fetch_weather(here):
     r = requests.get(
         "https://api.open-meteo.com/v1/forecast",
         params={
-            "latitude": HOME_LAT,
-            "longitude": HOME_LON,
+            "latitude": here.lat,
+            "longitude": here.lon,
             "current": "temperature_2m,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,visibility,uv_index,cloud_cover",
             "hourly": "wind_direction_10m,wind_speed_10m,precipitation_probability,precipitation,weather_code,temperature_2m,dew_point_2m,uv_index",
             "forecast_hours": 24,
             "past_hours": 4,   # the summary chart starts before now
             "daily": "sunrise,sunset",
             "forecast_days": 2,
-            "timezone": CFG.place.timezone
+            "timezone": here.tz
         },
         timeout=10
     )
@@ -285,25 +298,31 @@ def _fetch_weather():
     return data
 
 
-def get_open_meteo_data(lat=None, lon=None):
-    """Weather from Open-Meteo (free, no key). Their current data moves on a 15-minute grid."""
+def get_open_meteo_data(here=None):
+    """Weather from Open-Meteo (free, no key) at a place (the home by default). Their current data moves on a 15-minute grid."""
+    here = here or home_here()
     try:
-        value, info = cached("wx", _fetch_weather, ttl=600, swr=3600, keep=3 * 3600, force=_force(), force_floor=300)
+        value, info = cached(_cache_key("wx", here), lambda: _fetch_weather(here), ttl=600, swr=3600, keep=3 * 3600, force=_force(), force_floor=300)
         return value
     except Exception:
-        return {
-            "current": {"wind_speed_10m": None, "wind_direction_10m": None, "visibility": None, "uv_index": None, "dew_point_2m": None},
-            "hourly": {"wind_direction_10m": [], "wind_speed_10m": []}
-        }
+        return no_weather()
 
 
-def _fetch_air_forecast():
+def no_weather():
+    """The weather's answer when Open-Meteo can't be reached: every reading None."""
+    return {
+        "current": {"wind_speed_10m": None, "wind_direction_10m": None, "visibility": None, "uv_index": None, "dew_point_2m": None},
+        "hourly": {"wind_direction_10m": [], "wind_speed_10m": []}
+    }
+
+
+def _fetch_air_forecast(here):
     """Outdoor PM2.5 for the next 24 hours from Open-Meteo's air-quality model (CAMS, free, no key)."""
     r = requests.get(
         "https://air-quality-api.open-meteo.com/v1/air-quality",
-        params={"latitude": HOME_LAT, "longitude": HOME_LON, "hourly": "pm2_5",
+        params={"latitude": here.lat, "longitude": here.lon, "hourly": "pm2_5",
                 "forecast_hours": 24, "past_hours": 24,   # the past day calibrates the forecast to the backyard monitor
-                "timezone": CFG.place.timezone},
+                "timezone": here.tz},
         timeout=10
     )
     r.raise_for_status()
@@ -314,11 +333,12 @@ def _fetch_air_forecast():
     return dict(zip(times, vals))
 
 
-def get_air_forecast():
+def get_air_forecast(here=None):
     """{"2026-11-07T18:00": pm2.5, ...}; empty when the model can't be reached. A model, so it can sit above or
     below the monitor: the page reacts to how it changes, not just its level."""
+    here = here or home_here()
     try:
-        value, _ = cached("aq", _fetch_air_forecast, ttl=1800, swr=3600, keep=6 * 3600, force=_force(), force_floor=300)
+        value, _ = cached(_cache_key("aq", here), lambda: _fetch_air_forecast(here), ttl=1800, swr=3600, keep=6 * 3600, force=_force(), force_floor=300)
         return value
     except Exception:
         return {}
@@ -340,20 +360,32 @@ def _point_in_ring(lon, lat, ring):
     return inside
 
 
-def smoke_status():
-    """Whether NOAA HMS mapped wildfire smoke over home, from today's file (or yesterday's until today's is posted).
+def smoke_status(here=None):
+    """Whether NOAA HMS mapped wildfire smoke over a place (the home by default), from today's file (or yesterday's until today's is posted).
 
     Returns {"checked": bool, "detected": bool, "density": "Light"|"Medium"|"Heavy"|None, "date": "YYYY-MM-DD"|None}.
+    The day's polygons are one file for all of North America, so they're cached once ("smoke") and each place is
+    tested against them here, in the caller's thread.
     """
+    here = here or home_here()
     try:
         value, _ = cached("smoke", _fetch_smoke, ttl=1800, swr=6 * 3600, keep=24 * 3600, force=_force(), force_floor=600)
-        return value
+        return smoke_at(value, here)
     except Exception:
-        return {"checked": False, "detected": False, "density": None, "date": None}
+        return no_smoke()
+
+
+def no_smoke():
+    """The smoke answer when NOAA wasn't checked."""
+    return {"checked": False, "detected": False, "density": None, "date": None}
+
+
+SMOKE_RANK = {"Light": 1, "Medium": 2, "Heavy": 3}   # NOAA HMS densities, lightest first: a place gets its densest
 
 
 def _fetch_smoke():
-    """Today's NOAA HMS file, or yesterday's until today's is posted. Raises when neither loads."""
+    """Today's NOAA HMS file, or yesterday's until today's is posted, parsed: {"date", "polygons": [(density, ring)]}
+    with each ring a list of (lon, lat). Raises when neither loads."""
     now = datetime.now(timezone.utc)
     for back in (0, 1):
         day = now - timedelta(days=back)
@@ -364,8 +396,7 @@ def _fetch_smoke():
             continue
         if r.status_code != 200 or "<Placemark>" not in r.text:
             continue
-        rank = {"Light": 1, "Medium": 2, "Heavy": 3}
-        best = None
+        polygons = []
         for mark in re.findall(r"<Placemark>(.*?)</Placemark>", r.text, re.S):
             dens = re.search(r"Density:\s*(Light|Medium|Heavy)", mark)
             for coords in re.findall(r"<coordinates>(.*?)</coordinates>", mark, re.S):
@@ -374,12 +405,19 @@ def _fetch_smoke():
                     parts = triple.split(",")
                     if len(parts) >= 2:
                         ring.append((float(parts[0]), float(parts[1])))
-                if len(ring) > 2 and _point_in_ring(HOME_LON, HOME_LAT, ring):
-                    d = dens.group(1) if dens else "Light"
-                    if best is None or rank[d] > rank[best]:
-                        best = d
-        return {"checked": True, "detected": best is not None, "density": best, "date": day.strftime("%Y-%m-%d")}
+                if len(ring) > 2:
+                    polygons.append((dens.group(1) if dens else "Light", ring))
+        return {"date": day.strftime("%Y-%m-%d"), "polygons": polygons}
     raise RuntimeError("No NOAA HMS smoke file for today or yesterday")
+
+
+def smoke_at(hms, here):
+    """The smoke answer at a place from the day's parsed polygons (_fetch_smoke): the densest one over it."""
+    best = None
+    for dens, ring in hms["polygons"]:
+        if (best is None or SMOKE_RANK[dens] > SMOKE_RANK[best]) and _point_in_ring(here.lon, here.lat, ring):
+            best = dens
+    return {"checked": True, "detected": best is not None, "density": best, "date": hms["date"]}
 
 
 def get_smoke_data():
@@ -497,9 +535,18 @@ def api_headers(resp):
             resp.headers["X-Cache"] = g.cache_state
             resp.headers["X-Data-Age"] = str(g.cache_age)
     if MODE == "demo" and request.method == "GET" and resp.status_code == 200 and (request.path == "/" or request.path.startswith("/api/")):
-        # the demo's story is fixed: a CDN keeps each URL (each ?moment=) for a day, so a busy day barely runs the server
-        resp.headers["Cache-Control"] = "public, max-age=300, s-maxage=86400"
-    if not (CFG is not None and CFG.demo):   # only the demo is for search engines; someone's home is not
+        if request_monitor() is not None or request.path == "/api/monitors":
+            # a public monitor is live: a CDN keeps it as long as its data stays fresh in the cache (demo/public.py)
+            resp.headers["Cache-Control"] = "public, max-age=60, s-maxage=300"
+        else:
+            # the demo's story is fixed: a CDN keeps each URL (each ?moment=) for a day, so a busy day barely runs the server
+            resp.headers["Cache-Control"] = "public, max-age=300, s-maxage=86400"
+    if MODE == "demo" and monitor_missing():
+        # a public monitor that can't be shown (unknown id, or the map didn't answer): no one keeps this answer
+        resp.headers["Cache-Control"] = "no-store"
+    # only the demo is for search engines; someone's home is not, nor a public monitor's page or the picker's list
+    # (they carry the owners' names)
+    if not (CFG is not None and CFG.demo) or "monitor" in request.args or request.path == "/api/monitors":
         resp.headers["X-Robots-Tag"] = "noindex"
     return resp
 
@@ -557,6 +604,11 @@ def index():
     return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
+def page_view():
+    """window.APP's config part: the home's (config.public_view). demo/data.py gives a public monitor's instead."""
+    return APP_VIEW
+
+
 def page_clock():
     """The demo's fixed clock for the page (window.APP.now: the moment's time, its key, the moments to switch to),
     or None: a real home runs on the real clock. demo/data.py replaces it."""
@@ -567,7 +619,7 @@ def inject_app(html):
     """The home's config for the page's scripts (config.public_view), as window.APP before the first of them.
     Every "<" is escaped (\\u003c, still the same JSON) so no config value can close the script or open a comment."""
     now = page_clock()
-    data = json.dumps({**APP_VIEW, "env": icon_env(), **({"now": now} if now else {}), **({"state": "no_token"} if MODE == "no_token" else {})}, ensure_ascii=False).replace("<", "\\u003c")
+    data = json.dumps({**page_view(), "env": icon_env(), **({"now": now} if now else {}), **({"state": "no_token"} if MODE == "no_token" else {})}, ensure_ascii=False).replace("<", "\\u003c")
     return html.replace("<script src=", f"<script>window.APP = {data};</script>\n<script src=", 1)
 
 
@@ -683,19 +735,37 @@ def history(location_id):
     return jsonify([{k: r.get(k) for k in chart_keep if r.get(k) is not None} for r in rows or [] if isinstance(r, dict)])
 
 
-def _fetch_nearby():
+def _fetch_world():
+    """Every public AirGradient monitor in the world, as the API lists them. Cached by the caller, in the request
+    thread: a fetch that cached() runs in the pool must never call cached() itself (it would wait on its own pool)."""
     r = requests.get(f"{API_BASE}/world/locations/measures/current", timeout=15)
     r.raise_for_status()
+    return r.json()
+
+
+def _fetch_nearby(world, here=None):
+    """The monitors of the world list within NEARBY_RADIUS_KM of a place (the home by default), nearest first.
+    A plain filter: no cache, no network. Each gets its distance, its link on AirGradient's map and, when it has the
+    humidity to correct with, pm02_corrected: the world list gives the raw pm02, and the page compares neighbors with
+    a home's own monitors on the corrected basis (summary.corrected_pm). The raw pm02 stays as it came."""
+    here = here or home_here()
     nearby = []
-    for loc in r.json():
+    for loc in world:
         lat, lon = loc.get("latitude"), loc.get("longitude")
         if lat and lon:
-            d = haversine_km(HOME_LAT, HOME_LON, lat, lon)
+            d = haversine_km(here.lat, here.lon, lat, lon)
             if d < NEARBY_RADIUS_KM:
-                loc["distance_km"] = round(d, 1)
-                nearby.append(loc)
+                pm = summary_rules.corrected_pm(loc.get("pm02"), loc.get("rhum"))
+                link = airgradient_map(round(lat, MAP_LINK_DECIMALS), round(lon, MAP_LINK_DECIMALS))
+                nearby.append({**loc, "distance_km": round(d, 1), "map_url": link,   # a copy: the cached list stays as it came
+                               **({"pm02_corrected": pm} if pm is not None else {})})
     nearby.sort(key=lambda x: x["distance_km"])
     return nearby
+
+
+# The world list's cache (s): fresh 2 min (as the neighborhood always was), then served stale up to 15 min while it
+# refreshes, kept 1 h when AirGradient fails; a request waits up to 20 s for it (it's ~1.5 MB).
+WORLD_CACHE = {"ttl": 120, "swr": 900, "keep": 3600, "wait": 20}
 
 
 @app.route("/api/neighborhood")
@@ -703,7 +773,8 @@ def neighborhood():
     if not source_on("nearby"):
         return jsonify([])
     try:
-        value, info = cached("ag:nearby", _fetch_nearby, ttl=120, swr=900, keep=3600, force=_force(), wait=20)
+        world, info = cached("ag:world", _fetch_world, force=_force(), **WORLD_CACHE)
+        value = _fetch_nearby(world)
     except Exception as e:
         return jsonify({"error": f"Neighborhood data unavailable: {e}"}), 502
     _note_cache(info)
@@ -755,7 +826,7 @@ VISIBILITY_VERY_LOW_M, VISIBILITY_REDUCED_M, VISIBILITY_MODERATE_M = 2000, 5000,
 def context():
     """Return external data sources (weather, pollen, the road, smoke) as structured JSON."""
     # Fetch independents in parallel; pollen has its own hard deadline inside get_pollen_data.
-    weather_fut = _CONTEXT_POOL.submit(get_open_meteo_data, HOME_LAT, HOME_LON)
+    weather_fut = _CONTEXT_POOL.submit(get_open_meteo_data)
     smoke_fut = _CONTEXT_POOL.submit(smoke_status) if source_on("smoke") else None
     pollen_fut = _CONTEXT_POOL.submit(get_pollen_days) if pollen_live() else None
     air_fut = _CONTEXT_POOL.submit(get_air_forecast)
@@ -764,7 +835,7 @@ def context():
         weather = weather_fut.result(timeout=12)
     except Exception:
         weather = {"current": {}}
-    smoke = {"checked": False, "detected": False, "density": None, "date": None}
+    smoke = no_smoke()
     pollen_days = {"today": [], "tomorrow": []}
     if smoke_fut:
         try:
@@ -819,10 +890,11 @@ def context():
     # the road's traffic, and whether the wind blows its exhaust here
     current_hour = local_now().hour
     road = road_traffic(current_hour, wind_direction)
-    if ROAD:   # "bqe" is the shape the page reads today; "road" carries the flag (the page moves to it later)
+    road_cfg = active_road()
+    if road_cfg:   # "bqe" is the shape the page reads today; "road" carries the flag (the page moves to it later)
         extra = {"bqe": {"traffic": road["traffic"], "wind_impact": road["wind_impact"],
                          "pollution_pressure": road["pollution_pressure"], "current_hour": current_hour},
-                 "road": {"name": ROAD.name, "toward": road["toward"]}}
+                 "road": {"name": road_cfg.name, "toward": road["toward"]}}
     else:
         extra = {}
 
@@ -831,7 +903,7 @@ def context():
     status = {
         "pollen": ("ok" if pollen else "error") if pollen_s == "ok" else pollen_s,
         "smoke": ("ok" if smoke.get("checked") else "error") if source_on("smoke") else "off",
-        "road": "ok" if ROAD else "off",
+        "road": "ok" if road_cfg else "off",
         "nearby": "ok" if source_on("nearby") else "off",
     }
 
@@ -864,6 +936,11 @@ def context():
 TRAFFIC_WEIGHT = {"first_rush": 1.5, "rush": 1.4, "shoulder": 1.2, "low": 0.7}
 # Wind: blowing the exhaust toward home, away from it, across, or no direction known.
 WIND_WEIGHT = {"toward": 1.3, "away": 0.5, "cross": 1.0, "unknown": 1.0}
+
+
+def active_road():
+    """The road /api/context reports: the home's, or None. demo/data.py turns it off for a public monitor."""
+    return ROAD
 
 
 def road_traffic(hour, wind_direction):
@@ -925,6 +1002,7 @@ CO2_VERY_HIGH = 1500   # ppm: over it, airing the room is urgent ("bad" tone), n
 RUN_NIGHT = (21, 5)    # hours [from, to): the run verdict speaks of tonight and the early morning
 SLEEP_HOURS = (17, 7)  # hours [from, to): the toddler's line is about the air before sleep
 MOISTURE_MARGIN_C = 1  # °C: outside air adds moisture when its dew point is this much above the room's
+STALE_OUTDOOR = timedelta(hours=2)   # an outdoor reading older than this counts as no reading now (a monitor gone quiet)
 
 
 def fnum(value):
@@ -954,14 +1032,20 @@ def dew_point_c(temp_c, rh):
     return b * g / (a - g)
 
 
+def rush_hours():
+    """The rush windows of the road in use (active_road()): the home's, or none without a road (a public monitor)."""
+    return RUSH_WINDOWS if active_road() else []
+
+
 def rush_state(hour):
-    if not RUSH_WINDOWS:   # no road
+    windows = rush_hours()
+    if not windows:   # no road
         return {"in_rush": False, "name": None, "start": None, "end": None, "tomorrow": True}
-    for start, end, name in RUSH_WINDOWS:
+    for start, end, name in windows:
         if start <= hour < end:
             return {"in_rush": True, "name": name, "start": start, "end": end}
-    later = [w for w in RUSH_WINDOWS if w[0] > hour]
-    start, end, name = later[0] if later else RUSH_WINDOWS[0]
+    later = [w for w in windows if w[0] > hour]
+    start, end, name = later[0] if later else windows[0]
     return {"in_rush": False, "name": name, "start": start, "end": end, "tomorrow": not later}
 
 
@@ -984,8 +1068,9 @@ def rule_run(outdoor_pm, smoke, rush, wind_toward, hour):
         return verdict(f"After {fmt_hour(rush['end'])}", "warn",
                        f"{base} The {ROAD.name} {rush['name']} rush runs until {fmt_hour(rush['end'])} with the wind toward {CFG.place.name}, so run after that.")
     if hour >= RUN_NIGHT[0] or hour < RUN_NIGHT[1]:
-        return verdict("Fine", "good", f"{base} Tonight is fine, and so is the morning before the {fmt_hour(RUSH_WINDOWS[0][0])} rush."
-                       if RUSH_WINDOWS else f"{base} Tonight is fine.")
+        windows = rush_hours()
+        return verdict("Fine", "good", f"{base} Tonight is fine, and so is the morning before the {fmt_hour(windows[0][0])} rush."
+                       if windows else f"{base} Tonight is fine.")
     if not rush["in_rush"] and not rush.get("tomorrow") and wind_toward:
         return verdict(f"Fine until {fmt_hour(rush['start'])}", "good",
                        f"{base} Fine for a run, and for the toddler outside, until {fmt_hour(rush['start'])}. Then the {ROAD.name} rush starts, with the wind toward {CFG.place.name}.")
@@ -1088,15 +1173,23 @@ def _local(ts, tz):
 
 
 def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now):
-    """Gather what summary.build_summary needs from the caches the page already fills."""
+    """Gather what summary.build_summary needs from the caches the page already fills. For a public monitor without
+    history (AirGradient's public map has none for it, or didn't answer), the chart's past PM2.5 is the model's."""
     tz = now.tzinfo
-    weather = get_open_meteo_data(HOME_LAT, HOME_LON)
+    weather = get_open_meteo_data()
     hw, daily = weather.get("hourly") or {}, weather.get("daily") or {}
     col = lambda name, k: (hw.get(name) or [None] * (k + 1))[k] if k < len(hw.get(name) or []) else None
     hourly = [{"t": _local(t, tz), "temp": col("temperature_2m", k), "pop": col("precipitation_probability", k),
                "mm": col("precipitation", k), "uv": col("uv_index", k), "wind_dir": col("wind_direction_10m", k)}
               for k, t in enumerate(hw.get("time") or [])]
     cams = sorted((_local(t, tz), v) for t, v in (get_air_forecast() or {}).items())
+    pm_past = [(t, pm_of(x)) for t, x in pts_out]
+    model_past = [(t, v) for t, v in cams if t <= now and v is not None]
+    # a public monitor only (outdoor_row): a home without history (AirGradient failed) keeps an empty past
+    pm_past_model = outdoor_row() is not None and not pm_past and bool(model_past)
+    if pm_past_model:
+        pm_past = model_past
+    road = active_road()
     sun = [{"t": _local(t, tz), "kind": kind} for key, kind in (("sunrise", "Sunrise"), ("sunset", "Sunset"))
            for t in daily.get(key) or [] if t]
     days = get_pollen_days() if pollen_live() else {"today": [], "tomorrow": []}
@@ -1104,19 +1197,43 @@ def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_ou
     return {"r": {"co2": co2, "rh": rh, "rh_out": rh_out, "t_in": t_in, "t_out": t_out, "pm_now": pm_out},
             "cams": cams, "hourly": hourly,
             "co2_pts": [(t, co2_of(x)) for t, x in pts_in], "rh_pts": [(t, rh_in_of(x)) for t, x in pts_in],
-            "pm_past": [(t, pm_of(x)) for t, x in pts_out], "smoke": get_smoke_data() if source_on("smoke") else False,
+            "pm_past": pm_past, "smoke": get_smoke_data() if source_on("smoke") else False,
             "pollen_today": top(days.get("today")), "pollen_tomorrow": top(days.get("tomorrow")),
-            "rush": rush_windows(hourly, now), "road": ROAD.name if ROAD else None, "sun": sun, "now": now}
+            "rush": rush_windows(hourly, now), "road": road.name if road else None, "sun": sun, "now": now,
+            # whose reading the PM2.5 forecast is fitted to, in its sentence: a public monitor is "this monitor"
+            "monitor_label": "this monitor" if outdoor_row() is not None else f"your {phrases.LIMIT_FACTS['outdoor']} monitor",
+            **({"pm_past_model": True} if pm_past_model else {})}
 
 
 def rush_windows(hourly, now):
     """Today's and tomorrow's rush windows of the road, each with whether the forecast wind blows its exhaust here."""
-    return summary_rules.rush_windows(hourly, now, RUSH_WINDOWS, ROAD.toward) if ROAD else []
+    road = active_road()
+    return summary_rules.rush_windows(hourly, now, rush_hours(), road.toward) if road else []
 
 
 def needs_on(needs):
-    """Only the needs this home's config turns on."""
-    return [n for n in needs if CFG.needs.get(n["id"], True)]
+    """Only the needs the page's view turns on: the home's config, or a public monitor's (runner only, demo/data.py)."""
+    on = page_view().get("needs") or {}
+    return [n for n in needs if on.get(n["id"], True)]
+
+
+def outdoor_row():
+    """The outdoor monitor's latest row as AirGradient lists it (timestamp, offline), when the server holds it: None
+    for a home, whose page posts its reading. demo/data.py gives a public monitor's."""
+    return None
+
+
+def outdoor_current(row, now):
+    """Whether the outdoor reading counts as a reading now: no row to judge by, or online and under STALE_OUTDOOR old."""
+    if row is None:
+        return True
+    if row.get("offline"):
+        return False
+    try:
+        ts = datetime.fromisoformat(str(row.get("timestamp")).replace("Z", "+00:00"))
+        return ts.tzinfo is not None and now - ts <= STALE_OUTDOOR
+    except ValueError:
+        return False
 
 
 def safe_summary(inputs):
@@ -1138,8 +1255,10 @@ def build_air_read(payload):
     pm_out = fnum(payload.get("outdoor_pm25"))
     rh_out = fnum(payload.get("outdoor_humidity"))
     t_out = fnum(payload.get("outdoor_temp_c"))
+    if not outdoor_current(outdoor_row(), now):   # offline or stale: the model speaks for PM2.5 now, not an old reading
+        pm_out = rh_out = t_out = None
 
-    weather = get_open_meteo_data(HOME_LAT, HOME_LON).get("current", {})
+    weather = get_open_meteo_data().get("current", {})
     wind_direction = weather.get("wind_direction_10m")
     wind_toward = road_traffic(now.hour, wind_direction)["toward"]
     smoke = get_smoke_data() if source_on("smoke") else False
@@ -1189,8 +1308,9 @@ def build_air_read(payload):
         run_item = {"key": "run", "tone": "good", "text": "Run before " + w[11:], "why": f"The air outside is clean; the {w[11:]} rush blows this way."}
     elif w == "Fine":
         night = now.hour >= RUN_NIGHT[0] or now.hour < RUN_NIGHT[1]
-        run_item = {"key": "run", "tone": "good", "text": f"Run tonight or before {fmt_hour(RUSH_WINDOWS[0][0])}" if night and RUSH_WINDOWS else "Fine to run",
-                    "why": "The air outside is clean" + (f"; the {fmt_hour(RUSH_WINDOWS[0][0])} rush blows this way." if night and wind_toward and RUSH_WINDOWS else ".")}
+        windows = rush_hours()
+        run_item = {"key": "run", "tone": "good", "text": f"Run tonight or before {fmt_hour(windows[0][0])}" if night and windows else "Fine to run",
+                    "why": "The air outside is clean" + (f"; the {fmt_hour(windows[0][0])} rush blows this way." if night and wind_toward and windows else ".")}
     top_pollen = max(pollen, key=lambda q: q.get("index") or 0) if pollen else None
     if top_pollen and (top_pollen.get("index") or 0) >= LIMITS["pollen"]:
         actions.append({"key": "pollen", "tone": "warn", "text": "Limit time outside", "why": f"{top_pollen['name']} pollen is {top_pollen['index']} of 5."})
@@ -1232,12 +1352,57 @@ def analyze():
 
 
 def request_moment():
-    """The demo moment this request asked for (?moment=), or the default one."""
+    """The demo moment this request asked for (?sample=1|2|3 or ?moment=<key>), or the default one."""
     from demo.moments import moment_for
     try:
-        return moment_for(request.args.get("moment"))
+        return moment_for(request.args.get("moment"), request.args.get("sample"))
     except RuntimeError:   # outside a request
         return moment_for(None)
+
+
+def monitor_missing():
+    """True when this request asked for a public monitor that can't be shown. Demo only: demo/data.py answers it."""
+    return False
+
+
+# digits: the longest ?monitor= read as an id (AirGradient's are 5-6 digits today); a longer one is junk, and past
+# about 4,300 digits Python's int() raises instead of reading it
+MONITOR_ID_MAX_DIGITS = 12
+
+
+def request_monitor():
+    """The public monitor this request asked for (?monitor=, a positive whole number), or None."""
+    try:
+        raw = request.args.get("monitor", "")
+    except RuntimeError:   # outside a request
+        return None
+    ok = raw.isascii() and raw.isdigit() and len(raw) <= MONITOR_ID_MAX_DIGITS
+    return int(raw) if ok and int(raw) > 0 else None
+
+
+@app.route("/api/monitors")
+def monitors():
+    """The demo's monitor picker: the public outdoor monitors nearest ?lat=&lon= (rounded again to 2 decimals, about
+    1 km), or nearest New York without them. Demo only."""
+    if MODE != "demo":
+        return jsonify({"error": "not found"}), 404
+    from demo import public
+    lat, lon = request.args.get("lat"), request.args.get("lon")
+    if lat is None and lon is None:
+        near, lat, lon = public.DEFAULT_LIST
+    else:
+        try:
+            lat, lon = round(float(lat), 2), round(float(lon), 2)
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({"error": "lat and lon must be a place's coordinates"}), 400
+        near = "you"
+    try:
+        world = demo_data.world_list()
+    except demo_data.WORLD_ERRORS:
+        return jsonify({"error": public.WORLD_DOWN}), 502
+    return jsonify({"near": near, "monitors": public.nearest(world, lat, lon)})
 
 
 if MODE == "demo":   # every outside source becomes made-up data, generated per request (demo/data.py)

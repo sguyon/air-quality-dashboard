@@ -537,3 +537,34 @@ def test_airing_mentions_the_ac_only_when_there_is_one(monkeypatch):
     monkeypatch.setattr(summary_mod, "APPLIANCES", set())
     rh = next(i for i in busy(r=dry_out, cams=[(at(h), 3) for h in range(15, 27)])["items"] if i["id"] == "rh")
     assert "dry mode" not in rh["why"]
+
+
+# ── A public monitor: no history, so the chart's past PM2.5 is the model's ──
+
+def test_model_past_when_no_history():
+    cams = [(at(h), v) for h, v in zip(range(10, 27), [5, 5, 6, 6, 7, 8, 9, 18, 23, 25, 16, 8, 5, 4, 4, 4, 4])]
+    model_past = [(t, v) for t, v in cams if t <= at(15, 40)]
+    s = busy(r={"pm_now": 4}, cams=cams, co2_pts=[], rh_pts=[], pm_past=model_past, pm_past_model=True, rush=[], road=None)
+    pm = s["timeline"]["pm"]
+    assert pm["source"] == "model"
+    assert pm["past"][0][0] < iso(at(15, 40)) and pm["past"] == [[iso(at(h)), float(v)] for h, v in zip(range(12, 16), [6, 6, 7, 8])]
+    # the model's past isn't the monitor's: the forecast starts from the reading now (anchored), not calibrated to itself
+    anchored = busy(r={"pm_now": 4}, cams=cams, co2_pts=[], rh_pts=[], pm_past=[], rush=[], road=None)
+    assert pm["fc"] == anchored["timeline"]["pm"]["fc"] and s["items"] == anchored["items"]
+    assert "source" not in anchored["timeline"]["pm"] and "source" not in busy()["timeline"]["pm"]   # measured: no key
+    assert timeline(at(15, 40), [], [], model_past, [], [], [], False, pm_past_model=True)["pm"]["source"] == "model"
+
+
+def test_pm_timing_says_how_the_forecast_was_fitted():
+    """The PM2.5 item's last sentence says what was done: scaled by a day of the monitor's readings, or started from
+    its reading now when there's too little history to scale by (busy()'s model starts at 3 PM: one past hour)."""
+    pm = busy(monitor_label="your yard monitor")["items"][0]
+    assert pm["why"].endswith("The forecast is Open-Meteo’s prediction for the wider area, started from your yard monitor’s reading now.")
+    assert "scaled" not in pm["why"] and "monitor_label" not in pm["facts"] and "forecast_fit" not in pm["facts"]
+    # a day of the model and of the monitor: scaled, and the sentence says so
+    day = [(at(15) + timedelta(hours=h), 8.0 if h <= 0 else 30.0) for h in range(-24, 12)]
+    pm = busy(cams=day, pm_past=pts(at(15) - timedelta(hours=24), at(15, 40), 8), monitor_label="your yard monitor")["items"][0]
+    assert pm["why"].endswith("scaled to what your yard monitor measured over the last day.")
+    # no reading now and no history: the raw model, and no sentence about fitting it
+    pm = busy(r={**BUSY_R, "pm_now": None}, pm_past=[])["items"][0]
+    assert "The forecast is" not in pm["why"]

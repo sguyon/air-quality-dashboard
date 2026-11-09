@@ -318,7 +318,7 @@
       "num": "25",
       "score": 1.6666666666666667,
       "unit": "µg/m³",
-      "why": "Fine particles reach deep into the lungs. The line is 15, WHO’s guideline for a 24-hour average, used here for any hour. The southeast wind carries BQE rush-hour fumes onto the block. The forecast comes from the Copernicus model via Open-Meteo, adjusted to your backyard monitor."
+      "why": "Fine particles reach deep into the lungs. The line is 15, WHO’s guideline for a 24-hour average, used here for any hour. The southeast wind carries BQE rush-hour fumes onto the block. The forecast is Open-Meteo’s prediction for the wider area, scaled to what your backyard monitor measured over the last day."
      },
      {
       "action": {

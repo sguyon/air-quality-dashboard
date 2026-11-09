@@ -16,10 +16,14 @@ import re
 from concurrent.futures import Future
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
+from time import monotonic
+
+import requests
 
 from config import route_path
 
-from .moments import MOMENTS, TZ, moment_for
+from . import public
+from .moments import MOMENTS, SAMPLES, TZ, moment_for
 
 STEP = timedelta(minutes=5)
 WEEK = timedelta(days=7)
@@ -38,6 +42,9 @@ NEARBY = (
 )
 
 _HOME = {}   # the demo config's place and road, set by install()
+# how far past a History range a request's start may reach and still get that range: the route builds from = now − h,
+# then the range is picked a moment later (a slow request, a page's clock a little off)
+RANGE_SLACK = timedelta(minutes=2)
 
 
 # ── curves ──
@@ -345,35 +352,239 @@ class _Inline:
 
 def install(server, moment_for_request):
     """Replace every outside source in server.py with the generators above. moment_for_request() gives the Moment
-    the current request asked for (?moment=, or the default)."""
+    the current request asked for (?moment=, or the default).
+
+    With ?monitor=<id> (server.request_monitor()) and that id an outdoor monitor of AirGradient's public map, the
+    request is about that monitor instead: the real fetchers at its place, through the real cache under keys that
+    carry its id (MONITOR_TTL), its history from AirGradient's public map when the map has it (monitor_history), no
+    pollen, no road, the runner's need only (its view's), and its reading counts only while it's online and recent
+    (server.outdoor_row). An id that can't be shown (unknown, or the map didn't answer) gets the default sample's
+    made-up answers, which no one caches, and the page says why (window.APP.public.error).
+
+    The monitor wiring reads the request (?monitor=, flask.g), so every replaced function must run in the request's
+    thread: the demo's _CONTEXT_POOL runs inline, and the real cache only ever runs the real fetchers in its pool."""
     cfg = server.CFG
     _HOME.update(lat=cfg.place.lat, lon=cfg.place.lon, indoor=cfg.place.indoor, outdoor=cfg.place.outdoor,
                  route=cfg.road.route if cfg.road else None)
     _route.cache_clear()
     nearby.cache_clear()
     key = lambda: moment_for_request().key
+    # the real ones, before they're replaced: a public monitor uses them
+    _REAL.clear()
+    _REAL.update({name: getattr(server, name) for name in (
+        "cached", "_fetch_world", "_fetch_nearby", "get_open_meteo_data", "get_air_forecast", "smoke_status",
+        "local_now", "road_traffic", "source_on", "page_view")}, force=server._force, world_cache=server.WORLD_CACHE)
+    real = _REAL
+    request_monitor = server.request_monitor
+    ranges = sorted(server.HIST_TTL)   # the History card's ranges (h): a monitor's history is fetched and cached by them
+
+    def monitor():
+        """The public monitor this request is about, or None (no ?monitor=, or one that can't be shown)."""
+        return _resolve(request_monitor())[0]
+
+    def asked():
+        """"sample" (no ?monitor=), "monitor" (one to show) or "missing" (asked for, can't be shown)."""
+        if request_monitor() is None:
+            return "sample"
+        return "monitor" if monitor() else "missing"
+
+    def which():
+        """Where this request's data comes from: "monitor" (one to show) or "sample". A monitor that can't be shown gets
+        the default sample (made-up data), so its page is the sample's, with the reason in the banner."""
+        return "monitor" if asked() == "monitor" else "sample"
+
+    def here():
+        return public.here_of(monitor())
 
     def api_get(path, params=None):
+        w = which()
         if path == "/locations/measures/current":
-            return current(key())
+            return public.current_rows(monitor()) if w == "monitor" else current(key())
         hit = re.fullmatch(r"/locations/(\d+)/measures/past", path)
-        if hit:
-            return past(key(), hit.group(1), params)
+        if hit:   # a public monitor's comes from AirGradient's public map (the API shares it only with its owner)
+            if w == "sample":
+                return past(key(), hit.group(1), params)
+            return monitor_past(monitor(), hit.group(1), params, ranges)
         raise RuntimeError(f"AirGradient API returned 404: no demo data for {path}")
 
+    def source_on(name):
+        if which() == "monitor":
+            return public.view_of(monitor(), server.APP_VIEW)["sources"].get(name) is not False
+        return real["source_on"](name)
+
+    def smoke_status(*a, **k):
+        w = which()
+        if w == "sample":
+            return smoke(key())
+        return real["smoke_status"](here()) if source_on("smoke") else server.no_smoke()
+
+    def weather_now(*a, **k):
+        w = which()
+        return weather(key()) if w == "sample" else real["get_open_meteo_data"](here())
+
+    def air_model(*a, **k):
+        w = which()
+        return dict(air_forecast(key())) if w == "sample" else real["get_air_forecast"](here())
+
+    def nearby_of(world, *a, **k):
+        w = which()
+        return [dict(n) for n in nearby(key())] if w == "sample" else real["_fetch_nearby"](world, here())
+
+    def now(*a, **k):
+        w = which()
+        return moment_for_request().at if w == "sample" else real["local_now"](here())
+
+    def cached(cache_key, fetch, **kw):
+        """A public monitor's own keys (they end in its id) go through the real cache, fresh for MONITOR_TTL; the keys
+        every monitor shares (public.SHARED_KEYS: NOAA's smoke polygons) keep their own ttl. Each waits MONITOR_WAIT at
+        most, within the request's budget. Every other answer is computed per request (a sample's keys don't know the
+        moment)."""
+        mon = monitor()
+        wait = min(kw.get("wait", public.MONITOR_WAIT), public.MONITOR_WAIT)
+        if mon and cache_key in public.SHARED_KEYS:
+            return real_cached(cache_key, fetch, **{**kw, "wait": wait})
+        if mon and cache_key.endswith(":" + public.here_of(mon).key):
+            return real_cached(cache_key, fetch, **{**kw, "ttl": public.MONITOR_TTL, "wait": wait})
+        return fetch(), {"state": "hit", "age": 0}
+
+    def page_view():
+        mid = request_monitor()
+        if mid is None:
+            return real["page_view"]()
+        mon, error = _resolve(mid)
+        return public.view_of(mon, server.APP_VIEW) if mon else {**server.APP_VIEW, "public": {"id": mid, "error": error}}
+
+    def page_clock():
+        if which() == "monitor":
+            return None   # a public monitor runs on the real clock, at its place
+        return {"at": moment_for_request().at.isoformat(), "moment": moment_for_request().key,
+                "moments": [{"key": mm.key, "label": mm.label, "n": SAMPLES.index(mm.key) + 1} for mm in MOMENTS.values()]}
+
+    def points(location_id, now_local, hours=24):
+        w = which()
+        if w == "sample":
+            return history_points(key(), location_id, now_local, hours)
+        return monitor_points(monitor(), location_id, now_local, hours)
+
+    no_road = {"toward": False, "traffic": None, "wind_impact": None, "pollution_pressure": None}   # road_traffic without a road
+
     server.api_get = api_get
-    server.get_open_meteo_data = lambda *a, **k: weather(key())
-    server.get_air_forecast = lambda *a, **k: dict(air_forecast(key()))
-    server.smoke_status = lambda *a, **k: smoke(key())
-    server.get_smoke_data = lambda *a, **k: smoke(key())["detected"]
-    server.get_pollen_days = lambda *a, **k: pollen_days(key())
-    server.get_pollen_data = lambda *a, **k: pollen_days(key())["today"]
+    server.get_open_meteo_data = weather_now
+    server.get_air_forecast = air_model
+    server.smoke_status = smoke_status
+    server.get_smoke_data = lambda *a, **k: smoke_status()["detected"]
+    server.get_pollen_days = lambda *a, **k: pollen_days(key()) if which() == "sample" else {"today": [], "tomorrow": []}
+    server.get_pollen_data = lambda *a, **k: pollen_days(key())["today"] if which() == "sample" else []
+    server.source_on = source_on
     server.pollen_state = lambda: "ok" if server.source_on("pollen") else "off"   # made up, so no key to miss
-    server.history_points = lambda location_id, now_local, hours=24: history_points(key(), location_id, now_local, hours)
-    server._fetch_nearby = lambda: [dict(n) for n in nearby(key())]
-    server.local_now = lambda: moment_for_request().at
-    # every moment's answer is computed per request: no shared cache (its keys don't know the moment), no pool threads
-    server.cached = lambda cache_key, fetch, **kw: (fetch(), {"state": "hit", "age": 0})
+    server.history_points = points
+    server._fetch_world = lambda: world_list() if which() == "monitor" else []   # a sample's cached() runs it; nothing leaves the machine
+    server._fetch_nearby = nearby_of
+    server.active_road = lambda: server.ROAD if which() == "sample" else None
+    server.road_traffic = lambda hour, wind: real["road_traffic"](hour, wind) if which() == "sample" else dict(no_road)
+    server.local_now = now
+    # every sample's answer is computed per request: no shared cache (its keys don't know the moment), no pool threads
+    server.cached = cached
     server._CONTEXT_POOL = _Inline()
-    server.page_clock = lambda: {"at": moment_for_request().at.isoformat(), "moment": moment_for_request().key,
-                                 "moments": [{"key": mm.key, "label": mm.label} for mm in MOMENTS.values()]}
+    server.page_view = page_view
+    server.page_clock = page_clock
+    server.monitor_missing = lambda: asked() == "missing"
+    server.outdoor_row = monitor   # a public monitor's row from the world list: its age and offline flag; None for a sample
+
+
+# ── public monitors (?monitor=) ──
+
+_REAL = {}   # server.py's own cache and fetchers, saved by install() before it replaces them
+# what "AirGradient's public map didn't answer" means: the fetch failed (network, HTTP status, bad JSON) or timed out
+WORLD_ERRORS = (requests.RequestException, RuntimeError, TimeoutError)
+
+
+def real_cached(key, fetch, **kw):
+    """server.py's own cache, for a public monitor's data, waiting no longer than what's left of the request's
+    REQUEST_BUDGET: in the demo a request's upstreams run one after another, and past the budget each answers at once
+    from what's cached (or fails, and the caller falls back as when the upstream is down)."""
+    from flask import g
+    try:
+        deadline = g.setdefault("upstream_deadline", monotonic() + public.REQUEST_BUDGET)
+    except RuntimeError:   # outside a request: no budget to keep
+        return _REAL["cached"](key, fetch, **kw)
+    left = max(0.0, deadline - monotonic())
+    return _REAL["cached"](key, fetch, **{**kw, "wait": min(kw.get("wait", public.MONITOR_WAIT), left)})
+
+
+def world_list():
+    """AirGradient's world list through the real cache ("ag:world", one list for every monitor and the picker), fetched
+    in the request's thread (never inside a cached fetch). Raises when the map doesn't answer and nothing recent is cached."""
+    value, _ = real_cached("ag:world", _REAL["_fetch_world"], force=_REAL["force"](), **_REAL["world_cache"])
+    return value
+
+
+def _resolve(mid):
+    """(monitor, None), or (None, the message for the page) when it can't be shown; (None, None) without an id.
+    Memoized per request (flask.g), so a request reads the world list once."""
+    if mid is None:
+        return None, None
+    from flask import g
+    memo = getattr(g, "public_monitor", None)
+    if memo and memo[0] == mid:
+        return memo[1]
+    try:
+        mon = public.find(world_list(), mid)
+        out = (mon, None) if mon else (None, public.UNKNOWN.format(id=mid))
+    except WORLD_ERRORS:
+        out = (None, public.WORLD_DOWN)
+    g.public_monitor = (mid, out)
+    return out
+
+
+def monitor_history(mon, hours):
+    """A public monitor's last `hours` of readings from AirGradient's public map, as /api/history rows; [] when the
+    map has no entry for it or doesn't answer (the page then draws the model's past). Fetched in the request's thread
+    through the real cache, under keys that carry the monitor's id: its map id for MAP_ID_TTL, each range for
+    HISTORY_TTL. A failed fetch isn't cached, so the next request asks again."""
+    here_key = public.here_of(mon).key
+    try:
+        mid, _ = real_cached(f"ag:mapid:{here_key}", lambda: public.map_id(mon), ttl=public.MAP_ID_TTL,
+                                 wait=public.MAP_WAIT)
+        if mid is None:
+            return []
+        rows, _ = real_cached(f"ag:maphist:{here_key}:{hours}h", lambda: public.history(mid, hours),
+                                  ttl=public.HISTORY_TTL, wait=public.MAP_WAIT)
+    except WORLD_ERRORS:   # the map failed or timed out, like the world list; a bug in our code still raises
+        return []
+    return [dict(r) for r in rows]
+
+
+def _utc_of(s):
+    t = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def _is(mon, location_id):
+    """Whether an id the page sent is this monitor's (a string, a number or junk)."""
+    return location_id is not None and str(location_id) == str(mon["locationId"])
+
+
+def monitor_past(mon, location_id, params, ranges):
+    """/locations/{id}/measures/past for a public monitor: its rows between from and to (the last day without them),
+    from the shortest History range (`ranges`, hours) that reaches back to from (within RANGE_SLACK), the longest at
+    most."""
+    if not _is(mon, location_id):
+        return []
+    p, now = params or {}, datetime.now(timezone.utc)
+    try:
+        frm = _utc_of(p["from"]) if p.get("from") else now - timedelta(days=1)
+        to = _utc_of(p["to"]) if p.get("to") else now
+    except ValueError:
+        raise RuntimeError("AirGradient API returned 400: bad from/to")
+    back = (now - frm - RANGE_SLACK).total_seconds() / 3600
+    hours = next((h for h in ranges if h >= back), ranges[-1])
+    return [r for r in monitor_history(mon, hours) if frm <= _utc_of(r["timestamp"]) <= to]
+
+
+def monitor_points(mon, location_id, now_local, hours):
+    """server.history_points for a public monitor: its last `hours` as (local time, row), oldest first."""
+    if not _is(mon, location_id):
+        return []
+    rows = ((_utc_of(r["timestamp"]).astimezone(now_local.tzinfo), r) for r in monitor_history(mon, hours))
+    return sorted(((t, r) for t, r in rows if now_local - timedelta(hours=hours) <= t <= now_local), key=lambda p: p[0])

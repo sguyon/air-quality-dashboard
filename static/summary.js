@@ -71,6 +71,13 @@
   const peakAhead = (past, fc, now, hours = OUTLOOK_H) => {
     const pts = [...past.slice(-1), ...fc].filter(p => p[0] <= now + hours);
     return pts.length ? pts.reduce((a, b) => b[1] > a[1] ? b : a) : null; };
+  // The PM2.5 past half. A measured past is a soft area; the model's past hours (a public monitor without history:
+  // the series says source "model") are a dotted line over a pale fill, labeled as the model, so they never read as a
+  // reading. d: the line, area: the line closed down to the axis, at: the label's spot, col: the colours (fill: the series').
+  const MODEL_LABEL = 'PM2.5 outside · model';
+  const pmPastSvg = (source, d, area, at, col) => source !== 'model' ? `<path d="${area}" fill="url(#sx-fp)"/>`
+    : `<path d="${area}" fill="${col.fill}" fill-opacity=".14"/><path d="${d}" fill="none" stroke="${col.muted}" stroke-width="1.5" stroke-dasharray="2 3" stroke-linecap="round"/>` +
+      `<text x="${at.x}" y="${at.y}" font-size="10.5" font-weight="600" fill="${col.muted}" stroke="${col.card}" stroke-width="3" paint-order="stroke">${MODEL_LABEL}</text>`;
   // each redraw replaces the chart's listeners (including the one on document) instead of adding more
   const rewire = o => { if (o.__ac) o.__ac.abort(); o.__ac = new AbortController(); return o.__ac.signal; };
 
@@ -78,12 +85,14 @@
   const kickHtml = (label, needs, showLabel = true) =>
     `<div class="sx-kick">${showLabel ? `<span>${esc(label)}</span>` : '<span></span>'}${needsHeadHtml(needs)}</div>`;
 
-  const api = { appNow, readingsNow, kickHtml, hoursOf, lerp, shareOfLimit, fmtClock, staleWhen, tipSide, hourLabel, needsHeadHtml, itemNeedHtml, fitLabel, rhLabelY, peakAhead, rewire };
+  const api = { appNow, readingsNow, pmPastSvg, kickHtml, hoursOf, lerp, shareOfLimit, fmtClock, staleWhen, tipSide, hourLabel, needsHeadHtml, itemNeedHtml, fitLabel, rhLabelY, peakAhead, rewire };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   // ── drawing ──
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const CO2_COL = '#6f8194', PM_COL = '#7f93a6', RH_COL = '#a3aeb9';
+  const MODEL_LABEL_TOP = 26;   // px: the model label's highest baseline, under the FORECAST → caption
+  const MODEL_LABEL_W = 130;    // px: about how wide "PM2.5 outside · model" is at 10.5 px, for finding room over the line
 
   const ICON = {
     temp: '<svg class="sx-ic" viewBox="0 0 16 16" fill="none" stroke="#7d8b99" stroke-width="1.4" stroke-linecap="round"><path d="M6.5 9.4V3.2a1.5 1.5 0 0 1 3 0v6.2a3 3 0 1 1-3 0Z"/><path d="M8 7v4" stroke="#d98a1c" stroke-width="1.6"/></svg>',
@@ -100,7 +109,7 @@
     const pmItem = (s.items || []).find(i => i.id === 'pm');
     return {
       t0: h(t0), t1: h(tl.t1), now: h(tl.now), lim: tl.limits,
-      co2: pts(tl.co2), rh: pts(tl.rh), pmPast: pts(tl.pm.past), pmFc: pts(tl.pm.fc),
+      co2: pts(tl.co2), rh: pts(tl.rh), pmPast: pts(tl.pm.past), pmFc: pts(tl.pm.fc), pmModel: tl.pm.source === 'model',
       cause: pmItem && pmItem.facts && pmItem.facts.cause,
       hours: tl.hours.map(x => ({ t: h(x.t), temp: x.temp, pop: x.pop, mm: x.mm })),
       uv: tl.uv.map(([a, b, m]) => ({ a: h(a), b: h(b), m })),
@@ -128,7 +137,14 @@
     const lab = (xx, yy, s, col, anchor = 'start') => { g += `<text x="${xx}" y="${yy}" font-size="10.5" font-weight="600" fill="${col}" text-anchor="${anchor}" stroke="${card}" stroke-width="3" paint-order="stroke">${esc(s)}</text>`; };
     if (pm.length > 1) {
       const area = ps => `${path(ps, c.lim.pm)} L ${x(ps[ps.length - 1][0])} ${bot} L ${x(ps[0][0])} ${bot} Z`;
-      if (c.pmPast.length > 1) g += `<path d="${area(c.pmPast)}" fill="url(#sx-fp)"/>`;
+      if (c.pmPast.length > 1) {
+        // the model's label sits over the line where there's room under the FORECAST caption, else under it
+        const x0 = x(c.pmPast[0][0]), under = c.pmPast.filter(p => x(p[0]) <= x0 + MODEL_LABEL_W).map(p => ys(p[1] / c.lim.pm));
+        const hi = Math.min(...under), lo = Math.max(...under);
+        const ly = hi - 7 >= MODEL_LABEL_TOP ? hi - 7 : Math.min(bot - 4, lo + 15);
+        g += pmPastSvg(c.pmModel ? 'model' : '', path(c.pmPast, c.lim.pm), area(c.pmPast),
+          { x: (x0 + 2).toFixed(1), y: ly.toFixed(1) }, { fill: PM_COL, muted: css('--muted'), card });
+      }
       const fc = c.pmPast.length ? [c.pmPast[c.pmPast.length - 1], ...c.pmFc] : c.pmFc;
       if (fc.length > 1) g += `<path d="${area(fc)}" fill="url(#sx-h)"/><path d="${area(fc)}" fill="url(#sx-hw)" clip-path="url(#sx-above)"/>`;
     }
@@ -205,7 +221,7 @@
     const temps = c.hours.filter(hh => hh.temp != null).map(hh => [hh.t, hh.temp]);
     const show = e => {
       const r = svg.getBoundingClientRect(), px = Math.min(Math.max(e.clientX - r.left, 0), geo.R);
-      const t = c.t0 + px / geo.R * (c.t1 - c.t0), fc = t > c.now + .05;
+      const t = c.t0 + px / geo.R * (c.t1 - c.t0), fc = t > c.now + .05, past = c.pmModel ? 'Model' : 'Measured';
       const co2 = lerp(c.co2, t), rh = lerp(c.rh, t), pm = lerp([...c.pmPast, ...c.pmFc], t), temp = lerp(temps, t);
       const rain = c.hours.find(hh => hh.pop && Math.abs(hh.t - t) <= 1.5);
       const ev = c.uv.find(u => t >= u.a && t <= u.b) ? { kind: 'UV', s: 'UV ' + c.uv.find(u => t >= u.a && t <= u.b).m }
@@ -223,11 +239,11 @@
       if (rain) rows.push({ sw: ICON.rain, lb: 'Rain', v: rain.pop + '%', u: rain.mm + ' mm', rain: true });
       const evText = ev ? (ev.kind === 'UV' ? 'Strong sun, ' + ev.s : ev.kind + ' at ' + ev.s) : '';
       if (coarse) {
-        tip.innerHTML = `<div class="sx-line"><span class="sx-whn"><b>${fmtClock(t)}</b><em>${fc ? 'Forecast' : 'Measured'}</em></span>` +
+        tip.innerHTML = `<div class="sx-line"><span class="sx-whn"><b>${fmtClock(t)}</b><em>${fc ? 'Forecast' : past}</em></span>` +
           rows.map(x => `<span class="sx-c${x.over ? ' over' : ''}">${x.sw}${x.v}${x.u && !x.rain ? `<small>${x.u}</small>` : ''}</span>`).join('') +
           (ev ? `<span class="sx-c">${ICON[ev.kind]}${esc(ev.kind === 'UV' ? ev.s : ev.s)}</span>` : '') + '</div>';
       } else {
-        tip.innerHTML = `<div class="sx-tt"><b>${fmtClock(t)}</b><span class="sx-chip${fc ? '' : ' now'}">${fc ? 'Forecast' : 'Measured'}</span></div>` +
+        tip.innerHTML = `<div class="sx-tt"><b>${fmtClock(t)}</b><span class="sx-chip${fc ? '' : ' now'}">${fc ? 'Forecast' : past}</span></div>` +
           rows.map(x => `<div class="sx-r">${x.sw}<span class="sx-lb">${x.lb}</span><span class="sx-v${x.over ? ' over' : ''}">${x.v}<small>${x.u}</small></span></div>`).join('') +
           (ev ? `<div class="sx-ev">${ICON[ev.kind]}<span>${esc(evText)}</span></div>` : '');
       }

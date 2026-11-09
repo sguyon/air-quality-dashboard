@@ -1,8 +1,8 @@
 # <img src="static/icons/icon.svg" alt="" width="36" height="36" align="middle"> Home Air Quality
 
-A page for your AirGradient air monitors that tells you what to do about your air: when to open the window, when to keep it shut, when to go for a run. It combines your readings with public data sources: the weather and PM2.5 forecast (Open-Meteo), pollen (Google), wildfire smoke (NOAA) and nearby public AirGradient monitors, plus an estimate of rush-hour traffic on a road near you.
+A page for your AirGradient air monitors that tells you what to do about your air: when to open the window, when to keep it shut, when to go for a run. It combines your readings with public data sources: the weather and PM2.5 forecast (Open-Meteo's [weather](https://open-meteo.com/en/docs) and [air quality](https://open-meteo.com/en/docs/air-quality-api) APIs), pollen ([Google](https://developers.google.com/maps/documentation/pollen)), wildfire smoke ([NOAA](https://www.ospo.noaa.gov/products/land/hms.html)) and nearby public AirGradient monitors ([AirGradient's map](https://www.airgradient.com/map/)), plus an estimate of rush-hour traffic on a road near you.
 
-**[Try the demo](https://homeair.guyon.dev)** · [Installation](#installation) · [Features](#features)
+**[Try the demo](https://homeair.guyon.dev)** · [Demo](#demo) · [Installation](#installation) · [Features](#features)
 
 <p align="center">
   <picture>
@@ -11,7 +11,11 @@ A page for your AirGradient air monitors that tells you what to do about your ai
   </picture>
 </p>
 
-<sub>The demo and the screenshots use sample data from an example home.</sub>
+<sub>The screenshots use sample data from an example home.</sub>
+
+## Demo
+
+[The demo](https://homeair.guyon.dev) has three samples (1, 2, 3): an example home in Williamsburg, Brooklyn, with made-up readings: a morning rush, an all-clear afternoon and a humid evening. Its banner also opens any public AirGradient outdoor monitor (Pick a monitor, or `?monitor=<id>`): that monitor's live readings from [AirGradient's public map](https://www.airgradient.com/map/), with the weather, the PM2.5 forecast and the monitors around it.
 
 ## Installation
 
@@ -34,6 +38,7 @@ It asks a few questions, writes your config and runs the page on your computer, 
 - **An action and a why for each reading that needs one.** CO₂ and humidity inside, PM2.5 and pollen outside: "Open a window for 10 min", "Keep windows shut", with one line on why.
 - **Your household's needs.** A toddler's sleep (CO₂), sinus and allergies (humidity and pollen), a runner (outdoor PM2.5, smoke and rush hour). Each says whether it's met right now. Pick the ones that apply.
 - **A day chart** of CO₂, humidity and outdoor PM2.5, with the forecast for the hours ahead, so you see when the air clears.
+- **A forecast tuned to your street.** Open-Meteo's PM2.5 forecast covers a wide area, so the app compares its last 24 hours with your outdoor monitor and scales the next hours to match. That's how the page can tell you *when*: 'Windows shut until 11 AM', 'Run after 11 AM'.
 - **A map** of your outdoor monitor against public AirGradient monitors nearby, and a busy road's exhaust when the wind blows it your way.
 - **Live weather animations and a phone app.** The background follows the real sun, clouds, rain and haze, or stays plain. Add it to your phone's home screen and it opens full screen.
 
@@ -64,6 +69,14 @@ The actions come from fixed rules in `summary.py` and `server.py`, not a model. 
 
 Change any of them in `config.toml`; the comments in [`config.example.toml`](config.example.toml) say what each one does.
 
+### The PM2.5 forecast
+
+The server asks [Open-Meteo's Air Quality API](https://open-meteo.com/en/docs/air-quality-api) (free, no key) for hourly PM2.5 at the home, the past 24 hours and the next 24, and keeps the answer 30 minutes. For each past hour it compares your outdoor monitor's average with the forecast and takes the median ratio, kept between ×0.1 and ×3, so one odd hour doesn't sway it; the coming hours are multiplied by it. With fewer than 6 matching hours it starts the forecast from the monitor's reading now instead, and the gap fades over 6 hours. The actions look 8 hours ahead on that curve for when PM2.5 crosses the limit.
+
+### Corrected PM2.5
+
+AirGradient monitors measure particles with a laser sensor (Plantower) that reads high, more so in humid air, where particles swell with water. The US EPA compared these sensors with reference stations and published a correction that uses humidity and the sensor's non-linear response at high levels ([Barkjohn et al. 2021](https://amt.copernicus.org/articles/14/4617/2021/)). AirGradient applies it and sends the corrected value next to the raw one (`pm02_corrected` in [its API](https://api.airgradient.com/public/docs/api/v1/)); its [EGU25 abstract](https://meetingorganizer.copernicus.org/EGU25/EGU25-8701.html) describes the correction on its monitors. The app uses the corrected value whenever there is one (your monitors, the public monitors' history from AirGradient's map, and, computed with the same formula, a public monitor's reading now), so the limits compare like with like.
+
 ## Screenshots
 
 <p align="center">
@@ -72,8 +85,8 @@ Change any of them in `config.toml`; the comments in [`config.example.toml`](con
 
 ## Credits
 
-- Your monitors, and the nearby public monitors: [AirGradient](https://www.airgradient.com). Nearby monitors' data is licensed under [CC-BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); the page credits each monitor's contributor when it has one.
-- Weather and the PM2.5 forecast: [Open-Meteo](https://open-meteo.com).
+- Your monitors, and the nearby public monitors: [AirGradient](https://www.airgradient.com) ([API](https://api.airgradient.com/public/docs/api/v1/), [public map](https://www.airgradient.com/map/)). Nearby monitors' data is licensed under [CC-BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); the page credits each monitor's contributor when it has one.
+- Weather and the PM2.5 forecast: [Open-Meteo](https://open-meteo.com) ([Weather API](https://open-meteo.com/en/docs), [Air Quality API](https://open-meteo.com/en/docs/air-quality-api)).
 - Pollen: [Google Pollen API](https://developers.google.com/maps/documentation/pollen) (optional, needs a key).
 - Wildfire smoke: NOAA's [Hazard Mapping System](https://www.ospo.noaa.gov/products/land/hms.html).
 - Map: [MapLibre](https://maplibre.org), with tiles from [OpenFreeMap](https://openfreemap.org) and map data from [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.

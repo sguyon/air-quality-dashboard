@@ -1,4 +1,5 @@
 """The summary card's rules: which readings lead, what to do and when, the needs row and the day chart's data.
+Also AirGradient's PM2.5 correction (corrected_pm), which the neighbors and the demo's public monitors share.
 
 Pure functions, no network or Flask: server.py and tools/replay.py gather the inputs and call build_summary.
 Spec: internal/specs/summary-redesign-spec.md.
@@ -21,6 +22,51 @@ NIGHT_STALE, NIGHT_ALL = 0.5, 0.9  # share of last night over the CO₂ limit: "
 COLD_C = 10                        # °C: "close it after ten minutes" when it gets this cold within COLD_AHEAD
 COLD_AHEAD = timedelta(hours=8)
 TONIGHT_FROM = 18                  # hour: a chart starting at or after 6 PM is headed "Tonight"
+
+# AirGradient's EPA correction for PM2.5 (the US EPA's correction for Plantower sensors, Barkjohn et al., extended to
+# high concentrations), as AirGradient writes it in its firmware (airgradienthq/arduino, src/PMS/PMS.cpp,
+# PMSBase::compensate) and its map backend (airgradienthq/airgradient-map, apps/api/src/utils/getEpaCorrectedPM.ts):
+#   raw < 30:        0.524·raw − 0.0862·RH + 5.75
+#   30 ≤ raw < 50:   blends the slope from 0.524 to 0.786 (f = raw/20 − 3/2)
+#   50 ≤ raw < 210:  0.786·raw − 0.0862·RH + 5.75
+#   210 ≤ raw < 260: blends to the high form (f = raw/50 − 21/5)
+#   raw ≥ 260:       2.966 + 0.69·raw + 8.84e-4·raw²
+# never below 0; a raw 0 stays 0. The world list gives the raw pm02; a home's API answer has pm02_corrected. Used for
+# the neighbors (server._fetch_nearby) and the demo's public monitors (demo/public.py), so every PM2.5 shares one basis.
+EPA_BANDS = (30, 50, 210, 260)   # µg/m³ raw: where the formula's pieces meet
+EPA_SLOPE_LOW, EPA_SLOPE_MID, EPA_SLOPE_HIGH = 0.524, 0.786, 0.69   # the raw PM2.5 slope below 30, 50–210, from 260
+EPA_RH = 0.0862   # µg/m³ per % relative humidity, subtracted
+EPA_OFFSET, EPA_OFFSET_HIGH = 5.75, 2.966   # µg/m³: the constant term below 210, and from 260
+EPA_SQUARE = 8.84e-4   # the raw² term from 260
+
+
+def corrected_pm(pm02, rhum):
+    """AirGradient's EPA-corrected PM2.5 (µg/m³, one decimal, as its map shows it) from a raw pm02 and the monitor's
+    relative humidity (%); None without both. The formula and its sources are above EPA_BANDS."""
+    try:
+        raw, rh = float(pm02), min(100.0, max(0.0, float(rhum)))
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(raw) and math.isfinite(rh)):
+        return None
+    if raw == 0:
+        return 0.0
+    b30, b50, b210, b260 = EPA_BANDS
+    if raw < b30:
+        value = EPA_SLOPE_LOW * raw - EPA_RH * rh + EPA_OFFSET
+    elif raw < b50:
+        f = (raw - b30) / (b50 - b30)
+        value = (EPA_SLOPE_MID * f + EPA_SLOPE_LOW * (1 - f)) * raw - EPA_RH * rh + EPA_OFFSET
+    elif raw < b210:
+        value = EPA_SLOPE_MID * raw - EPA_RH * rh + EPA_OFFSET
+    elif raw < b260:
+        f = (raw - b210) / (b260 - b210)
+        value = ((EPA_SLOPE_HIGH * f + EPA_SLOPE_MID * (1 - f)) * raw - EPA_RH * rh * (1 - f) + EPA_OFFSET_HIGH * f
+                 + EPA_OFFSET * (1 - f) + EPA_SQUARE * raw ** 2 * f)
+    else:
+        value = EPA_OFFSET_HIGH + EPA_SLOPE_HIGH * raw + EPA_SQUARE * raw ** 2
+    value = round(value, 1)
+    return value if value > 0 else 0.0
 
 
 def clock(t):
@@ -296,9 +342,11 @@ def _iso(t):
     return t.isoformat()
 
 
-def timeline(now, co2_pts, rh_pts, pm_past, pm_fc_adj, hourly, sun, show_rh):
+def timeline(now, co2_pts, rh_pts, pm_past, pm_fc_adj, hourly, sun, show_rh, pm_past_model=False):
     """Everything the chart draws, with ISO times: measured CO₂ (and humidity when it's a damp item), PM2.5 measured
-    and forecast, the 3-hourly temperature and rain row, strong-sun stretches, sunrise/sunset and night."""
+    and forecast, the 3-hourly temperature and rain row, strong-sun stretches, sunrise/sunset and night.
+    pm_past_model: the past PM2.5 is the model's hours, not a monitor's (a public monitor without history), and the
+    series says so ("source": "model")."""
     t0 = _floor_hour(now - CHART_BEFORE)
     t1 = t0 + CHART_SPAN
     win = lambda ps, a, b: [[_iso(t), round(v, 1)] for t, v in ps if v is not None and a <= t <= b]
@@ -344,7 +392,8 @@ def timeline(now, co2_pts, rh_pts, pm_past, pm_fc_adj, hourly, sun, show_rh):
     if dark_from is not None:
         night.append([_iso(dark_from), _iso(t1)])
     return {"t0": _iso(t0), "t1": _iso(t1), "now": _iso(now), "co2": co2, "rh": rh,
-            "pm": {"past": win(pm_past, t0, now), "fc": [[_iso(t), round(v, 1)] for t, v in pm_fc_adj if now < t <= t1]},
+            "pm": {"past": win(pm_past, t0, now), "fc": [[_iso(t), round(v, 1)] for t, v in pm_fc_adj if now < t <= t1],
+                   **({"source": "model"} if pm_past_model else {})},
             "hours": hours, "uv": uv,
             "sun": [{"t": _iso(e["t"]), "kind": e["kind"]} for e in events if t0 <= e["t"] <= t1],
             "night": night, "limits": {"co2": LIMITS["co2"], "pm": LIMITS["pm"], "rh": LIMITS["rh_damp"]}}
@@ -367,13 +416,19 @@ def _since(pts, limit, now):
     return f"yesterday {s}" if t.date() < now.date() else s
 
 
-def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today, pollen_tomorrow, rush, sun, now, road=None):
+def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today, pollen_tomorrow, rush, sun, now, road=None,
+                  pm_past_model=False, monitor_label=None):
     """The whole card from the rules: items with actions and explanations, the Also line, the needs row, the chart.
-    `road` is the road's name (None without one); `rush` its rush windows from rush_windows()."""
+    `road` is the road's name (None without one); `rush` its rush windows from rush_windows(). With pm_past_model,
+    pm_past is the model's past hours: the chart draws it, but it can't calibrate the model against itself.
+    `monitor_label` names the outdoor monitor in the PM2.5 item's sentences ("your yard monitor", "this monitor");
+    None leaves phrases' default, the home's outdoor monitor."""
     cams_now = next((v for t, v in cams if _floor_hour(t) == _floor_hour(now) and v is not None), None)
-    adjusted, _k = calibrate_forecast(cams, pm_past, now)
+    adjusted, k = calibrate_forecast(cams, [] if pm_past_model else pm_past, now)
+    fit = "calibrated" if k is not None else None
     if adjusted is None:   # not enough history to calibrate: anchor to the reading now, fading over 6 hours
-        adjusted, _anchored = anchor_forecast([(t, v) for t, v in cams if t >= _floor_hour(now)], r.get("pm_now"), cams_now)
+        adjusted, anchored = anchor_forecast([(t, v) for t, v in cams if t >= _floor_hour(now)], r.get("pm_now"), cams_now)
+        fit = "anchored" if anchored else None
     outlook = pm_outlook(r.get("pm_now"), adjusted, now)
     if outlook["max"] is not None and round(outlook["max"]) > LIMITS["pm"]:
         at_t = outlook["max_at"] or now
@@ -416,6 +471,8 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
             home = {"ac_too": "ac_dry" in APPLIANCES and it["action"]["text"] != AC_DRY, "appliance": bool(APPLIANCES)}
         if it["id"] == "pm":
             f.update(wind_dir=wind_at(outlook["max_at"] or now), smoke=bool(smoke))
+            # how the forecast was fitted, and to which monitor: its timing sentence says so
+            home = {"forecast_fit": fit, **({"monitor_label": monitor_label} if monitor_label else {})}
         it["why"] = phrases.why(it["id"], {**f, **home})
         it["facts"] = f
 
@@ -423,7 +480,7 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
     for n in needs:   # the appliances pick the damp-room words; like `home` above, not kept as facts
         n["why"] = phrases.pill_why(n["id"], {**n["facts"], **{a: True for a in APPLIANCES}}, n["ok"], n["state"])
     show_rh = any(i["id"] == "rh" and not i["facts"].get("dry") for i in items)
-    tl = timeline(now, co2_pts, rh_pts, pm_past, adjusted, hourly, sun, show_rh)
+    tl = timeline(now, co2_pts, rh_pts, pm_past, adjusted, hourly, sun, show_rh, pm_past_model)
     t0 = datetime.fromisoformat(tl["t0"])
     return {"label": "Tonight" if t0.hour >= TONIGHT_FROM else "Today", "clock": clock(now), "items": items, "also": also,
             "needs": needs, "all_clear": not items, "timeline": tl}

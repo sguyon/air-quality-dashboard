@@ -13,7 +13,7 @@ def test_weather_asks_for_sun_times_and_past_hours(monkeypatch):
         seen.update(params or {})
         return R()
     monkeypatch.setattr(server.requests, "get", fake_get)
-    server._fetch_weather()
+    server._fetch_weather(server.home_here())
     assert seen["daily"] == "sunrise,sunset" and seen["past_hours"] == 4 and seen["forecast_days"] == 2
 
 
@@ -55,3 +55,14 @@ def test_card_is_redrawn_on_every_read(client):
     b = client.post("/api/analyze", json={"format": "read", **SAMPLE_PAYLOAD, "indoor_co2": 1320}).get_json()
     num = lambda r: next(i for i in r["summary"]["items"] if i["id"] == "co2")["num"]
     assert num(a) == "1,310" and num(b) == "1,320"
+
+
+def test_home_without_outdoor_history_draws_no_model_past(monkeypatch):
+    """The model's past hours stand in for a public monitor's history only: a home whose outdoor history is missing
+    (AirGradient failed, or no outdoor monitor) draws no past PM2.5, as before."""
+    from fixtures import golden_inputs as gi
+    gi.install(server, monkeypatch, gi.EVENING)
+    monkeypatch.setattr(server, "history_points", lambda lid, now, hours=24: gi.history(lid, now, hours) if lid == 1 else [])
+    with server.app.test_client() as c:
+        pm = c.post("/api/analyze", json={"format": "read", **gi.PAYLOAD}).get_json()["summary"]["timeline"]["pm"]
+    assert "source" not in pm and pm["past"] == [] and pm["fc"]

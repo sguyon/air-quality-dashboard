@@ -180,6 +180,25 @@ def test_page_carries_the_clock(c):
     assert "X-Robots-Tag" not in c.get("/").headers
 
 
+def test_sample_numbers():
+    from demo.moments import moment_for
+    assert moment_for(None, "2").key == "clear"
+    assert moment_for("humid", None).key == "humid"
+    assert moment_for(None, "9").key == "rush"
+    assert moment_for("humid", "1").key == "rush"   # a sample number wins over a moment key
+
+
+def test_page_clock_numbers(demo):
+    with demo.app.test_request_context("/"):
+        assert [m["n"] for m in demo.page_clock()["moments"]] == [1, 2, 3]
+
+
+def test_sample_and_moment_urls_match(c):
+    for n, key in enumerate(MOMENTS, 1):
+        assert c.get(f"/?sample={n}").get_data() == c.get(f"/?moment={key}").get_data()
+        assert c.get(f"/api/current?sample={n}").get_json() == c.get(f"/api/current?moment={key}").get_json()
+
+
 def test_deterministic(c):
     for url in ("/api/current?moment=rush", "/api/context?moment=clear", "/api/neighborhood?moment=humid"):
         assert c.get(url).get_data() == c.get(url).get_data()
