@@ -1,7 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "flask",
   "buildCommand": "bash scripts/vercel_build.sh",
-  "regions": ["iad1"],
+  "regions": [
+    "iad1"
+  ],
   "git": {
     "deploymentEnabled": {
       "main": true,

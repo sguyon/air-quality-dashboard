@@ -45,7 +45,8 @@ var NBMAP = (() => {
     map.addSource('mons', { type: 'geojson', data: fc(data.others.map(n => ({ type: 'Feature', id: n.id, properties: { pm: n.pm02, label: (Math.round(n.pm02 * 10) / 10 >= 10 ? String(Math.round(n.pm02)) : n.pm02.toFixed(1)) }, geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] } }))) });
     map.addLayer({ id: 'mons', type: 'circle', source: 'mons', paint: {
       'circle-radius': ['+', 6, ['min', 10, ['*', ['get', 'pm'], .9]]],
-      'circle-color': ['case', ['>', ['get', 'pm'], PM_FINE], '#f59e0b', '#22a55a'], 'circle-opacity': .9,
+      // over the limit as the server counts it: the rounded reading (home.js pmOver)
+      'circle-color': ['case', ['>', ['round', ['get', 'pm']], PM_FINE], '#f59e0b', '#22a55a'], 'circle-opacity': .9,
       'circle-stroke-color': ['case', ['boolean', ['feature-state', 'hl'], false], ink, halo],
       'circle-stroke-width': ['case', ['boolean', ['feature-state', 'hl'], false], 3, 2] } });
     map.addLayer({ id: 'mons-label', type: 'symbol', source: 'mons', layout: { 'text-field': ['get', 'label'], 'text-size': 11, 'text-font': ['Noto Sans Bold'], 'text-offset': [0, -1.6], 'text-allow-overlap': true },

@@ -1,0 +1,25 @@
+# Home Air Quality for your home, on a home server or NAS: `docker compose up -d`, then http://localhost:8000.
+# DEPLOYMENT.md, "Docker", has the steps. config.toml must sit next to this file first; to try the demo instead,
+# run the image with nothing mounted: `docker run --rm -p 127.0.0.1:8000:8000 ghcr.io/sguyon/home-air-quality`.
+services:
+  home-air-quality:
+    build: .
+    # Or the published image (amd64 and arm64, so a Raspberry Pi too) instead of building: delete the
+    # `build: .` line above and uncomment the next one.
+    # image: ghcr.io/sguyon/home-air-quality:latest
+    ports:
+      # This computer only. To open it to the other devices on your network, use "8000:8000".
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # Your config.toml, read-only. If it's missing, Compose stops with an error instead of creating a folder.
+      - type: bind
+        source: ./config.toml
+        target: /config/config.toml
+        read_only: true
+        bind:
+          create_host_path: false
+    env_file:
+      # AIRGRADIENT_TOKEN and GOOGLE_POLLEN_API_KEY. Optional, but without a token there are no readings.
+      - path: .env
+        required: false
+    restart: unless-stopped

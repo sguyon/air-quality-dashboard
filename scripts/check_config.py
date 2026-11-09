@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from config import DEFAULT_LIMITS, NEEDS, ConfigError, _clean, load_config, real_value, route_path  # noqa: E402
+from config import DEFAULT_LIMITS, NEEDS, ConfigError, _clean, limit_order_problems, load_config, real_value, route_path  # noqa: E402
 
 KEYS = ("AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY")
 
@@ -52,15 +52,9 @@ def extra_problems(raw: dict, root: Path) -> list[str]:
             out.append(f"needs.{k} is not a need the page knows. Use only: {', '.join(NEEDS)}")
     limits = raw.get("limits") if isinstance(raw.get("limits"), dict) else {}
 
-    def lim(k):
-        v = limits.get(k, DEFAULT_LIMITS[k])
-        return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
-
-    dry, stop, damp, pm, high = (lim(k) for k in ("rh_dry", "rh_stop", "rh_damp", "pm", "pm_high"))
-    if None not in (dry, stop, damp) and not dry < stop < damp:
-        out.append("limits must follow rh_dry < rh_stop < rh_damp (dry, then the dehumidifier's target, then damp)")
-    if None not in (pm, high) and not pm < high:
-        out.append("limits.pm must be below limits.pm_high")
+    numbers = {k: v for k, v in limits.items() if k in DEFAULT_LIMITS and isinstance(v, (int, float)) and not isinstance(v, bool)}
+    if len(numbers) == len([k for k in limits if k in DEFAULT_LIMITS]):   # a non-number is load_config's to report
+        out += limit_order_problems(numbers)
     road = raw.get("road")
     if isinstance(road, dict) and isinstance(road.get("route"), str):
         if not route_path(road["route"], root).is_file():
@@ -108,7 +102,9 @@ def main(argv, env, root: Path = ROOT) -> int:
         load_config({"CONFIG_TOML": text}, root)
     except ConfigError as e:
         msg = str(e).replace("CONFIG_TOML", label, 1)
-        if "cannot read road.route" not in msg or not any("road.route file not found" in p for p in problems):
+        if "cannot read road.route" in msg and any("road.route file not found" in p for p in problems):
+            pass
+        elif not any(p in msg for p in problems):   # load_config stops at the first problem already listed above
             problems.append(msg)
 
     for k, ok in keys_present(env, root).items():

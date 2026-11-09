@@ -1,4 +1,4 @@
-"""Sacha's page, characterized: the summary and /api/context on made-up inputs must stay exactly as they were.
+"""The reference home's page, characterized: the summary and /api/context on made-up inputs must stay exactly as they were.
 
 Regenerate only on purpose: UPDATE_GOLDEN=1 pytest tests/test_golden.py
 """
@@ -11,13 +11,13 @@ import pytest
 import server
 from fixtures import golden_inputs as gi
 
-GOLDEN = Path(__file__).parent / "fixtures" / "golden_sacha.json"
+GOLDEN = Path(__file__).parent / "fixtures" / "golden_reference.json"
 MOMENTS = {"morning": gi.MORNING, "evening": gi.EVENING}
 
 
 def run(monkeypatch, now):
     gi.install(server, monkeypatch, now)
-    monkeypatch.setenv("GOOGLE_POLLEN_API_KEY", "test-key")   # Sacha has every source on
+    monkeypatch.setenv("GOOGLE_POLLEN_API_KEY", "test-key")   # the reference home has every source on
     server.app.config["TESTING"] = True
     with server.app.test_client() as c:
         read = c.post("/api/analyze", json={"format": "read", **gi.PAYLOAD}).get_json()
@@ -25,7 +25,7 @@ def run(monkeypatch, now):
     return json.loads(json.dumps({"read": read, "context": ctx}))
 
 
-def test_sacha_output_unchanged(monkeypatch):
+def test_reference_output_unchanged(monkeypatch):
     out = {name: run(monkeypatch, now) for name, now in MOMENTS.items()}
     # the one addition since the golden was taken: the road flag for the page, next to the old "bqe" text
     for o in out.values():
@@ -40,10 +40,10 @@ def test_sacha_output_unchanged(monkeypatch):
 # ── Someone else's config: the home, the road and the limits come from it ──
 
 def config_from(**changes):
-    """Sacha's fixture config with whole sections replaced (None drops the section)."""
-    from conftest import SACHA_TOML
+    """The reference config with whole sections replaced (None drops the section)."""
+    from conftest import REFERENCE_TOML
     import tomllib
-    raw = tomllib.loads(SACHA_TOML)
+    raw = tomllib.loads(REFERENCE_TOML)
     for section, value in changes.items():
         if value is None:
             raw.pop(section, None)
@@ -125,6 +125,21 @@ def test_limits_come_from_config(monkeypatch, use_config):
                                    "rh_stop": 55, "pollen": 3}))
     co2 = next(i for i in run(monkeypatch, gi.MORNING)["read"]["summary"]["items"] if i["id"] == "co2")
     assert co2["ctx"].startswith("24% over the 1000 limit") and co2["why"].startswith("Above 1000 ")
+
+
+def test_pollen_limit_reaches_the_read(monkeypatch, use_config):
+    # tree pollen is 4 of 5 in the inputs: under a limit of 5, no pollen action anywhere
+    use_config(config_from(limits={"co2": 800, "pm": 15, "pm_high": 35, "rh_dry": 30, "rh_damp": 60,
+                                   "rh_stop": 55, "pollen": 5}))
+    read = run(monkeypatch, gi.MORNING)["read"]
+    assert "Limit time outside" not in [a["text"] for a in read["also"]]
+    assert "pollen" not in [i["id"] for i in read["summary"]["items"]]
+
+
+def test_appliances_come_from_config(monkeypatch, use_config):
+    use_config(config_from(home={"appliances": ["ac_dry"]}))
+    rh = next(i for i in run(monkeypatch, gi.MORNING)["read"]["summary"]["items"] if i["id"] == "rh")
+    assert rh["action"]["text"] == "Run the AC’s dry mode" and "works too" not in rh["why"]
 
 
 def test_road_without_rush_hours(monkeypatch, use_config):

@@ -1,0 +1,22 @@
+# Never upload keys, a home's config or private notes, even from a local `vercel deploy`.
+.env
+.env.*
+!.env.example
+config.toml
+!demo/config.toml
+PRODUCT.md
+CLAUDE.local.md
+internal/
+build-log/
+.superpowers/
+.gstack/
+.claude/
+.impeccable/
+.codex/
+.gemini/
+.grok/
+.cursor/
+.venv/
+tests/
+docs/
+public/

@@ -1,4 +1,4 @@
-"""The sentence library behind each (i) on the summary card. Written once, reviewed by Sacha, no model.
+"""The sentence library behind each (i) on the summary card. Written by hand, no model.
 
 Each item's explanation is up to three sentences, one per part:
   effect: what the reading does to people (fixed knowledge)
@@ -11,10 +11,12 @@ import re
 
 from config import DEFAULT_LIMITS as _L
 
-# the server fills the limits and the monitor labels from the config at import
+# the server fills the limits and the monitor labels from the config at import. co2_outdoor is the usual outdoor CO₂
+# in ppm (the global average is about 420), the floor a short airing brings a room toward.
 LIMIT_FACTS = {"co2_limit": _L["co2"], "co2_outdoor": 420, "rh_damp": _L["rh_damp"], "rh_dry": _L["rh_dry"],
                "rh_stop": _L["rh_stop"], "pm_limit": _L["pm"], "pm_high": _L["pm_high"], "indoor": "home", "outdoor": "outdoor"}
 
+# each item's (i): its effect, now and timing sentences, as described at the top
 LIBRARY = {
     "co2": {
         "effect": ["Above {co2_limit} the air feels stale, and focus and sleep can suffer."],
@@ -29,7 +31,8 @@ LIBRARY = {
         "effect": ["Above {rh_damp}%, mold and dust mites grow, which is hard on sinuses."],
         "now": ["{drier_on}The air outside is drier, so ten minutes of airing helps.",
                 "{wetter_on}Outside is wetter ({rh_out}%), so a window won’t dry the room."],
-        "timing": ["The AC’s dry mode works too. Stop at {rh_stop}%."],
+        "timing": ["{ac_too_on}The AC’s dry mode works too. Stop at {rh_stop}%.",
+                   "{appliance_on}Stop at {rh_stop}%."],
     },
     "rh_dry": {
         "effect": ["Under {rh_dry}%, dry air irritates the nose and throat."],
@@ -63,20 +66,24 @@ PILLS = {
     "sinus": {"Too damp": "Humidity is over {rh_damp}%: mold and dust mites like it, and both set off allergies.",
               "Too dry": "Humidity is under {rh_dry}%: dry air irritates the nose and sinuses.",
               "Pollen high": ["{pollen_type_cap} pollen is {pollen_index} of 5 today: keep the windows shut.", "Pollen is high today: keep the windows shut."],
-              "Damp + pollen": "Damp inside and pollen outside: dehumidify with the windows shut.",
+              "Damp + pollen": ["{dehumidifier_on}Damp inside and pollen outside: dehumidify with the windows shut.",
+                                "{ac_dry_on}Damp inside and pollen outside: run the AC’s dry mode with the windows shut.",
+                                "Damp inside and pollen outside: keep the windows shut."],
               "All fine": "Humidity is between {rh_dry} and {rh_damp}%.",   # no pollen reading: nothing to say about it
               True: "Humidity is between {rh_dry} and {rh_damp}%, and pollen is low.",
               False: "Damp air, dry air or pollen: the item above says which and what to do.",
               None: "The indoor monitor hasn’t reported."},
     "runner": {"Avoid": "PM2.5 outside is forecast over {pm_limit} in those hours: run before or after.",
-               "Not clean now": "PM2.5 outside is over {pm_limit} now.",
+               "Run after": "PM2.5 outside is over {pm_limit} until then.",
                "Skip today": "PM2.5 outside is over {pm_high} today: skip the run.",
                True: "Outdoor PM2.5 is under {pm_limit}.",
                False: "Outdoor PM2.5 is over {pm_limit} then.",
                None: "The outdoor monitor hasn’t reported."},
 }
+# the runner's (i) when NOAA sees smoke but the outdoor monitor reads clean air
 SMOKE_CLEAN = "NOAA reports smoke in the region; the air here is clean (PM2.5 {pm_now})."
 
+# compass(): the wind's direction in eight words, from north clockwise
 _POINTS = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"]
 
 
@@ -93,6 +100,14 @@ def _derived(facts):
         f["rush_wind"] = compass(f["wind_dir"])
     if f.get("smoke"):
         f["smoke_on"] = ""
+    # the home's appliances (summary.build_summary): the AC as a second option, and "stop at" for whatever runs
+    if f.get("ac_too"):
+        f["ac_too_on"] = ""
+    if f.get("appliance"):
+        f["appliance_on"] = ""
+    for a in ("dehumidifier", "ac_dry"):   # which one the home has, for the damp + pollen pill
+        if f.get(a):
+            f[a + "_on"] = ""
     # the dew point decides whether outside air is drier (set by the rules); without it, say nothing
     if f.get("drier_out") is True:
         f["drier_on"] = ""
@@ -136,7 +151,7 @@ def pill_why(need_id, facts, ok, state=None):
         s = fill(SMOKE_CLEAN, facts)
         if s:
             return s
-    key = "Avoid" if state and state.startswith("Avoid") else state   # "Avoid 4–8 PM": the hours change
+    key = next((k for k in ("Avoid", "Run after") if state and state.startswith(k)), state)   # "Avoid 4–8 PM", "Run after 11 AM": the hours change
     tpl = PILLS[need_id].get(key) or PILLS[need_id][ok]
     for t in [tpl] if isinstance(tpl, str) else tpl:
         s = fill(t, facts)

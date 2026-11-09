@@ -1,5 +1,5 @@
 """Starting up: the demo with nothing set up, a plain state with a config but no token, a clear stop otherwise.
-The server reads its config at import, so the tests that need a fresh import reload it and restore Sacha's config after."""
+The server reads its config at import, so the tests that need a fresh import reload it and restore the reference config after."""
 import importlib
 import os
 import shutil
@@ -8,12 +8,12 @@ import pytest
 
 import server as server_module
 
-SACHA = os.environ["CONFIG_TOML"]
+REFERENCE = os.environ["CONFIG_TOML"]
 
 
 @pytest.fixture
 def reloaded(monkeypatch):
-    """reload(server) with the given env (None removes a key); Sacha's config and token back afterwards."""
+    """reload(server) with the given env (None removes a key); the reference config and token back afterwards."""
     def run(**env):
         for k, v in env.items():
             monkeypatch.setenv(k, v) if v is not None else monkeypatch.delenv(k, raising=False)
@@ -33,7 +33,7 @@ def test_no_token_no_config_is_demo(tmp_path):
 
 
 def test_config_no_token_state(reloaded):
-    srv = reloaded(AIRGRADIENT_TOKEN="", CONFIG_TOML=SACHA)
+    srv = reloaded(AIRGRADIENT_TOKEN="", CONFIG_TOML=REFERENCE)
     assert srv.MODE == "no_token"
     srv.app.config["TESTING"] = True
     with srv.app.test_client() as c:
@@ -44,7 +44,7 @@ def test_config_no_token_state(reloaded):
 
 
 def test_live_page_has_no_state(reloaded):
-    srv = reloaded(AIRGRADIENT_TOKEN="x", CONFIG_TOML=SACHA)
+    srv = reloaded(AIRGRADIENT_TOKEN="x", CONFIG_TOML=REFERENCE)
     with srv.app.test_client() as c:
         assert '"state"' not in c.get("/").get_data(as_text=True)
 
@@ -69,7 +69,7 @@ def test_invalid_config_exits_with_message(reloaded, capsys):
 
 
 def test_placeholder_token_with_config_is_no_token(reloaded):
-    srv = reloaded(AIRGRADIENT_TOKEN="your_token_here", CONFIG_TOML=SACHA)
+    srv = reloaded(AIRGRADIENT_TOKEN="your_token_here", CONFIG_TOML=REFERENCE)
     assert srv.MODE == "no_token" and srv.TOKEN == ""
 
 
@@ -109,7 +109,7 @@ def test_main_binds_localhost_unless_host_is_set(monkeypatch, capsys):
 
 
 def test_expired_token_is_not_no_token(reloaded, monkeypatch):
-    srv = reloaded(AIRGRADIENT_TOKEN="expired", CONFIG_TOML=SACHA)
+    srv = reloaded(AIRGRADIENT_TOKEN="expired", CONFIG_TOML=REFERENCE)
     monkeypatch.setattr(srv, "api_get", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("401")))
     srv.app.config["TESTING"] = True
     with srv.app.test_client() as c:

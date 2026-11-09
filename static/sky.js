@@ -1,7 +1,8 @@
 // Home Air Quality: the live sky behind the page and the Weather pill. Uses $, APP, TZ, appNow, has, state and reading from app.js,
-// and bearingIn from home.js.
+// and bearingIn and pmOver from home.js.
 // ── Sky band: real sun position, cloud cover, wind and PM2.5. Preview overrides from the Customize panel. ──
 var SKY = (() => {
+  const HAZY_PM = 12;   // µg/m³ outdoor PM2.5: over this the Weather pill says "Hazy air" (the old US AQI "Good" edge); over pm_high, "Smoky"
   const LAT = APP.place.lat, LON = APP.place.lon, reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Start from the last real weather this browser saw, so a reload never shows made-up defaults.
   const LIVE_KEY = 'aq-sky-live' + (APP.now ? ':' + APP.now.moment : '');   // the demo keeps one per moment
@@ -66,7 +67,7 @@ var SKY = (() => {
     const morning = azim < 180;
     const phase = elev > 6 ? 'Day' : elev > 0 ? (morning ? 'Sunrise' : 'Golden hour') : elev > -6 ? (morning ? 'Dawn' : 'Dusk') : 'Night';
     const c = v.cloud || 0, skyW = c >= 90 ? 'Overcast' : c >= 60 ? 'Mostly cloudy' : c >= 25 ? 'Partly cloudy' : 'Clear sky';
-    const pm = v.pm || 0, air = pm > 35 ? ['Smoky air', 'bad'] : pm > 12 ? ['Hazy air', 'warn'] : ['Air clear', 'good'];
+    const pm = v.pm || 0, air = pmOver(pm, APP.limits.pm_high) ? ['Smoky air', 'bad'] : pmOver(pm, HAZY_PM) ? ['Hazy air', 'warn'] : ['Air clear', 'good'];
     // drop: the order items hide in when the line is too narrow (1 first). The sky itself already shows time of day and clouds.
     const seg = (icon, text, cls = '', drop = 0, title = '') => `<span class="cap-i ${cls}"${drop ? ` data-drop="${drop}"` : ''}${title ? ` title="${title}"` : ''}>${icon}${text}</span>`;
     const out = [];

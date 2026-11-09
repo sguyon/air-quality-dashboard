@@ -40,6 +40,8 @@ Ask which of the three needs apply to the household, and set each in `[needs]` t
 
 These are the only needs the page knows. A new one is a code change (see "Adding a need" below).
 
+Then ask what they have to dry a damp room, and set `[home] appliances` to `["dehumidifier", "ac_dry"]` (both, the default), one of them, or `[]`: the humidity action uses these.
+
 ## 4. The road: leave it out
 
 In this version the road is off for new homes: leave the `[road]` section commented out. The page then has no road, no rush-hour rule and no exhaust on the map.
@@ -73,7 +75,7 @@ Don't copy `.env.example` to `.env`: the first line for a key wins, so a placeho
 
 Ask the user: set up pollen now, or later? Skipping is fine. Without a key the pollen card says "Not set up", and the sinus need uses humidity only. To turn pollen off entirely, set `pollen = false` under `[sources]`.
 
-The key comes from Google's Pollen API. It needs a Google Cloud project with billing turned on. The free tier is 5,000 calls a month; the app makes about one a day, since it keeps each day's pollen.
+The key comes from Google's Pollen API. It needs a Google Cloud project with billing turned on. The API has a free monthly allowance, and the app makes about one call a day, since it keeps each day's pollen.
 
 **With `gcloud`** (the agent runs the commands, except the two the user does):
 
@@ -154,7 +156,7 @@ A need is code, not a setting. To add one, touch each of these and keep the test
 
 - `config.py`: add it to `NEEDS`.
 - `summary.py`: the need's state in the needs row, and which items serve it.
-- `server.py`: the need's verdict and which actions serve it (search for `serves` and the existing needs).
+- `server.py`: the need's line in `build_needs`.
 - `phrases.py`: the need's sentences.
 - `static/home.js`, `static/app.js`, `static/summary.js`: its name, icon and wording.
 - `index.html`: its chip in the Home menu and its icon in the summary's needs line.

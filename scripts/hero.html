@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- The README's hero image: a MacBook Pro with the desktop's first screen, an iPhone 14 Pro in front with the phone's.
+<!-- The README's hero image: a MacBook Pro with the desktop's first screen (Morning rush), an iPhone 14 Pro in front with the phone's (All clear).
      scripts/screenshot.sh opens it with ?theme=light|dark&desk=<png>&phone=<png>&bg=<hex> and shoots it on a transparent background.
      Device frames: Devices.css (MIT, github.com/picturepan2/devices.css), vendored in scripts/vendor. -->
 <html lang="en">
@@ -11,14 +11,15 @@
   html, body { margin: 0; background: transparent; }
   :root { --ink: #10181f; }
   :root.dark { --ink: #f2f5f8; }
-  /* 40 px of room on every side for the shadows; screenshot.sh trims the empty edges */
-  .stage { position: relative; width: 856px; height: 540px; }
+  /* 72 px of room on every side, more than any shadow reaches, so every shadow fades to nothing inside the stage;
+     screenshot.sh then trims to the last non-transparent pixel */
+  .stage { position: relative; width: 920px; height: 640px; }
   /* the laptop behind, at its native Devices.css size (screen 600 × 375, the desktop's 16:10) */
-  .laptop { position: absolute; left: 40px; top: 40px; filter: drop-shadow(0 16px 20px rgba(10, 20, 30, .14)); }
+  .laptop { position: absolute; left: 72px; top: 72px; filter: drop-shadow(0 16px 20px rgba(10, 20, 30, .14)); }
   .laptop .device-screen { object-position: top left; }
   /* the phone in front, over the laptop's lower right, at the same zoom as the laptop's screen
      (390 px of page in 187 px, 1440 in 600): the wrapper places it, zoom sizes it and keeps it sharp */
-  .phone-at { position: absolute; z-index: 2; left: 611px; top: 75px; width: 205.44px; height: 416.64px; filter: drop-shadow(0 22px 26px rgba(10, 20, 30, .26)); }
+  .phone-at { position: absolute; z-index: 2; left: 643px; top: 107px; width: 205.44px; height: 416.64px; filter: drop-shadow(0 22px 26px rgba(10, 20, 30, .26)); }
   .phone { zoom: .48; }
   .phone .device-screen { overflow: hidden; background: var(--bg, #f4f6f8); }
   .phone .device-screen img { width: 390px; height: auto; display: block; }

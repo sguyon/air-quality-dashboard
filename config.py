@@ -8,12 +8,17 @@ from pathlib import Path
 from typing import Mapping
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent   # the app's folder: config.toml, demo/ and relative road routes live here
 
+# the needs the page knows ([needs]); a new one is code (SETUP.md, "Adding a need")
 NEEDS = ("toddler", "sinus", "runner")
-LIMITS = ("co2", "pm", "pm_high", "rh_dry", "rh_damp", "rh_stop", "pollen")
-DEFAULT_LIMITS = {"co2": 800, "pm": 15, "pm_high": 35, "rh_dry": 30, "rh_damp": 60, "rh_stop": 55, "pollen": 3}
-SOURCES = ("smoke", "pollen", "nearby")
+# the keys [limits] may set
+LIMITS = ("co2", "pm", "pm_high", "rh_dry", "rh_good", "rh_damp", "rh_stop", "pollen")
+# the household's thresholds, [limits] in config.toml; config.example.toml says what each one means
+DEFAULT_LIMITS = {"co2": 800, "pm": 15, "pm_high": 35, "rh_dry": 30, "rh_good": 50, "rh_damp": 60, "rh_stop": 55, "pollen": 3}
+SOURCES = ("smoke", "pollen", "nearby")   # outside sources [sources] can turn off
+# what [home] appliances may list: the damp-room action runs the first one the home has. Default: both.
+APPLIANCES = ("dehumidifier", "ac_dry")
 
 
 def real_value(value) -> bool:
@@ -63,6 +68,7 @@ class Config:
     limits: dict[str, float]
     pollen_seasons: tuple[dict, ...]
     sources: dict[str, bool]
+    appliances: tuple[str, ...] = APPLIANCES
 
 
 def _clean(text: str) -> str:
@@ -137,6 +143,29 @@ def _region(v, source: str) -> str | None:
     return v.strip() or None
 
 
+def limit_order_problems(limits: Mapping[str, float]) -> list[str]:
+    """The limits that are out of order, in words. config.py refuses them; scripts/check_config.py lists them."""
+    lim = lambda k: limits.get(k, DEFAULT_LIMITS[k])
+    out = []
+    if not lim("rh_dry") < lim("rh_stop") < lim("rh_damp"):
+        out.append("limits must follow rh_dry < rh_stop < rh_damp (dry, then the damp-room action's target, then damp)")
+    if not lim("rh_dry") < lim("rh_good") <= lim("rh_damp"):
+        out.append("limits must follow rh_dry < rh_good <= rh_damp (dry, then the top of the comfortable band, then damp)")
+    if not lim("pm") < lim("pm_high"):
+        out.append("limits.pm must be below limits.pm_high")
+    return out
+
+
+def _appliances(home: dict, source: str) -> tuple[str, ...]:
+    v = home.get("appliances", list(APPLIANCES))
+    if not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
+        raise ConfigError(f"{source}: home.appliances must be a list, like [\"dehumidifier\", \"ac_dry\"]")
+    unknown = [x for x in v if x not in APPLIANCES]
+    if unknown:
+        raise ConfigError(f"{source}: home.appliances has {', '.join(unknown)}. Use only: {', '.join(APPLIANCES)}")
+    return tuple(x for x in APPLIANCES if x in v)
+
+
 def _parse(text: str, source: str, root: Path, demo: bool) -> Config:
     try:
         raw = tomllib.loads(_clean(text))
@@ -159,9 +188,12 @@ def _parse(text: str, source: str, root: Path, demo: bool) -> Config:
         ZoneInfo(place.timezone)
     except (ValueError, ZoneInfoNotFoundError) as e:
         raise ConfigError(f"{source}: place.timezone {place.timezone!r} is not a timezone name, like America/Chicago") from e
-    needs_t, limits_t, sources_t = (_table(raw, n, source) for n in ("needs", "limits", "sources"))
+    needs_t, limits_t, sources_t, home_t = (_table(raw, n, source) for n in ("needs", "limits", "sources", "home"))
     needs = {k: _flag(needs_t.get(k, True), f"needs.{k}", source) for k in NEEDS}
     limits = {k: _num(limits_t.get(k, DEFAULT_LIMITS[k]), f"limits.{k}", source) for k in LIMITS}
+    order = limit_order_problems(limits)
+    if order:
+        raise ConfigError(f"{source}: " + "; ".join(order))
     sources = {k: _flag(sources_t.get(k, True), f"sources.{k}", source) for k in SOURCES}
     road = None
     if "road" in raw:
@@ -198,7 +230,7 @@ def _parse(text: str, source: str, root: Path, demo: bool) -> Config:
     seasons = raw.get("pollen_seasons", [])
     if not isinstance(seasons, list):
         raise ConfigError(f"{source}: pollen_seasons must be a list of [[pollen_seasons]] blocks")
-    return Config(source, demo, place, road, needs, limits, tuple(seasons), sources)
+    return Config(source, demo, place, road, needs, limits, tuple(seasons), sources, _appliances(home_t, source))
 
 
 def load_config(env: Mapping[str, str] = os.environ, root: Path = ROOT) -> Config | None:

@@ -56,7 +56,9 @@ def test_pm_explains_the_15_line():
 
 def test_dry_and_damp_differ():
     assert "mold" in why("rh", {"rh": 64, "dry": False}) and "dry" in why("rh", {"rh": 24, "dry": True}).lower()
-    assert "dry mode" in why("rh", {"rh": 64, "dry": False})
+    # the AC is named only for a home that has one (summary sets ac_too from [home] appliances)
+    assert "dry mode" in why("rh", {"rh": 64, "dry": False, "ac_too": True})
+    assert "dry mode" not in why("rh", {"rh": 64, "dry": False})
 
 
 def test_toddler_pill_by_state():
@@ -76,7 +78,7 @@ def test_sinus_pill_by_state():
 
 def test_runner_pill_by_state():
     assert pill_why("runner", {}, ok=False, state="Avoid 4–8 PM") == "PM2.5 outside is forecast over 15 in those hours: run before or after."
-    assert pill_why("runner", {}, ok=False, state="Not clean now") == "PM2.5 outside is over 15 now."
+    assert pill_why("runner", {}, ok=False, state="Run after 11 AM") == "PM2.5 outside is over 15 until then."
     assert pill_why("runner", {}, ok=False, state="Skip today") == "PM2.5 outside is over 35 today: skip the run."
 
 

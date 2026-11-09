@@ -84,6 +84,11 @@ def test_limits_order(tmp_path, capsys):
     assert code == 1 and "rh_dry < rh_stop < rh_damp" in out
     code, out = run(tmp_path, EXAMPLE.replace("pm_high = 35", "pm_high = 10"), capsys=capsys)
     assert code == 1 and "pm must be below limits.pm_high" in out
+    for bad in ("rh_good = 25", "rh_good = 65"):   # under rh_dry, over rh_damp
+        code, out = run(tmp_path, EXAMPLE.replace("rh_good = 50", bad), capsys=capsys)
+        assert code == 1 and "rh_dry < rh_good <= rh_damp" in out, bad
+    code, out = run(tmp_path, EXAMPLE.replace("rh_good = 50", "rh_good = 60"), capsys=capsys)
+    assert code == 0, out   # the comfortable band may run up to the damp line
 
 
 def test_toml_error_is_plain(tmp_path, capsys):

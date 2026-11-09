@@ -37,22 +37,25 @@
 .sx-clear .sx-sub { margin-top: 4px; font-size: 15px; color: var(--muted); }
 
 /* the household's needs, always there but quiet: three icons in the header line, the dot is the state */
-.sx-nh { display: flex; align-items: center; gap: 12px; text-transform: none; letter-spacing: 0; }
+.sx-nh { display: flex; align-items: center; gap: 14px; text-transform: none; letter-spacing: 0; }
 .sx-nh .sx-why { position: static; }
 .sx-nh .sx-why p { top: calc(100% + 8px); left: auto; right: -10px; width: min(380px, calc(100% + 20px)); }
 .sx-nh-i { display: block; padding: 2px; margin: -2px; }
-.sx-nh-i i { position: relative; display: block; width: 18px; height: 18px; color: var(--muted); }
-.sx-nh-i i b { position: absolute; right: -2px; bottom: -1px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--card); background: var(--good-fill); }
+.sx-nh-i i { position: relative; display: block; width: 24px; height: 24px; color: var(--muted); }
+.sx-nh-i i b { position: absolute; right: -2px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--card); background: var(--good-fill); }
 .sx-nh-i.warn i { color: var(--warn); }
 .sx-nh-i.warn i b { background: var(--warn-fill); }
 .sx-nh-i.muted i b { background: var(--faint); }
 .sx-nh-i svg, .sx-nchip svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 /* on an item: its need's icon and state, plain amber, in the (i)'s place */
-.sx-lab .sx-why summary.sx-nchip { display: inline-flex; align-items: center; gap: 5px; width: auto; height: auto; margin: 0; border-radius: 0;
+.sx-lab .sx-why summary.sx-nchip { display: inline-flex; align-items: center; gap: 6px; width: auto; height: auto; margin: 0; border-radius: 0;
   background: none; font: 600 13px/1.2 Inter, sans-serif; color: var(--warn); white-space: nowrap; }
 .sx-lab .sx-why summary.sx-nchip:hover, .sx-lab .sx-why[open] summary.sx-nchip { background: none; color: var(--warn); }
 .sx-lab .sx-why summary.sx-nchip.ok, .sx-lab .sx-why summary.sx-nchip.muted { color: var(--muted); }
-.sx-nchip svg { width: 15px; height: 15px; stroke-width: 1.9; }
+.sx-nchip svg { stroke-width: 1.9; }
+/* need icons: 22 px in the header line, 19 px on an item, beating .sx-why summary svg's 16 */
+.sx-why summary.sx-nh-i svg { width: 22px; height: 22px; }
+.sx-why summary.sx-nchip svg { width: 19px; height: 19px; }
 
 /* the day chart and its readout */
 .sx-tl { position: relative; padding-top: 12px; margin-top: 2px; border-top: 1px solid var(--line); touch-action: pan-y; }

@@ -158,7 +158,7 @@ def test_unknown_timezone_is_a_config_error(tmp_path):
 def test_road_kind_defaults_to_highway():
     from pathlib import Path
     ROOT = Path(__file__).resolve().parent.parent
-    text = (ROOT / "tests/fixtures/config_sacha.toml").read_text()
+    text = (ROOT / "tests/fixtures/config_reference.toml").read_text()
     cfg = load_config({"CONFIG_TOML": text}, ROOT)
     assert cfg.road.kind == "expressway" and public_view(cfg)["road"]["kind"] == "expressway"
     plain = load_config({"CONFIG_TOML": text.replace('kind = "expressway"\n', "", 1)}, ROOT)
@@ -170,9 +170,9 @@ def test_config_file_points_at_another_path(tmp_path):
     from pathlib import Path
     root = Path(__file__).resolve().parent.parent
     f = tmp_path / "mounted.toml"
-    f.write_text((root / "tests/fixtures/config_sacha.toml").read_text().replace('name = "Greenpoint"', 'name = "Mounted"', 1))
+    f.write_text((root / "tests/fixtures/config_reference.toml").read_text().replace('name = "Greenpoint"', 'name = "Mounted"', 1))
     assert load_config({"CONFIG_FILE": str(f)}, root).place.name == "Mounted"
-    env_text = (root / "tests/fixtures/config_sacha.toml").read_text().replace('name = "Greenpoint"', 'name = "Env"', 1)
+    env_text = (root / "tests/fixtures/config_reference.toml").read_text().replace('name = "Greenpoint"', 'name = "Env"', 1)
     assert load_config({"CONFIG_FILE": str(f), "CONFIG_TOML": env_text}, root).place.name == "Env"
 
 
@@ -180,3 +180,50 @@ def test_config_file_missing_is_an_error_not_a_fallback(tmp_path):
     (tmp_path / "config.toml").write_text('[place]\nname = "Root"\nlat = 1.0\nlon = 1.0\ntimezone = "UTC"\n')
     with pytest.raises(ConfigError, match="CONFIG_FILE"):
         load_config({"CONFIG_FILE": str(tmp_path / "nope.toml")}, tmp_path)
+
+
+def test_rh_good_defaults_to_50_and_reaches_the_page():
+    plain = load_config({"CONFIG_TOML": EXAMPLE.replace("rh_good = 50\n", "")})
+    assert plain.limits["rh_good"] == 50 and public_view(plain)["limits"]["rh_good"] == 50
+    set_ = load_config({"CONFIG_TOML": EXAMPLE.replace("rh_good = 50", "rh_good = 45")})
+    assert set_.limits["rh_good"] == 45
+
+
+def test_appliances_default_to_both_without_a_home_section():
+    text = (REPO / "tests/fixtures/config_reference.toml").read_text(encoding="utf-8")
+    assert "[home]" not in text
+    assert load_config({"CONFIG_TOML": text}, REPO).appliances == ("dehumidifier", "ac_dry")
+
+
+def test_appliances_from_the_home_section():
+    one = EXAMPLE.replace('appliances = ["dehumidifier", "ac_dry"]', 'appliances = ["ac_dry"]')
+    assert load_config({"CONFIG_TOML": one}).appliances == ("ac_dry",)
+    none = EXAMPLE.replace('appliances = ["dehumidifier", "ac_dry"]', "appliances = []")
+    assert load_config({"CONFIG_TOML": none}).appliances == ()
+
+
+def test_unknown_appliance_is_named():
+    bad = EXAMPLE.replace('appliances = ["dehumidifier", "ac_dry"]', 'appliances = ["dehumidifier", "humidifier", "purifier"]')
+    with pytest.raises(ConfigError) as e:
+        load_config({"CONFIG_TOML": bad})
+    msg = str(e.value)
+    assert "humidifier" in msg and "purifier" in msg and "dehumidifier, ac_dry" in msg
+    with pytest.raises(ConfigError):
+        load_config({"CONFIG_TOML": EXAMPLE.replace('appliances = ["dehumidifier", "ac_dry"]', 'appliances = "ac_dry"')})
+
+
+@pytest.mark.parametrize("change, keys", [
+    ("rh_good = 50", "rh_good = 25"),            # under rh_dry
+    ("rh_good = 50", "rh_good = 65"),            # over rh_damp
+    ("rh_stop = 55", "rh_stop = 65"),            # over rh_damp
+    ("pm_high = 35", "pm_high = 10"),            # under pm
+])
+def test_limits_out_of_order_are_a_config_error(change, keys):
+    with pytest.raises(ConfigError) as e:
+        load_config({"CONFIG_TOML": EXAMPLE.replace(change, keys)})
+    key = keys.split(" =")[0]
+    assert "CONFIG_TOML" in str(e.value) and key in str(e.value)
+
+
+def test_limits_in_order_load():
+    assert load_config({"CONFIG_TOML": EXAMPLE.replace("rh_good = 50", "rh_good = 60")}).limits["rh_good"] == 60

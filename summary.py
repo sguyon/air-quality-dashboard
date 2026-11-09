@@ -7,13 +7,20 @@ import math
 from datetime import datetime, timedelta
 
 import phrases
-from config import DEFAULT_LIMITS, bearing_in
+from config import APPLIANCES as _APPLIANCES, DEFAULT_LIMITS, bearing_in
 
 LIMITS = dict(DEFAULT_LIMITS)   # the server fills these from the config at import
-HOUSEHOLD = {"equipment": {"dehumidifier", "ac_dry"}}   # Sacha, 8 Nov 2026: no humidifier, no purifier
-OUTLOOK_HOURS = 8
-ANCHOR_FADE = timedelta(hours=6)
-MAX_ITEMS = 3
+APPLIANCES = set(_APPLIANCES)   # what dries a damp room here ([home] appliances); the server fills it from the config
+OUTLOOK_HOURS = 8                  # hours of PM2.5 forecast the items and the runner look ahead
+ANCHOR_FADE = timedelta(hours=6)   # how long a gap between the monitor and CAMS takes to fade (anchor_forecast)
+MAX_ITEMS = 3                      # items shown on the card; the rest go on the Also line
+CALIBRATION_RANGE = (0.1, 3.0)     # bounds on the monitor/CAMS factor, so a few odd hours can't zero or triple the forecast
+DRIER_BY_C = 1                     # °C: outside counts as drier when its dew point is this much below the room's
+NIGHT = (22, 7)                    # hours: "last night" runs from 10 PM to 7 AM
+NIGHT_STALE, NIGHT_ALL = 0.5, 0.9  # share of last night over the CO₂ limit: "stale", and "all last night" (else "most of")
+COLD_C = 10                        # °C: "close it after ten minutes" when it gets this cold within COLD_AHEAD
+COLD_AHEAD = timedelta(hours=8)
+TONIGHT_FROM = 18                  # hour: a chart starting at or after 6 PM is headed "Tonight"
 
 
 def clock(t):
@@ -51,7 +58,7 @@ def calibrate_forecast(cams, monitor_pts, now, min_hours=6):
         return None, None
     mid = len(ratios) // 2
     k = ratios[mid] if len(ratios) % 2 else (ratios[mid - 1] + ratios[mid]) / 2
-    k = min(max(k, 0.1), 3.0)
+    k = min(max(k, CALIBRATION_RANGE[0]), CALIBRATION_RANGE[1])
     return [(t, round(v * k, 1)) for t, v in cams if v is not None and t > now], k
 
 
@@ -125,21 +132,21 @@ def candidates(r, outlook, pollen_today, night=None):
 def _night_ctx(night):
     if not night or not night["stale"]:
         return ""
-    return f" · over {LIMITS['co2']} all last night" if night["share"] >= 0.9 else f" · over {LIMITS['co2']} most of last night"
+    return f" · over {LIMITS['co2']} all last night" if night["share"] >= NIGHT_ALL else f" · over {LIMITS['co2']} most of last night"
 
 
 def last_night(co2_pts, now):
     """Last night's CO2, 10 PM to 7 AM: {peak, share over 800, stale (over 800 at least half the night)}.
     Only from 7 AM to 10 PM: before 7 the night isn't over, after 10 a new one has started and the reading now counts."""
-    if not 7 <= now.hour < 22:
+    if not NIGHT[1] <= now.hour < NIGHT[0]:
         return None
-    end = now.replace(hour=7, minute=0, second=0, microsecond=0)
-    start = end - timedelta(hours=9)
+    end = now.replace(hour=NIGHT[1], minute=0, second=0, microsecond=0)
+    start = end - timedelta(hours=(NIGHT[1] - NIGHT[0]) % 24)
     vals = [v for t, v in co2_pts if v is not None and start <= t < end]
     if not vals:
         return None
     share = sum(v > LIMITS["co2"] for v in vals) / len(vals)
-    return {"peak": round(max(vals)), "share": round(share, 2), "stale": share >= 0.5}
+    return {"peak": round(max(vals)), "share": round(share, 2), "stale": share >= NIGHT_STALE}
 
 
 def select(cands, extra):
@@ -170,12 +177,15 @@ def dew_point(t, rh):
 
 def _drier_outside(r):
     d_in, d_out = dew_point(r.get("t_in"), r.get("rh")), dew_point(r.get("t_out"), r.get("rh_out"))
-    return d_in is not None and d_out is not None and d_out < d_in - 1
+    return d_in is not None and d_out is not None and d_out < d_in - DRIER_BY_C
 
 
 def _first_over(outlook, now):
     """The first PM2.5-over-15 stretch that hasn't ended."""
     return next(((a, b) for a, b in outlook.get("over") or [] if b > now), None)
+
+
+AC_DRY = "Run the AC’s dry mode"   # the damp-room action when the AC is the only appliance
 
 
 def action(item, r, outlook, rush, now):
@@ -196,9 +206,11 @@ def action(item, r, outlook, rush, now):
         if rh is not None and rh > LIMITS["rh_damp"]:
             if _drier_outside(r) and not stretch:
                 return act("Air the room for 10 min", "drier outside")
-            if "dehumidifier" in HOUSEHOLD["equipment"]:
+            if "dehumidifier" in APPLIANCES:
                 return act("Run the dehumidifier", f"until under {LIMITS['rh_stop']}%")
-            return act("Close the windows", f"until under {LIMITS['rh_stop']}%")
+            if "ac_dry" in APPLIANCES:
+                return act(AC_DRY, f"until under {LIMITS['rh_stop']}%")
+            return act("Keep the windows shut")   # nothing to lower it: no "until under"
         if _drier_outside(r):
             return act("Keep windows shut", "while it’s this dry outside")
         return act(None)
@@ -253,7 +265,7 @@ def needs_row(r, outlook, pollen_today, smoke, night, now):
     elif outlook.get("high"):
         run = (False, "Skip today")
     elif stretch and stretch[0] <= now:
-        run = (False, "Not clean now")
+        run = (False, f"Run after {clock(stretch[1])}")   # the action, with the time the dirty stretch ends
     elif stretch:
         run = (False, f"Avoid {fmt_range(*stretch)}")
     else:
@@ -270,8 +282,10 @@ def needs_row(r, outlook, pollen_today, smoke, night, now):
 
 
 # ── The day chart's data, and the whole card ──
-CHART_BEFORE = timedelta(hours=3.5)
-CHART_SPAN = timedelta(hours=15)
+CHART_BEFORE = timedelta(hours=3.5)   # how much of the past the day chart shows before now
+CHART_SPAN = timedelta(hours=15)      # the day chart's whole width
+RAIN_SHOWN = 30                       # %: the chart's 3-hourly row shows rain from this chance of precipitation
+STRONG_UV = 6                         # UV index from which the chart marks strong sun (WHO's "high")
 
 
 def _floor_hour(t):
@@ -300,13 +314,13 @@ def timeline(now, co2_pts, rh_pts, pm_past, pm_fc_adj, hourly, sun, show_rh):
             pop = max((x.get("pop") or 0) for x in near) if near else 0
             mm = round(sum((x.get("mm") or 0) for x in near), 1)
             hours.append({"t": _iso(t), "temp": None if h.get("temp") is None else round(h["temp"]),
-                          "pop": pop if pop >= 30 else None, "mm": mm if pop >= 30 else None})
+                          "pop": pop if pop >= RAIN_SHOWN else None, "mm": mm if pop >= RAIN_SHOWN else None})
         t += timedelta(hours=3)
     uv, start, top = [], None, 0
     for h in sorted(hourly, key=lambda x: x["t"]):
         if not t0 <= h["t"] <= t1:
             continue
-        if (h.get("uv") or 0) >= 6:
+        if (h.get("uv") or 0) >= STRONG_UV:
             start = start or h["t"]
             top = max(top, round(h["uv"]))
         elif start is not None:
@@ -390,25 +404,28 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
             elif when.startswith("after "):
                 f["clean_at"] = when[6:]
             cold = next((h for h in sorted(hourly, key=lambda x: x["t"])
-                         if now < h["t"] <= now + timedelta(hours=8) and h.get("temp") is not None and h["temp"] <= 10), None)
+                         if now < h["t"] <= now + COLD_AHEAD and h.get("temp") is not None and h["temp"] <= COLD_C), None)
             if cold:
                 f.update(temp_at=round(cold["temp"]), temp_time=clock(cold["t"]))
+        home = {}   # facts for the sentences only, not kept on the item
         if it["id"] == "rh":
             f["drier_out"] = _drier_outside(r)
             if f["drier_out"] and not it["action"]["text"].startswith("Air"):
                 f["drier_out"] = None   # drier outside, but the air there is dirty soon: say nothing about airing
+            # the AC as a second option, unless it is the action; "stop at" only when something is running
+            home = {"ac_too": "ac_dry" in APPLIANCES and it["action"]["text"] != AC_DRY, "appliance": bool(APPLIANCES)}
         if it["id"] == "pm":
             f.update(wind_dir=wind_at(outlook["max_at"] or now), smoke=bool(smoke))
-        it["why"] = phrases.why(it["id"], f)
+        it["why"] = phrases.why(it["id"], {**f, **home})
         it["facts"] = f
 
     needs = needs_row(r, outlook, pollen_today, smoke, night, now)
-    for n in needs:
-        n["why"] = phrases.pill_why(n["id"], n["facts"], n["ok"], n["state"])
+    for n in needs:   # the appliances pick the damp-room words; like `home` above, not kept as facts
+        n["why"] = phrases.pill_why(n["id"], {**n["facts"], **{a: True for a in APPLIANCES}}, n["ok"], n["state"])
     show_rh = any(i["id"] == "rh" and not i["facts"].get("dry") for i in items)
     tl = timeline(now, co2_pts, rh_pts, pm_past, adjusted, hourly, sun, show_rh)
     t0 = datetime.fromisoformat(tl["t0"])
-    return {"label": "Tonight" if t0.hour >= 18 else "Today", "clock": clock(now), "items": items, "also": also,
+    return {"label": "Tonight" if t0.hour >= TONIGHT_FROM else "Today", "clock": clock(now), "items": items, "also": also,
             "needs": needs, "all_clear": not items, "timeline": tl}
 
 

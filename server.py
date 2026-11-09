@@ -19,7 +19,7 @@ import requests
 
 import phrases
 import summary as summary_rules
-from config import DEFAULT_LIMITS, ConfigError, bearing_in, env_key, load_config, public_view, real_value, route_path
+from config import APPLIANCES, DEFAULT_LIMITS, ConfigError, bearing_in, env_key, load_config, public_view, real_value, route_path
 
 # One shared pool for short-lived upstream calls (weather / smoke / pollen).
 _UPSTREAM_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="upstream")
@@ -52,7 +52,7 @@ import threading
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 log = logging.getLogger("aq.cache")
-_REFRESH_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="cache")
+_REFRESH_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="cache")   # background refreshes of stale cache entries
 _CONTEXT_POOL = ThreadPoolExecutor(max_workers=6, thread_name_prefix="context")   # /api/context fan-out; separate from the pollen deadline pool
 _cache, _inflight, _cache_lock = {}, {}, threading.Lock()
 
@@ -145,9 +145,9 @@ if env_path.exists():
 
 app = Flask(__name__)
 
-API_BASE = "https://api.airgradient.com/public/api/v1"
+API_BASE = "https://api.airgradient.com/public/api/v1"   # AirGradient's public API: the monitors and the world map
 TOKEN = env_key("AIRGRADIENT_TOKEN")   # .env.example's placeholder counts as no token
-NEARBY_RADIUS_KM = 15
+NEARBY_RADIUS_KM = 15   # km: public monitors closer than this show as Nearby monitors (the source note says 15 km)
 
 
 def use_config(cfg):
@@ -168,6 +168,8 @@ def use_config(cfg):
     PM_FINE, PM_HIGH, CO2_OPEN = LIMITS["pm"], LIMITS["pm_high"], LIMITS["co2"]
     RH_LOW, RH_DAMP = LIMITS["rh_dry"], LIMITS["rh_damp"]
     summary_rules.LIMITS.update(LIMITS)
+    summary_rules.APPLIANCES.clear()
+    summary_rules.APPLIANCES.update(cfg.appliances if cfg else APPLIANCES)
     phrases.LIMIT_FACTS.update(co2_limit=LIMITS["co2"], rh_damp=LIMITS["rh_damp"], rh_dry=LIMITS["rh_dry"],
                                rh_stop=LIMITS["rh_stop"], pm_limit=LIMITS["pm"], pm_high=LIMITS["pm_high"],
                                **({"indoor": place.indoor, "outdoor": place.outdoor} if place else {}))
@@ -183,6 +185,7 @@ def startup_config(env=os.environ, root=None):
     return cfg
 
 
+# what the server prints when it stops for want of a config (a token but no home: it won't guess one)
 NO_CONFIG_MESSAGE = "No config: copy config.example.toml to config.toml (or set CONFIG_TOML)"
 
 
@@ -214,7 +217,7 @@ def server_mode(cfg, token):
 
 
 use_config(boot_config())
-MODE = server_mode(CFG, TOKEN)
+MODE = server_mode(CFG, TOKEN)   # "demo", "live" or "no_token", fixed at start
 
 
 def local_now():
@@ -224,8 +227,10 @@ def local_now():
 
 def get_build_info():
     """The commit and the time of this page, in the home's timezone. The commit comes from the host's deploy
-    variables when it sets them (Railway, Vercel), else from git."""
-    commit = (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("VERCEL_GIT_COMMIT_SHA") or "").strip()[:7]
+    variables when it sets them (Railway, Vercel), or from the Docker image's (GIT_COMMIT_SHA, the GIT_SHA build arg),
+    else from git."""
+    commit = (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("VERCEL_GIT_COMMIT_SHA")
+              or os.environ.get("GIT_COMMIT_SHA") or "").strip()[:7]
     if not commit:
         try:
             commit = subprocess.check_output(
@@ -319,6 +324,7 @@ def get_air_forecast():
         return {}
 
 
+# NOAA's Hazard Mapping System: the day's smoke polygons, one KML file per day
 HMS_KML = "https://satepsanone.nesdis.noaa.gov/pub/FIRE/web/HMS/Smoke_Polygons/KML/{y}/{m}/hms_smoke{d}.kml"
 
 
@@ -508,7 +514,7 @@ def icon_env():
     return env if env in ENV_LABEL else None
 
 
-ENV_LABEL = {"dev": "DEV", "preview": "PREVIEW"}
+ENV_LABEL = {"dev": "DEV", "preview": "PREVIEW"}   # the tag on the page title and app name on dev and preview
 
 
 def tag_env(html):
@@ -634,8 +640,9 @@ def current():
     return jsonify(value)
 
 
-HIST_KEEP = ("timestamp", "pm02", "pm02_corrected", "rco2", "rco2_corrected", "rhum", "rhum_corrected")
-HIST_TTL = {1: (60, 240), 6: (60, 240), 24: (60, 240), 168: (300, 1800)}   # hours: (ttl, swr)
+HIST_KEEP = ("timestamp", "pm02", "pm02_corrected", "rco2", "rco2_corrected", "rhum", "rhum_corrected")   # history fields the charts and rules read
+# the History ranges (hours) and how long each is cached: (fresh, then served stale while refreshing), in seconds
+HIST_TTL = {1: (60, 240), 6: (60, 240), 24: (60, 240), 168: (300, 1800)}
 
 
 def _iso(ts):
@@ -738,6 +745,12 @@ def hourly_forecast(weather, air):
     } for k in range(start, min(start + 13, len(times)))]
 
 
+# The weather card's words. Dew point (°C) under DEW_DRY_C dries sinuses (the Open-Meteo source note says so), under
+# DEW_SEVERE_DRY_C badly. Visibility (m) under each line reads very low, reduced, moderate; above the last, clear.
+DEW_SEVERE_DRY_C, DEW_DRY_C = 5, 10
+VISIBILITY_VERY_LOW_M, VISIBILITY_REDUCED_M, VISIBILITY_MODERATE_M = 2000, 5000, 10000
+
+
 @app.route("/api/context")
 def context():
     """Return external data sources (weather, pollen, the road, smoke) as structured JSON."""
@@ -781,20 +794,20 @@ def context():
     wind_dir = get_wind_cardinal(wind_direction)
 
     # Dew point sinus risk
-    if dew_point is not None and dew_point < 5:
+    if dew_point is not None and dew_point < DEW_SEVERE_DRY_C:
         dew_point_risk = "Severe dryness"
-    elif dew_point is not None and dew_point < 10:
+    elif dew_point is not None and dew_point < DEW_DRY_C:
         dew_point_risk = "Moderate dryness"
     else:
         dew_point_risk = "Comfortable"
 
     # Visibility interpretation
     if visibility is not None:
-        if visibility < 2000:
+        if visibility < VISIBILITY_VERY_LOW_M:
             visibility_status = "Very low — high particulate"
-        elif visibility < 5000:
+        elif visibility < VISIBILITY_REDUCED_M:
             visibility_status = "Reduced"
-        elif visibility < 10000:
+        elif visibility < VISIBILITY_MODERATE_M:
             visibility_status = "Moderate"
         else:
             visibility_status = "Clear"
@@ -846,11 +859,18 @@ def context():
     })
 
 
+# The road card's "pressure" is these two weights multiplied: an estimate shown as text, not a measurement.
+# Traffic by hour: the first rush window, the others, the hour either side of a rush, and the rest of the day.
+TRAFFIC_WEIGHT = {"first_rush": 1.5, "rush": 1.4, "shoulder": 1.2, "low": 0.7}
+# Wind: blowing the exhaust toward home, away from it, across, or no direction known.
+WIND_WEIGHT = {"toward": 1.3, "away": 0.5, "cross": 1.0, "unknown": 1.0}
+
+
 def road_traffic(hour, wind_direction):
     """How much the road's traffic weighs on home at this hour: its rush, and whether the wind carries its exhaust here.
 
     Peak inside a rush window, shoulders an hour either side. The road's `toward` arc (config) holds the wind
-    directions that carry its exhaust toward home (Sacha's BQE: from about 80-200°, E through S, so the road lies
+    directions that carry its exhaust toward home (the reference home's BQE: from about 80-200°, E through S, so the road lies
     east through south within 2 km); the opposite arc carries it away; anything else is a crosswind.
     `toward` is the flag to test; wind_impact is display text. Without a road: toward False and nothing else.
     """
@@ -862,29 +882,29 @@ def road_traffic(hour, wind_direction):
     peak = next(((i, name) for i, (a, b, name) in enumerate(RUSH_WINDOWS) if a <= hour_int < b), None)
     if peak:
         traffic_intensity = f"PEAK ({peak[1]} rush)"
-        multiplier = 1.5 if peak[0] == 0 else 1.4
+        multiplier = TRAFFIC_WEIGHT["first_rush"] if peak[0] == 0 else TRAFFIC_WEIGHT["rush"]
     elif any(a - 1 <= hour_int <= b for a, b, _ in RUSH_WINDOWS):
         traffic_intensity = "HIGH (rush shoulders)"
-        multiplier = 1.2
+        multiplier = TRAFFIC_WEIGHT["shoulder"]
     else:
         traffic_intensity = "LOW"
-        multiplier = 0.7
+        multiplier = TRAFFIC_WEIGHT["low"]
 
     # Wind direction impact (wind_direction is where the wind comes FROM, in degrees)
     lo, hi = ROAD.toward
     toward = wind_direction is not None and bearing_in(wind_direction, ROAD.toward)
     if wind_direction is None:
         wind_impact = "Unknown"
-        wind_multiplier = 1.0
+        wind_multiplier = WIND_WEIGHT["unknown"]
     elif toward:
         wind_impact = f"Blowing toward {CFG.place.name}"
-        wind_multiplier = 1.3
+        wind_multiplier = WIND_WEIGHT["toward"]
     elif bearing_in(wind_direction, ((lo + 180) % 360, (hi + 180) % 360)):
         wind_impact = "Blowing away"
-        wind_multiplier = 0.5
+        wind_multiplier = WIND_WEIGHT["away"]
     else:
         wind_impact = "Crosswind"
-        wind_multiplier = 1.0
+        wind_multiplier = WIND_WEIGHT["cross"]
 
     pollution_pressure = multiplier * wind_multiplier
 
@@ -900,8 +920,11 @@ def road_traffic(hour, wind_direction):
 # Rules decide every verdict and every sentence.
 
 # RUSH_WINDOWS, PM_FINE (any hour, though WHO's 15 is a 24-hour average), PM_HIGH, CO2_OPEN, RH_LOW and RH_DAMP
-# come from the config (use_config). RH_HIGH is the top of the comfortable band, not a limit.
-RH_HIGH = 50
+# come from the config (use_config). The rest are the rules' own lines, not a household's:
+CO2_VERY_HIGH = 1500   # ppm: over it, airing the room is urgent ("bad" tone), not just due ("warn")
+RUN_NIGHT = (21, 5)    # hours [from, to): the run verdict speaks of tonight and the early morning
+SLEEP_HOURS = (17, 7)  # hours [from, to): the toddler's line is about the air before sleep
+MOISTURE_MARGIN_C = 1  # °C: outside air adds moisture when its dew point is this much above the room's
 
 
 def fnum(value):
@@ -960,7 +983,7 @@ def rule_run(outdoor_pm, smoke, rush, wind_toward, hour):
     if rush["in_rush"] and wind_toward:
         return verdict(f"After {fmt_hour(rush['end'])}", "warn",
                        f"{base} The {ROAD.name} {rush['name']} rush runs until {fmt_hour(rush['end'])} with the wind toward {CFG.place.name}, so run after that.")
-    if hour >= 21 or hour < 5:
+    if hour >= RUN_NIGHT[0] or hour < RUN_NIGHT[1]:
         return verdict("Fine", "good", f"{base} Tonight is fine, and so is the morning before the {fmt_hour(RUSH_WINDOWS[0][0])} rush."
                        if RUSH_WINDOWS else f"{base} Tonight is fine.")
     if not rush["in_rush"] and not rush.get("tomorrow") and wind_toward:
@@ -987,27 +1010,13 @@ def history_points(location_id, now_local, hours=24):
     return points
 
 
-def series_of(points, key, now_local, buckets=48, hours=24):
-    start = now_local - timedelta(hours=hours)
-    sums, counts = [0.0] * buckets, [0] * buckets
-    for ts, row in points:
-        v = key(row)
-        if v is None:
-            continue
-        i = int((ts - start).total_seconds() / (hours * 3600) * buckets)
-        if 0 <= i < buckets:
-            sums[i] += v
-            counts[i] += 1
-    return [round(t / c, 1) if c else None for t, c in zip(sums, counts)]
-
-
 def clock_label(ts, now_local):
     label = ts.strftime("%-I:%M %p")
     return label if ts.date() == now_local.date() else label + " yesterday"
 
 
-def stretch(points, key, is_off, now_local, buckets=48, hours=24):
-    """The unbroken stretch where is_off holds, running up to the latest reading."""
+def stretch(points, key, is_off, now_local, hours=24):
+    """The unbroken stretch where is_off holds, running up to the latest reading: {"label": "all day" or "since 3:10 PM"}."""
     vals = [(t, key(r)) for t, r in points]
     vals = [(t, v) for t, v in vals if v is not None]
     if not vals or not is_off(vals[-1][1]):
@@ -1017,9 +1026,7 @@ def stretch(points, key, is_off, now_local, buckets=48, hours=24):
         i -= 1
     start = vals[i][0]
     whole = i == 0 and (start - (now_local - timedelta(hours=hours))).total_seconds() < 3600
-    idx = int((start - (now_local - timedelta(hours=hours))).total_seconds() / (hours * 3600) * buckets)
-    return {"label": "all day" if whole else "since " + clock_label(start, now_local),
-            "cross": None if whole else {"i": max(0, min(buckets - 1, idx)), "t": start.strftime("%-I:%M %p")}}
+    return {"label": "all day" if whole else "since " + clock_label(start, now_local)}
 
 
 def co2_of(r):
@@ -1034,55 +1041,18 @@ def pm_of(r):
     return fnum(r.get("pm02_corrected", r.get("pm02")))
 
 
-# Pollen seasons in New York, roughly; used only for the "relief" line.
-POLLEN_ENDS = {"tree": "early June", "grass": "late July", "weed": "mid-October"}
-
-
-def relief_line(pollen, now):
-    """One factual line about the pollen season, or "" when there is nothing useful to say."""
-    if not pollen:
-        return ""
-    top = max(pollen, key=lambda q: q.get("index") or 0)
-    if (top.get("index") or 0) >= 3:
-        end = POLLEN_ENDS.get(str(top.get("name", "")).lower())
-        return f"{top['name']} pollen usually eases by {end}." if end else ""
-    if all((q.get("index") or 0) == 0 and not q.get("in_season") for q in pollen) and now.month in (11, 12, 1, 2):
-        return "Pollen is off for the winter. Tree pollen usually starts in March."
-    return ""
-
-
-def headline_needs(key, needs):
-    """The needs the headline action serves, so the page can show their icons next to it."""
-    serves = {"window": ["toddler", "sinus"], "humidity": ["sinus"], "run": ["runner"], "pollen": ["sinus"]}.get(key)
-    if serves is None:
-        return []
-    # airing the room helps sinuses only when humidity is part of the story
-    return [n["id"] for n in needs if n["id"] in serves and (n["id"] != "sinus" or key != "window" or n["tone"] != "good")]
-
-
-def relief_short(pollen, now):
-    """A few words for the pollen row, e.g. "off until March"."""
-    line = relief_line(pollen, now)
-    if not line:
-        return ""
-    if "off for the winter" in line:
-        return "off until March"
-    m = re.search(r"usually eases by (.+)\.$", line)
-    return f"eases by {m.group(1)}" if m else ""
-
-
 def build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run_item, co2_run, now):
     """One line per need, in the header pill's order: Toddler, Sinus & allergy, Runner.
     Each need is paired with the card that holds its evidence (metric)."""
     keyed = {a["key"]: a for a in actions}
-    evening = now.hour >= 17 or now.hour < 7
+    evening = now.hour >= SLEEP_HOURS[0] or now.hour < SLEEP_HOURS[1]
 
     # Toddler: the indoor air (CO2), unless the outside air keeps them in.
     if pm_out is not None and pm_out > PM_HIGH:
         tod = ("bad", "Keep the toddler inside", f"Outdoor PM2.5 is {fmt_num(pm_out)}, over {PM_HIGH}.")
     elif co2 is not None and co2 > CO2_OPEN:
         since = co2_run["label"] if co2_run else ""
-        tod = ("bad" if co2 > 1500 else "warn", "Open a window before sleep" if evening else "Air the room",
+        tod = ("bad" if co2 > CO2_VERY_HIGH else "warn", "Open a window before sleep" if evening else "Air the room",
                f"CO₂ has been over {CO2_OPEN} {since}." if since and since != "all day" else f"CO₂ is {co2:.0f} ppm, over {CO2_OPEN}.")
     elif co2 is not None:
         tod = ("good", "Fresh air for sleep" if evening else "Fresh air indoors", f"CO₂ is {co2:.0f} ppm, under {CO2_OPEN}.")
@@ -1179,58 +1149,11 @@ def build_air_read(payload):
     in_dp, out_dp = dew_point_c(t_in, rh), dew_point_c(t_out, rh_out)
     if out_dp is None:
         out_dp = fnum(weather.get("dew_point_2m"))
-    adds_moisture = in_dp is not None and out_dp is not None and out_dp - in_dp > 1
+    adds_moisture = in_dp is not None and out_dp is not None and out_dp - in_dp > MOISTURE_MARGIN_C
     pts_in = history_points(payload.get("indoor_location_id"), now)
     pts_out = history_points(payload.get("outdoor_location_id"), now)
 
-    # ── Cards: the evidence, all from rules ──
     co2_run = stretch(pts_in, co2_of, lambda v: v > CO2_OPEN, now)
-    rh_run = stretch(pts_in, rh_in_of, lambda v: v > RH_DAMP or v < RH_LOW, now)
-    pm_run = stretch(pts_out, pm_of, lambda v: v > PM_FINE, now)
-    pm_series = series_of(pts_out, pm_of, now)
-
-    def card(cid, name, src, value, unit, digits, limit_label, limit, state, tone, fact, series, cross, means):
-        return {"id": cid, "name": name, "src": src, "num": None if value is None else (round(value) if digits == 0 else round(value, digits)),
-                "unit": unit, "limit_label": limit_label, "limit": limit, "state": state, "tone": tone,
-                "fact": fact, "series": series, "cross": cross, "means": means}
-
-    if co2 is None:
-        c_state, c_tone, c_fact, c_means = "No reading", "muted", "", ""
-    elif co2 > 1500:
-        c_state, c_tone, c_fact, c_means = "Very high", "bad", co2_run["label"] if co2_run else "", "Very stale air. It causes headaches and poor sleep."
-    elif co2 > CO2_OPEN:
-        c_state, c_tone, c_fact, c_means = "High", "warn", co2_run["label"] if co2_run else "", "Stale air makes people tired and sleep worse."
-    else:
-        c_state, c_tone, c_fact, c_means = "Fresh", "good", f"{CO2_OPEN - co2:.0f} under the limit", "Fresh air. Good for focus and sleep."
-    if rh is None:
-        h_state, h_tone, h_fact, h_means = "No reading", "muted", "", ""
-    elif rh > RH_DAMP:
-        h_state, h_tone, h_fact, h_means = "Too damp", "warn", rh_run["label"] if rh_run else "", "Damp air helps mold and dust mites grow."
-    elif rh < RH_LOW:
-        h_state, h_tone, h_fact, h_means = "Too dry", "warn", rh_run["label"] if rh_run else "", "Dry air makes noses and throats sore."
-    elif rh > RH_HIGH:
-        h_state, h_tone, h_fact, h_means = "A little damp", "good", f"under the {RH_DAMP} line", "Fine. Most comfortable between 30 and 50%."
-    else:
-        h_state, h_tone, h_fact, h_means = "Good", "good", "in the 30–50 range", "Good for noses and sleep."
-    if pm_out is None:
-        p_state, p_tone, p_fact, p_means = "No reading", "muted", "", ""
-    elif pm_out > PM_HIGH:
-        p_state, p_tone, p_fact, p_means = "Unhealthy", "bad", pm_run["label"] if pm_run else "", "Dirty air. Stay inside."
-    elif pm_out > PM_FINE:
-        p_state, p_tone, p_fact, p_means = "Moderate", "warn", pm_run["label"] if pm_run else "", "Some people will feel it. Keep runs short."
-    else:
-        peak = max([v for v in pm_series if v is not None], default=None)
-        p_state, p_tone = "Clean", "good"
-        p_fact = "under the limit all day" if peak is None or peak <= PM_FINE else "back under the limit"
-        p_means = "Clean air. Fine for running and playing outside."
-    cards = [
-        card("co2", "Room air (CO₂)", "ONE", co2, "ppm", 0, "limit", CO2_OPEN, c_state, c_tone, c_fact,
-             series_of(pts_in, co2_of, now), co2_run["cross"] if co2_run and co2 and co2 > CO2_OPEN else None, c_means),
-        card("humidity", "Humidity", "ONE", rh, "%", 0, "limit", RH_DAMP, h_state, h_tone, h_fact,
-             series_of(pts_in, rh_in_of, now), rh_run["cross"] if rh_run else None, h_means),
-        card("pm", "Outside air (PM2.5)", "Open Air", pm_out, "µg/m³", 1, "aim under", PM_FINE, p_state, p_tone, p_fact,
-             pm_series, pm_run["cross"] if pm_run else None, p_means),
-    ]
 
     # ── Actions, ranked by the rules ──
     actions = []  # each: {"key", "text", "why", "tone"}
@@ -1241,7 +1164,7 @@ def build_air_read(payload):
                             "why": f"CO₂ is {co2:.0f}, but the air outside is not clean ({fmt_num(pm_out)})."})
         else:
             short = adds_moisture and rh is not None and rh > RH_DAMP
-            actions.append({"key": "window", "tone": "bad" if co2 > 1500 else "warn",
+            actions.append({"key": "window", "tone": "bad" if co2 > CO2_VERY_HIGH else "warn",
                             "text": "Open a window for a few minutes" if short else "Open a window",
                             "why": f"CO₂ has been over the {CO2_OPEN} limit {since}." if since and since != "all day"
                                    else f"CO₂ is {co2:.0f}, over the {CO2_OPEN} limit."})
@@ -1265,11 +1188,11 @@ def build_air_read(payload):
     elif w.startswith("Fine until"):
         run_item = {"key": "run", "tone": "good", "text": "Run before " + w[11:], "why": f"The air outside is clean; the {w[11:]} rush blows this way."}
     elif w == "Fine":
-        night = now.hour >= 21 or now.hour < 5
+        night = now.hour >= RUN_NIGHT[0] or now.hour < RUN_NIGHT[1]
         run_item = {"key": "run", "tone": "good", "text": f"Run tonight or before {fmt_hour(RUSH_WINDOWS[0][0])}" if night and RUSH_WINDOWS else "Fine to run",
                     "why": "The air outside is clean" + (f"; the {fmt_hour(RUSH_WINDOWS[0][0])} rush blows this way." if night and wind_toward and RUSH_WINDOWS else ".")}
     top_pollen = max(pollen, key=lambda q: q.get("index") or 0) if pollen else None
-    if top_pollen and (top_pollen.get("index") or 0) >= 3:
+    if top_pollen and (top_pollen.get("index") or 0) >= LIMITS["pollen"]:
         actions.append({"key": "pollen", "tone": "warn", "text": "Limit time outside", "why": f"{top_pollen['name']} pollen is {top_pollen['index']} of 5."})
     needs = needs_on(build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run_item, co2_run, now))
     order = {"window": 0, "humidity": 1, "run": 2, "pollen": 3}
@@ -1277,41 +1200,20 @@ def build_air_read(payload):
 
     if actions:
         head, also = actions[0], actions[1:] + ([run_item] if run_item else [])
-        headline, tone, why = head["text"] + ".", head["tone"], head["why"]
+        tone, why = head["tone"], head["why"]
     else:
-        also = []
+        also, tone = [], "good"
         if run_item and run_item["text"].startswith("Run before"):
-            headline = f"All good. {run_item['text']}."
             why = f"The air outside is clean, and the {ROAD.name} {rush['name']} rush starts at {fmt_hour(rush['start'])}."
         elif run_item:
-            headline, why = f"All good. {run_item['text']}.", run_item["why"]
+            why = run_item["why"]
         else:
-            headline, why = "All good.", "Every reading is inside its limit."
-        tone = "good"
-
-    checked = []
-    if pollen and all((q.get("index") or 0) == 0 for q in pollen):
-        checked.append("No pollen today")
-    elif pollen and (top_pollen.get("index") or 0) <= 2:
-        checked.append("Pollen is low")
-    fresh = [r for r in (pts_in[-1:] + pts_out[-1:]) if (now - r[0]).total_seconds() < 15 * 60]
-    if len(fresh) == 2:
-        checked.append("Both monitors reporting")
-    if co2 is not None and co2 <= CO2_OPEN:
-        checked.append("Room is well aired")
-    if pm_out is not None and pm_out <= PM_FINE and not any(a["key"] == "run" for a in actions) and not run_item:
-        checked.append("Outdoor air is clean")
-    ahead = ""
-    if not actions and run_item and wind_toward and not rush["in_rush"] and RUSH_WINDOWS:
-        st, en = fmt_hour(rush["start"]), fmt_hour(rush["end"])
-        ahead = f"{st.split()[0] if st.split()[1] == en.split()[1] else st}–{en}: the {ROAD.name} rush blows this way."
+            why = "Every reading is inside its limit."
 
     result = {
-        "generated_at": now.isoformat(), "clock": now.strftime("%-I:%M %p"), "status": tone,
-        "headline": {"text": headline, "tone": tone, "key": actions[0]["key"] if actions else "ok", "needs": headline_needs(actions[0]["key"] if actions else None, needs)}, "why": why,
+        "generated_at": now.isoformat(), "clock": now.strftime("%-I:%M %p"), "status": tone, "why": why,
         "also": [{"text": a["text"], "why": a["why"], "tone": a["tone"]} for a in also],
-        "checked": checked, "ahead": ahead, "cards": cards,
-        "needs": needs, "relief": relief_line(pollen, now), "relief_short": relief_short(pollen, now),
+        "needs": needs,
     }
     # the new card: items, needs and the day chart, all from the rules (summary.py)
     summary_in = summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now)

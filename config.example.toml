@@ -27,6 +27,11 @@ sinus = true
 # Someone who runs outdoors: when the outdoor air makes a run worth it.
 runner = true
 
+[home]
+# What you have to dry a damp room: "dehumidifier", "ac_dry" (an AC with a dry mode), both, or [] for neither.
+# The humidity action uses these; leave one out if you don't have it. With both, it says to run the dehumidifier.
+appliances = ["dehumidifier", "ac_dry"]
+
 [limits]
 # Indoor CO2 (ppm) above which the page says to ventilate.
 co2 = 800
@@ -36,10 +41,13 @@ pm = 15
 pm_high = 35
 # Indoor relative humidity (%) below which air is called dry.
 rh_dry = 30
+# Indoor relative humidity (%) at the top of the comfortable band: the indoor card says "Comfortable"
+# from rh_dry up to this, and "A little damp" from here up to rh_damp.
+rh_good = 50
 # Indoor relative humidity (%) above which air is called damp.
 rh_damp = 60
 # Indoor relative humidity (%) the damp-room action aims for: when the room is over rh_damp,
-# the page says to run the dehumidifier until it's under this.
+# the page says to run the dehumidifier (or the AC's dry mode, see [home]) until it's under this.
 rh_stop = 55
 # Pollen level (0 to 5) from which the page warns.
 pollen = 3

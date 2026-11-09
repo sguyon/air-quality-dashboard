@@ -3,7 +3,7 @@
 The story: Tue 21 Apr 2026. CO₂ 1,240 after a stale night (over 800 from 10 PM to 7 AM); indoor humidity 64% with
 wetter air outside; the wind from 135° (south-east) all day, so the morning and evening rushes blow toward home;
 outdoor PM2.5 clean until mid-afternoon, then rising to 25 at 7 PM; tree pollen 4 of 5.
-Times are New York local, as Open-Meteo returns them for Sacha's home.
+Times are New York local, as Open-Meteo returns them for the reference home.
 """
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo

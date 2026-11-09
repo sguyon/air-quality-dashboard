@@ -476,6 +476,7 @@ svg.ts .ts-guide { stroke: var(--warn-fill); stroke-dasharray: 5 4; stroke-width
 .pg h4 { margin: 0 0 6px; font: 600 11.5px/1 Inter, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .pg .view { margin-top: 4px !important; gap: 6px; }
 .pg .view .chip { padding: 5px 9px !important; font-size: 13.5px !important; }
+.pg .view.needs .chip svg.i { width: 20px; height: 20px; }
 /* Household settings in the Home panel: one compact row under the place (temperature unit) */
 /* temperature units: in the Weather & theme menu, under Theme, same look */
 .dsp-pop .temp-seg { display: grid !important; grid-template-columns: repeat(2, 1fr); width: 100%; margin-top: 2px; }
@@ -490,10 +491,6 @@ svg.ts .ts-guide { stroke: var(--warn-fill); stroke-dasharray: 5 4; stroke-width
 .pr-t { min-width: 0; }
 .pr-t b { display: block; font: 550 14px/1.25 Inter, sans-serif; color: var(--ink); }
 .pr-t em { display: block; font-style: normal; font-size: 12.5px; color: var(--muted); }
-.pr-a { display: flex; align-items: center; gap: 2px; }
-.pr-a .q { width: 26px; height: 26px; background: transparent; border-color: transparent; color: var(--muted); }
-.pr-a .q svg.i { width: 16px; height: 16px; }
-.pr-a .q .bubble { left: auto; right: 0; transform: none; }
 /* Neighborhood: live dots, PM2.5 as the lead number, row hover */
 .nbt td.dot i { background: var(--good-fill); opacity: .85; }
 .nbt tr.you td.dot i { background: var(--accent); opacity: 1; }
@@ -618,10 +615,6 @@ html.sky-on .card, html.sky-on .custom-top, html.sky-on .maplink { box-shadow: 0
 .fx-preview[open] summary::after { transform: rotate(180deg); }
 /* Header pill: words, not an icon row */
 .bar .vsum { display: flex; flex-direction: column; gap: 3px; line-height: 1.2; padding-right: 14px; border-right: 1px solid var(--line); }
-.vsum-1 { font: 500 12.5px/1.2 Inter, sans-serif; color: var(--ink); white-space: nowrap; }
-@media (max-width: 900px) {
-  .bar .vsum { display: none; }
-}
 /* Display: effect switches and the preview block */
 .fx-list { margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .sw-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; cursor: pointer; }
@@ -675,12 +668,14 @@ html.sky-on:not(.sky-dark) .sky-cap { color: #23384d; }
 @media (max-width: 700px) {
   .sky-quick { margin-left: 0; }
 }
-/* Pill: need icons, a divider, then the avatar */
+/* Pill: your monitors, a divider, then the avatar. The needs are in the summary and the Home menu, not here. */
 .bar .vsum { flex-direction: row; align-items: center; gap: 12px; }
-.vsum-1 { display: inline-flex; align-items: center; gap: 8px; color: var(--soft); }
-.vsum-1 .vn { display: grid; place-items: center; }
-.vsum-1 svg.i { width: 17px; height: 17px; }
-.vsum-1 svg.i { width: 16px; height: 16px; }
+.vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (max-width: 700px) {
+  .bar .custom-top { flex-direction: row; align-items: center; gap: 10px; padding-left: 10px !important; }
+  .bar .who { order: 1; }
+  .bar .vsum { padding-right: 10px; }
+}
 /* Avatar status: one dot for the monitors, like an online badge. Same pill open or closed. */
 .bar .avatar { position: relative; }
 .av-dot { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 2px var(--card); }
@@ -800,17 +795,10 @@ html.sky-dark .cap-live { --live: #4cd69a; }
 .sky-cap { line-height: 22px; height: 22px; flex-wrap: nowrap; overflow: hidden; column-gap: 12px; row-gap: 0; }
 .sky-cap .cap-i.drop { display: none; }
 .cap-i { line-height: 22px; }
-/* Phone: the weather line gets its own full-width row under the title and pills, still one line. */
-@media (max-width: 700px) {
-  .bar { position: relative; padding-bottom: 26px; }
-  .bar .site-wrap { position: static; }
-  .bar .sky-cap { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; }
-}
 /* Theme switch: one cross-fade for the whole page (see switchTheme in app.js). */
 html.theme-swap *, html.theme-swap *::before, html.theme-swap *::after { transition: none !important; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .4s; animation-timing-function: cubic-bezier(.2, .7, .2, 1); }
 /* Home panel: connection status per monitor and source */
-.pr { grid-template-columns: 30px minmax(0, 1fr) auto auto; }
 .pst { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; font-feature-settings: 'tnum' 1; }
 .pst i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); flex: none; }
 .pst.good i { background: var(--good); }
@@ -818,13 +806,6 @@ html.theme-swap *, html.theme-swap *::before, html.theme-swap *::after { transit
 .pst.bad i { background: var(--bad); }
 .pst.warn { color: var(--warn); }
 .pst.bad { color: var(--bad); }
-/* the buttons take the same width on every row, so the statuses line up in one column */
-.pr .pr-a { justify-content: flex-end; min-width: 56px; }
-@media (max-width: 560px) {
-  .pr { grid-template-columns: 30px minmax(0, 1fr) auto; }
-  .pr .pst { grid-column: 2; grid-row: 2; margin-top: -4px; }
-  .pr .pr-a { grid-column: 3; grid-row: 1 / span 2; }
-}
 .custom .view .chip[data-tip] { pointer-events: auto; cursor: help; }
 
 /* Home panel rows: subtitles stay on one line */
@@ -1204,7 +1185,7 @@ html.sky-dark .devbar button { color: #b9ccff; }
   .mc-hw svg { width: 36px; height: 36px; }
 }
 /* Home pill: your two monitors, each with its online dot */
-.vsum-hw { display: inline-flex; align-items: center; gap: 6px; padding-right: 12px; margin-right: 2px; border-right: 1px solid var(--line); }
+.vsum-hw { display: inline-flex; align-items: center; gap: 6px; }
 .vhw { position: relative; display: grid; place-items: center; width: 30px; height: 30px; }
 .vhw svg { width: 28px; height: 28px; }
 .vhw i { position: absolute; right: 0; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 2px var(--card); }
@@ -1237,11 +1218,9 @@ html.sky-on.sky-dark .now-bar .sky-cap, html.sky-on.sky-dark .now-h { text-shado
 .vhw i { width: 9px; height: 9px; }
 .pr-ic { width: 36px !important; height: 36px !important; }
 .pr-ic > svg { width: 34px !important; height: 34px !important; }
-.pr { grid-template-columns: 36px minmax(0, 1fr) auto auto !important; }
 @media (max-width: 560px) {
   .mc-hw { width: 54px; height: 54px; border-radius: 14px; }
   .mc-hw svg { width: 48px; height: 48px; }
-  .pr { grid-template-columns: 36px minmax(0, 1fr) auto !important; }
 }
 /* Hardware drawings, one more size up */
 .mc-hw { width: 72px; height: 72px; border-radius: 18px; }
@@ -1250,11 +1229,9 @@ html.sky-on.sky-dark .now-bar .sky-cap, html.sky-on.sky-dark .now-h { text-shado
 .vhw svg { width: 40px; height: 40px; }
 .pr-ic { width: 40px !important; height: 40px !important; }
 .pr-ic > svg { width: 38px !important; height: 38px !important; }
-.pr { grid-template-columns: 40px minmax(0, 1fr) auto auto !important; }
 @media (max-width: 560px) {
   .mc-hw { width: 60px; height: 60px; }
   .mc-hw svg { width: 54px; height: 54px; }
-  .pr { grid-template-columns: 40px minmax(0, 1fr) auto !important; }
 }
 /* Monitor cards: a soft header in the card's color with the device drawing on the left */
 .mc { padding-top: 0; }
@@ -1472,13 +1449,11 @@ html.outside-night .mc-scene .wx-n { opacity: .8; fill: #f8e6bf; }
   .mc-pm.mc-groups { grid-template-columns: 1fr !important; gap: 14px !important; }
   .mc-groups .mc-g + .mc-g { padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--line); }
 }
-/* Home pill: devices and need icons closer in size; the ONE scaled to the Open Air's height, same baseline */
+/* Home pill: the ONE scaled to the Open Air's height, same baseline */
 .vhw { width: 32px !important; height: 32px !important; }
 .vhw svg { width: 32px !important; height: 32px !important; }
 .vsum-hw .vhw:first-child svg { transform: scale(.86); transform-origin: 50% 89%; }
 .vhw i { width: 8px !important; height: 8px !important; right: -1px; bottom: 2px; }
-.vsum-1 { gap: 10px !important; }
-.vsum-1 svg.i { width: 19px !important; height: 19px !important; }
 /* main card, denser: the note right under the scale, a shorter 24 h line without its own heading */
 
 .s-trend { margin-top: 14px !important; max-width: none !important; }
@@ -2021,12 +1996,28 @@ html.wx-full .now-bar { left: 0 !important; right: 0 !important; margin: 0 auto 
 .site svg.mark .mk-sky { fill: url(#mk-g) !important; opacity: .85 !important; }
 html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5 !important; }
 
-/* monitor headers about a third shorter */
+/* monitor headers: the device drawing is the hero (it's vector, so it stays sharp at any size); the scene on the
+   right grows with it. Its viewBox has a margin round the device, so the box overlaps the header's padding a little. */
 .mc > .mc-head { padding-top: 10px !important; padding-bottom: 10px !important; min-height: 0 !important; }
-.mc-hw { width: 60px !important; height: 60px !important; border-radius: 16px !important; } .mc-hw svg { width: 54px !important; height: 54px !important; }
-.mc-scene { width: 92px !important; height: 68px !important; }
-.mc-head .mc-id { padding-right: 112px !important; }
-@media (max-width: 560px) { .mc-hw { width: 48px !important; height: 48px !important; } .mc-hw svg { width: 42px !important; height: 42px !important; } .mc-scene { width: 72px !important; height: 53px !important; } .mc-head .mc-id { padding-right: 84px !important; } }
+.mc-hw { width: 80px !important; height: 80px !important; margin: -6px 0 -6px -6px !important; border-radius: 0 !important; }
+.mc-hw svg { width: 80px !important; height: 80px !important; }
+/* the Open Air's body fills less of its 48-unit drawing than the ONE's (30.6 vs 36 units tall, its top lower):
+   scaled from y 39.6 it lands on the ONE's box, 5.5 to 41.5, so the two devices read the same size */
+.mc-out .mc-hw svg { transform: scale(1.176); transform-origin: 50% 82.5%; }
+/* the scene is the header's backdrop: the full height, against the right edge, trimmed at its sides
+   (preserveAspectRatio slice, set in monitorCard) rather than shrunk */
+.mc-head > .mc-scene { top: 0 !important; bottom: auto !important; right: 0 !important; width: 124px !important; height: 100% !important; }
+.mc-head .mc-id { gap: 14px !important; padding-right: 136px !important; }
+/* the three lines as one block centred on the device: a small-caps label close above the name, then a quiet status line */
+.mc-kind { line-height: 1 !important; }
+.mc-name { margin-top: 5px !important; font-size: 16px !important; line-height: 1.25 !important; }
+.mc-loc { color: var(--soft); }
+.mc-head .mc-status { margin-top: 5px !important; gap: 6px; line-height: 1.3; }
+.mc-wifi { margin-left: 0 !important; }
+/* the outdoor status reads like the indoor one at night too (it was green, with a ring round its dot) */
+html.outside-dark .mc-out .mc-status.good { color: var(--soft); }
+html.outside-dark .mc-out .mc-status .live { box-shadow: none; }
+@media (max-width: 560px) { .mc-head > .mc-scene { width: 104px !important; } .mc-head .mc-id { padding-right: 90px !important; } }
 
 /* temperature comfort scale: same height and place as the other bars, a band for 68–76 °F, this side's dot, the other side's ring */
 .t-scale { position: relative; margin-top: 9px; height: 4px; border-radius: 99px; background: var(--meter); }
@@ -2043,10 +2034,9 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 .mc-loc2 { display: none; }
 @media (max-width: 560px) {
   .mc > .mc-head { padding-top: 14px !important; padding-bottom: 14px !important; }
-  .mc-head .mc-id { gap: 12px !important; padding-right: 96px !important; }
-  .mc-hw { width: 64px !important; height: 64px !important; margin: -4px 0 -4px -4px !important; }
-  .mc-hw svg { width: 60px !important; height: 60px !important; }
-  .mc-scene { width: 100px !important; height: 74px !important; right: 6px !important; }
+  .mc-head .mc-id { gap: 12px !important; padding-right: 90px !important; }
+  .mc-hw { width: 72px !important; height: 72px !important; margin: -6px 0 -6px -6px !important; }
+  .mc-hw svg { width: 72px !important; height: 72px !important; }
   .mc-kind { font-size: 12px; }
   .mc-name { margin-top: 5px !important; font-size: 16px !important; line-height: 1.25 !important; white-space: nowrap; }
   .mc-loc { display: none; }
@@ -2060,7 +2050,7 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 .mc-head .mc-id > div { min-width: 0; }
 @media (max-width: 380px) {
   .mc-name { font-size: 15px !important; overflow: hidden; text-overflow: ellipsis; }
-  .mc-scene { width: 84px !important; height: 62px !important; }
+  .mc-head > .mc-scene { width: 92px !important; }
   .mc-head .mc-id { padding-right: 80px !important; }
 }
 /* iOS: no double-tap zoom (it zoomed a card to the screen width and left the page cut off); pinch-zoom still works */
@@ -2086,3 +2076,45 @@ body.no-token .page > :not(.bar):not(.no-token-card):not(.demo-bar) { display: n
 .nb-credit { margin: 0; padding: 0 24px 14px; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .nb-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 640px) { .nb-credit { padding: 0 12px 12px; } }
+
+/* Summary header strip: the need icons sit at its right end (the summary card has no row of its own for them).
+   Their sentences open under the strip, right-aligned to the card. */
+:root .sum-card > .s-bar { position: relative; z-index: 3; flex-wrap: nowrap !important; }
+.s-meta { display: contents; }
+.s-needs { flex: none; margin-left: auto; padding-left: 16px; display: flex; align-items: center; }
+.s-needs:empty { display: none; }
+.s-needs .sx-nh .sx-why p { top: calc(100% + 6px); right: 18px; left: auto; width: min(380px, calc(100% - 36px)); }
+:root .sum-card > .s-bar + .sx { padding-top: 0; }   /* the row the icons had is gone; the first line comes up under the strip */
+/* phones: "Updated just now ↻" goes under SUMMARY, so the three icons keep their size */
+@media (max-width: 480px) {
+  .s-meta { display: flex; flex-wrap: wrap; align-items: center; flex: 1 1 auto; min-width: 0; }
+  :root .sum-card > .s-bar .s-tools { flex-basis: 100%; margin-left: 28px !important; }
+  :root .sum-card > .s-bar #s-ago:not(:empty)::before { content: none; }
+  :root .sum-card > .s-bar #read-refresh { margin: -10px 0 -10px -6px; }
+  .s-needs { padding-left: 10px; }
+}
+
+/* Home menu title: "Home · Greenpoint" on one line, the place still a link; a long name wraps after the dot */
+.blocks .pop-head > div { min-width: 0; line-height: 1.35; }
+.blocks .pop-head > div > b, .blocks .pop-head > div > span { display: inline; }
+.blocks .pop-head > div > span { margin: 0; font-size: 14px; color: var(--muted); }
+.blocks .pop-head > div > span::before { content: "·"; margin: 0 7px 0 6px; }
+
+/* Home menu rows: one compact block beside the icon (name, what it is, its status), the icon centred on it.
+   A source row explains itself on hover, keyboard focus or a tap, like the need chips; monitor rows have nothing to add. */
+.pr { grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; row-gap: 2px; padding: 7px 8px; position: relative; }
+.pr .pr-ic { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+.pr .pr-t { grid-column: 2; grid-row: 1; }
+.pr .pst { grid-column: 2; grid-row: 2; margin: 0; line-height: 17px; }
+.pr-t b { line-height: 18px; }
+.pr-t em { line-height: 17px; margin-top: 2px; }
+.pr.has-tip { cursor: help; outline: none; transition: background-color .15s ease; }
+.pr.has-tip:hover, .pr.has-tip:focus, .pr.has-tip:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.pr.has-tip:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 10px; }
+.pr-tip { display: none; position: absolute; z-index: 60; left: 60px; top: calc(100% + 6px); width: min(300px, calc(100% - 68px)); padding: 9px 11px;
+  border-radius: 10px; background: var(--bubble-bg, #0f2233); color: var(--bubble-ink, #fff); font: 400 12.5px/1.45 Inter, sans-serif;
+  text-align: left; box-shadow: 0 10px 28px rgba(0, 0, 0, .22); pointer-events: none; }
+.plist .pr:last-child .pr-tip { top: auto; bottom: calc(100% + 6px); }   /* the last row's opens upward, inside the menu */
+.pr.has-tip:hover .pr-tip, .pr.has-tip:focus .pr-tip { display: block; }
+.pr-tip strong { display: block; font-weight: 650; margin-bottom: 4px; }
+.pr-tip > span { display: block; margin-top: 4px; }

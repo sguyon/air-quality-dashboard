@@ -62,6 +62,9 @@ def test_build_info_from_env(monkeypatch):
     monkeypatch.delenv("RAILWAY_GIT_COMMIT_SHA")
     monkeypatch.setenv("VERCEL_GIT_COMMIT_SHA", "1234567890abcdef")
     assert server.get_build_info().startswith("v2 · 1234567 · ")
+    monkeypatch.delenv("VERCEL_GIT_COMMIT_SHA")
+    monkeypatch.setenv("GIT_COMMIT_SHA", "fedcba0987654321")   # the Docker image's, from the GIT_SHA build arg
+    assert server.get_build_info().startswith("v2 · fedcba0 · ")
 
 
 def test_build_time_label_follows_the_home_timezone(monkeypatch):

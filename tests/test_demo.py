@@ -2,7 +2,7 @@
 each one's summary is pinned here, so a change to the rules or the page that changes the story shows up.
 
 The server reads its config at import, so these tests reload it with DEMO=1 and reload it again afterwards
-(Sacha's config, from conftest) for the other test files."""
+(the reference config, from conftest) for the other test files."""
 import importlib
 import json
 import math
@@ -110,8 +110,8 @@ def test_rush_story(c):
     assert pm["action"]["when"] == "until 11 AM"
     assert items["pollen"]["num"] == "4" and items["pollen"]["facts"]["pollen_type"] == "tree"
     needs = needs_of(s)
-    # the runner: not clean now (the rules have no "avoid 7–10" while the dirty stretch has already begun)
-    assert needs["runner"]["ok"] is False and needs["runner"]["state"] == "Not clean now"
+    # the runner: run after the dirty stretch ends, at the same 11 AM the windows wait for
+    assert needs["runner"]["ok"] is False and needs["runner"]["state"] == "Run after 11 AM"
     # the toddler: stale now, after a stale night that peaked about 1,400
     assert needs["toddler"]["ok"] is False and needs["toddler"]["state"] == "Stale indoors"
     assert 1350 <= needs["toddler"]["facts"]["night_peak"] <= 1450 and "last night" in needs["toddler"]["why"].lower()
@@ -175,7 +175,7 @@ def test_page_carries_the_clock(c):
     assert app["now"]["at"].startswith("2026-10-22T20:30:00")
     assert [m["key"] for m in app["now"]["moments"]] == ["rush", "clear", "humid"]
     assert [m["label"] for m in app["now"]["moments"]] == ["Morning rush", "All clear", "Humid evening"]
-    assert app["place"]["name"] == "McCarren Park, Williamsburg"
+    assert app["place"]["name"] == "Williamsburg, Brooklyn NY"
     assert app["road"]["toward"] == [66, 207]
     assert "X-Robots-Tag" not in c.get("/").headers
 
@@ -190,9 +190,9 @@ def test_mode(demo):
     assert demo.MODE == "demo"
     cfg = demo.CFG
     assert demo.server_mode(cfg, "") == "demo"
-    sacha = type(cfg)(**{**cfg.__dict__, "demo": False})
-    assert demo.server_mode(sacha, "tok") == "live"
-    assert demo.server_mode(sacha, "") == "no_token"
+    reference = type(cfg)(**{**cfg.__dict__, "demo": False})
+    assert demo.server_mode(reference, "tok") == "live"
+    assert demo.server_mode(reference, "") == "no_token"
 
 
 def test_fresh_copy_opens_as_the_demo(demo, tmp_path):
@@ -201,7 +201,7 @@ def test_fresh_copy_opens_as_the_demo(demo, tmp_path):
     (tmp_path / "static").mkdir()
     shutil.copy(ROOT / "static" / "bqe.json", tmp_path / "static" / "bqe.json")
     cfg = demo.startup_config({}, tmp_path)
-    assert cfg.demo is True and cfg.place.name == "McCarren Park, Williamsburg"
+    assert cfg.demo is True and cfg.place.name == "Williamsburg, Brooklyn NY"
     assert demo.startup_config({"AIRGRADIENT_TOKEN": "x"}, tmp_path) is None
     (tmp_path / "config.toml").write_text((ROOT / "config.example.toml").read_text())
     assert demo.startup_config({}, tmp_path).demo is False

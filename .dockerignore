@@ -1,0 +1,44 @@
+# Keys and your home: never in the image (they come from the /config volume and env_file)
+.env
+.env*
+**/.env*
+config.toml
+**/config.toml
+!demo/config.toml
+
+# Private notes, tests, docs and build output
+internal/
+tests/
+docs/
+public/
+.git
+.github/
+*.md
+
+# Local tools and caches
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+.claude/
+.codex/
+.cursor/
+.gemini/
+.grok/
+.gstack/
+.impeccable/
+.superpowers/
+.vercel/
+vercel.json
+requirements-dev.txt
+
+# Scripts the server doesn't need (check_config.py stays: it checks a config inside the container)
+scripts/*
+!scripts/check_config.py
+tools/
+
+# The container files themselves
+Dockerfile
+docker-compose.yml
+.dockerignore

@@ -195,7 +195,7 @@ def test_runner_says_clean_air_without_a_cutoff():
 
 def test_runner_amber_only_on_numbers():
     assert need(needs_row(FINE, ol(over=[(at(16), at(20))]), None, False, None, at(15)), "runner")["state"] == "Avoid 4–8 PM"
-    assert need(needs_row(FINE, ol(over=[(at(15), at(20))], now_v=20), None, False, None, at(15)), "runner")["state"] == "Not clean now"
+    assert need(needs_row(FINE, ol(over=[(at(15), at(20))], now_v=20), None, False, None, at(15)), "runner")["state"] == "Run after 8 PM"
     n = need(needs_row(FINE, ol(over=[(at(15), at(20))], now_v=40, high=True), None, False, None, at(15)), "runner")
     assert (n["ok"], n["state"]) == (False, "Skip today")
 
@@ -474,3 +474,66 @@ def test_rush_windows_arc_crossing_north():
     hr = hourly_for(at(0), 48, wind=350)
     rw = rush_windows(hr, at(15, 40), [(16, 20, "evening")], (300, 20))
     assert [t for _, _, t in rw] == [True, True]
+
+
+# ── The damp-room action follows the appliances in [home] ──
+import summary as summary_mod  # noqa: E402
+
+DAMP_R = {"rh": 64, "rh_out": 80, "t_in": 21, "t_out": 21}
+
+
+def damp_item(monkeypatch, appliances):
+    monkeypatch.setattr(summary_mod, "APPLIANCES", set(appliances))
+    s = busy()
+    return next(i for i in s["items"] if i["id"] == "rh")
+
+
+def test_damp_with_both_appliances(monkeypatch):
+    rh = damp_item(monkeypatch, {"dehumidifier", "ac_dry"})
+    assert rh["action"]["text"] == "Run the dehumidifier" and rh["action"]["when"] == "until under 55%"
+    assert rh["why"].endswith("The AC’s dry mode works too. Stop at 55%.")
+
+
+def test_damp_with_only_the_dehumidifier(monkeypatch):
+    rh = damp_item(monkeypatch, {"dehumidifier"})
+    assert rh["action"]["text"] == "Run the dehumidifier"
+    assert "dry mode" not in rh["why"] and rh["why"].endswith("Stop at 55%.")
+
+
+def test_damp_with_only_the_ac(monkeypatch):
+    rh = damp_item(monkeypatch, {"ac_dry"})
+    assert rh["action"]["text"] == "Run the AC’s dry mode" and rh["action"]["when"] == "until under 55%"
+    assert "works too" not in rh["why"] and rh["why"].endswith("Stop at 55%.")
+
+
+def test_damp_with_neither(monkeypatch):
+    rh = damp_item(monkeypatch, set())
+    # nothing lowers the humidity, so no "until under" and no "Stop at"
+    assert rh["action"] == {"text": "Keep the windows shut", "when": None, "when_end": None}
+    assert "dry mode" not in rh["why"] and "Stop at" not in rh["why"]
+
+
+def damp_pollen_pill(monkeypatch, appliances):
+    monkeypatch.setattr(summary_mod, "APPLIANCES", set(appliances))
+    sinus = next(n for n in busy(pollen_today={"index": 4, "name": "Tree"})["needs"] if n["id"] == "sinus")
+    assert sinus["state"] == "Damp + pollen"
+    assert set(sinus["facts"]) == {"rh", "pollen_index", "pollen_type"}   # the appliances aren't kept as facts
+    return sinus["why"]
+
+
+def test_damp_pollen_pill_follows_the_appliances(monkeypatch):
+    both = damp_pollen_pill(monkeypatch, {"dehumidifier", "ac_dry"})
+    assert both == "Damp inside and pollen outside: dehumidify with the windows shut."   # the reference home's text
+    assert damp_pollen_pill(monkeypatch, {"dehumidifier"}) == both
+    assert damp_pollen_pill(monkeypatch, {"ac_dry"}) == "Damp inside and pollen outside: run the AC’s dry mode with the windows shut."
+    assert damp_pollen_pill(monkeypatch, set()) == "Damp inside and pollen outside: keep the windows shut."
+
+
+def test_airing_mentions_the_ac_only_when_there_is_one(monkeypatch):
+    dry_out = {**BUSY_R, "rh_out": 40, "t_out": 8}
+    monkeypatch.setattr(summary_mod, "APPLIANCES", {"ac_dry"})
+    rh = next(i for i in busy(r=dry_out, cams=[(at(h), 3) for h in range(15, 27)])["items"] if i["id"] == "rh")
+    assert rh["action"]["text"] == "Air the room for 10 min" and "The AC’s dry mode works too." in rh["why"]
+    monkeypatch.setattr(summary_mod, "APPLIANCES", set())
+    rh = next(i for i in busy(r=dry_out, cams=[(at(h), 3) for h in range(15, 27)])["items"] if i["id"] == "rh")
+    assert "dry mode" not in rh["why"]

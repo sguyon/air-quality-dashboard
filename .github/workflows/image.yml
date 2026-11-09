@@ -1,0 +1,45 @@
+name: Image
+
+# Builds the Docker image and publishes it to ghcr.io/sguyon/home-air-quality, for amd64 and arm64 (Raspberry Pi).
+# Only from main or by hand: never on pull requests, so a fork's code never runs with packages: write.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image
+  cancel-in-progress: false
+
+jobs:
+  image:
+    # main only (a manual run from another branch would overwrite :latest); a fork's copy would fail to push here
+    if: github.repository == 'sguyon/home-air-quality' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          labels: org.opencontainers.image.source=https://github.com/sguyon/home-air-quality
+          build-args: GIT_SHA=${{ github.sha }}
+          tags: |
+            ghcr.io/sguyon/home-air-quality:latest
+            ghcr.io/sguyon/home-air-quality:${{ github.sha }}

@@ -40,15 +40,17 @@
   const NEED_ICON = {
     toddler: '<svg viewBox="0 0 24 24"><path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M15 12h.01"/><path d="M19.38 6.813A9 9 0 0 1 20.8 10.2a2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/><path d="M9 12h.01"/></svg>',
     sinus: '<svg viewBox="0 0 24 24"><path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/></svg>',
-    runner: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 6 2 6-2"/><path d="M12 10v4"/></svg>',
+    runner: '<svg viewBox="0 0 24 24"><circle cx="13" cy="4" r="1"/><path d="M4 17l5 1l.75-1.5"/><path d="M15 21v-4l-4-3l1-6"/><path d="M7 12V9l5-1l3 3l3 1"/></svg>',
   };
   const INFO = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg>';
   // a tap target that opens a sentence over what's below; body is HTML
-  const popHtml = (summary, body, cls = '') => `<details class="sx-why"><summary${cls ? ` class="${cls}"` : ''} aria-label="Why">${summary}</summary><p>${body}</p></details>`;
+  // label: what the tap target names for screen readers and shows on hover (a need icon: "Toddler: Stale indoors")
+  const popHtml = (summary, body, cls = '', label = '') => `<details class="sx-why"><summary${cls ? ` class="${cls}"` : ''} aria-label="${label ? esc(label) : 'Why'}"${label ? ` title="${esc(label)}"` : ''}>${summary}</summary><p>${body}</p></details>`;
   const tone = n => n.ok === true ? 'ok' : n.ok === false ? 'warn' : 'muted';
   // the needs, always there but quiet: three icons in the header line, a dot for the state; a tap opens the sentence
   const needsHeadHtml = needs => `<span class="sx-nh">${(needs || []).map(n => popHtml(
-    `<i>${NEED_ICON[n.id] || ''}<b></b></i>`, `<strong>${esc(n.name)}: ${esc(n.state)}.</strong> ${esc(n.why)}`, `sx-nh-i ${tone(n)}`)).join('')}</span>`;
+    `<i>${NEED_ICON[n.id] || ''}<b></b></i>`, `<strong>${esc(n.name)}: ${esc(n.state)}.</strong> ${esc(n.why)}`, `sx-nh-i ${tone(n)}`,
+    `${n.name}: ${n.state}`)).join('')}</span>`;
   // on an item, its need's icon and state take the (i)'s place and open the item's why, then the need's sentence
   const itemNeedHtml = (it, needs) => {
     if (!it.why) return '';
@@ -252,8 +254,12 @@
 
   function renderSummary(el, s, now = appNow(), opts = {}) {
     if (!el) return false;
-    if (!s || !s.timeline) { el.innerHTML = '<p class="sx-none">The summary isn’t available right now.</p>'; return false; }
-    let html = kickHtml(s.label, s.needs, opts.label !== false);
+    // opts.needsEl: the page shows the need icons in the card's header strip instead of a row of their own
+    const needsEl = opts.needsEl || null;
+    if (!s || !s.timeline) { el.innerHTML = '<p class="sx-none">The summary isn’t available right now.</p>'; if (needsEl) needsEl.innerHTML = ''; return false; }
+    if (needsEl) needsEl.innerHTML = needsHeadHtml(s.needs);
+    const showLabel = opts.label !== false;
+    let html = !needsEl ? kickHtml(s.label, s.needs, showLabel) : showLabel ? kickHtml(s.label, null) : '';
     if (s.items && s.items.length) {
       html += `<div class="sx-items n${s.items.length}">${s.items.map(it => itemHtml(it, now, s.needs)).join('')}</div>`;
       if (s.also) html += `<div class="sx-also">${esc(s.also)}</div>`;
@@ -271,8 +277,9 @@
     draw();
     el.__redraw = draw;   // the page redraws on resize and theme change
     // one popover open at a time; a tap elsewhere closes it
-    el.querySelectorAll('details.sx-why').forEach(d => d.addEventListener('toggle', () => {
-      if (d.open) el.querySelectorAll('details.sx-why[open]').forEach(o => { if (o !== d) o.open = false; });
+    const pops = sel => [el, needsEl].filter(Boolean).flatMap(x => [...x.querySelectorAll(sel)]);
+    pops('details.sx-why').forEach(d => d.addEventListener('toggle', () => {
+      if (d.open) pops('details.sx-why[open]').forEach(o => { if (o !== d) o.open = false; });
     }));
     return true;
   }

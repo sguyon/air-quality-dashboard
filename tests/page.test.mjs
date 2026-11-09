@@ -82,7 +82,7 @@ test('rush hours read as today', () => {
   assert.equal(home.hourRange(0, 6), '12 to 6 AM');
 });
 
-test("Sacha's road reads exactly as the page did before the config", () => {
+test("The reference home's road reads exactly as the page did before the config", () => {
   assert.equal(home.roadClockText(BQE), 'Traffic is only the clock. Low most of the day, peak from 7 to 10 AM and from 4 to 8 PM, and a step higher in the hours next to those.');
   assert.equal(home.roadWindText(BQE), 'Wind is Open-Meteo’s direction. The BQE expressway runs about 1 km east to south of here, so wind from the east, south-east or south blows its exhaust toward the block, and wind from the west or north blows it away.');
   assert.equal(home.roadWhyText(BQE), 'The BQE expressway runs about 1 km east to south of here, so it matters on east, south-east and south winds.');
@@ -191,4 +191,70 @@ test('index.html makes no AirGradient claim in the static credit line', () => {
 test('the road label says what kind of road it is', () => {
   assert.equal(home.roadLabel({ name: 'BQE', kind: 'expressway' }), 'BQE expressway');
   assert.equal(home.roadLabel({ name: 'I-95' }), 'I-95 highway');
+});
+
+test('the top of the comfortable humidity band comes from the config', () => {
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  assert.match(app, /RH_GOOD = APP\.limits\.rh_good/);
+  assert.doesNotMatch(app, /RH_HIGH/);
+});
+
+test("the pollen warning follows the config's pollen limit", () => {
+  assert.equal(home.pollenHigh(3, { pollen: 3 }), true);
+  assert.equal(home.pollenHigh(4, { pollen: 5 }), false);   // a home that set pollen = 5
+  assert.equal(home.pollenHigh(5, { pollen: 5 }), true);
+  assert.equal(home.pollenHigh(null, { pollen: 3 }), false);
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  assert.doesNotMatch(app, /(top|i) >= 3\b/);
+});
+
+test('the sky and the PM2.5 words read the configured PM2.5 limits', () => {
+  const sky = readFileSync(new URL('static/sky.js', root), 'utf8');
+  assert.match(sky, /APP\.limits\.pm_high/);
+  assert.doesNotMatch(sky, /pm > 35\b/);
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  assert.doesNotMatch(app, /35\.4/);
+});
+
+// The server rounds PM2.5 before comparing (summary.py: round(v) > limit), and the page shows it rounded,
+// so the page's words and colours compare the rounded value too.
+test('PM2.5 words compare the rounded reading, like the server', () => {
+  const limits = { pm: 15, pm_high: 35 };
+  assert.equal(home.pmLevel(15.3, limits).word, 'Good');
+  assert.equal(home.pmLevel(15.6, limits).word, 'Moderate');
+  assert.equal(home.pmLevel(35.2, limits).word, 'Moderate');
+  assert.equal(home.pmLevel(35.6, limits).word, 'Unhealthy for sensitive groups');
+  assert.equal(home.pmLevel(55.4, limits).word, 'Unhealthy for sensitive groups');
+  assert.equal(home.pmLevel(55.6, limits).word, 'Unhealthy');
+  assert.equal(home.pmLevel(null, limits).word, 'No reading');
+  assert.equal(home.pmOver(15.3, 15), false);
+  assert.equal(home.pmOver(15.6, 15), true);
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  assert.doesNotMatch(app, /pm02 > PM_FINE|v > PM_FINE|median > PM_FINE/);
+  const sky = readFileSync(new URL('static/sky.js', root), 'utf8');
+  assert.doesNotMatch(sky, /pm > /);
+  const map = readFileSync(new URL('static/map.js', root), 'utf8');
+  assert.match(map, /\['round', \['get', 'pm'\]\]/);
+});
+
+// The Home menu's rows: no (i) buttons; a source row explains itself on hover, focus or a tap, like the need chips.
+test('home menu rows carry their explanation as a row tooltip, not an (i) button', () => {
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  const css = readFileSync(new URL('static/app.css', root), 'utf8');
+  const lists = [...html.matchAll(/<ul class="plist">([\s\S]*?)<\/ul>/g)].map(m => m[1]);
+  assert.equal(lists.length, 2);
+  const rows = lists.flatMap(l => l.split(/(?=<li class="pr)/).filter(r => r.startsWith('<li')));
+  assert.equal(rows.length, 7);
+  for (const row of rows) assert.doesNotMatch(row, /class="q"|class="bubble"|pr-a/);
+  const monitors = lists[0].split(/(?=<li class="pr)/).filter(r => r.startsWith('<li'));
+  for (const row of monitors) assert.doesNotMatch(row, /tabindex|pr-tip/);   // nothing to explain, no empty tooltip
+  const sources = lists[1].split(/(?=<li class="pr)/).filter(r => r.startsWith('<li'));
+  assert.equal(sources.length, 5);
+  for (const row of sources) {
+    const id = (row.match(/^<li class="pr has-tip"[^>]* tabindex="0" aria-describedby="(tip-\w+)"/) || [])[1];
+    assert.ok(id, `row not focusable or not described: ${row.slice(0, 80)}`);
+    assert.match(row, new RegExp(`<span class="pr-tip" id="${id}" role="tooltip"`));
+  }
+  assert.match(css, /\.pr\.has-tip:hover \.pr-tip, \.pr\.has-tip:focus \.pr-tip \{ display: block; \}/);
+  assert.doesNotMatch(css, /\.pr-a\b/);
 });

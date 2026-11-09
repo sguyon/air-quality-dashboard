@@ -6,11 +6,11 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# The server reads its config at import. Tests use a copy of Sacha's (tests/fixtures/config_sacha.toml), never the
+# The server reads its config at import. Tests use the reference config (tests/fixtures/config_reference.toml), never the
 # gitignored config.toml, which CI doesn't have.
-SACHA_TOML = (Path(__file__).parent / "fixtures" / "config_sacha.toml").read_text(encoding="utf-8")
+REFERENCE_TOML = (Path(__file__).parent / "fixtures" / "config_reference.toml").read_text(encoding="utf-8")
 os.environ.pop("DEMO", None)
-os.environ["CONFIG_TOML"] = SACHA_TOML
+os.environ["CONFIG_TOML"] = REFERENCE_TOML
 import server  # noqa: E402
 
 SAMPLE_PAYLOAD = {

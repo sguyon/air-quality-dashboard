@@ -47,6 +47,9 @@ test('header shows the three needs as icons, amber when not met', () => {
   assert.match(h, /sx-nh-i warn/); assert.match(h, /sx-nh-i ok/); assert.match(h, /sx-nh-i muted/);
   assert.match(h, /<strong>Sinus &amp; allergy: All fine\.<\/strong> Humidity is fine\./);
   assert.doesNotMatch(h, /Stale indoors<\/summary>/);   // icons only up top
+  // each icon names its need and state for screen readers and on hover
+  assert.match(h, /aria-label="Toddler: Stale indoors" title="Toddler: Stale indoors"/);
+  assert.match(h, /aria-label="Sinus &amp; allergy: All fine"/);
 });
 
 test('an item names its need instead of the (i), and opens both sentences', () => {

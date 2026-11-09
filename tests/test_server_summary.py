@@ -23,6 +23,14 @@ def test_payload_has_summary(client):
     assert [i["id"] for i in s["items"]][:2] == ["co2", "rh"]
 
 
+def test_read_carries_no_unread_fields(client):
+    # the page reads summary, generated_at and clock; the old card's headline, cards, checked, ahead and the pollen
+    # relief line had no reader left
+    r = client.post("/api/analyze", json={"format": "read", **SAMPLE_PAYLOAD}).get_json()
+    assert not {"headline", "cards", "checked", "ahead", "relief", "relief_short"} & set(r)
+    assert {"summary", "generated_at", "clock"} <= set(r)
+
+
 def test_history_keeps_humidity_for_the_chart(monkeypatch, client):
     import server
     row = {"timestamp": "2026-11-08T10:00:00.000Z", "pm02": 3, "rco2": 600, "rhum": 52, "rhum_corrected": 51, "atmp": 21}

@@ -112,7 +112,28 @@
       (who.length ? ` · Contributors: ${who.join(', ')}` : '');
   }
 
-  const api = { creditHtml, freshness, sourceOff, sourcesOn, sourcesLabel, smokeText, smokeMapText, pollenBarsTitle, needsFor, bearingIn, compassIn, compassAway, hourRange, cap, roadClockText, roadWindText, roadWhyText, roadLabel };
+  // Whether a pollen level (0 to 5) reaches the home's pollen limit (APP.limits.pollen, [limits] pollen in the config).
+  function pollenHigh(index, limits) {
+    return index != null && index >= limits.pollen;
+  }
+
+  // PM2.5 against a limit as the server does it (summary.py: round(v) > limit): the page shows the reading rounded,
+  // so 15.3 reads "15", which isn't over 15.
+  function pmOver(v, limit) {
+    return Math.round(v) > limit;
+  }
+
+  const PM_AQI_UNHEALTHY = 55.4;   // µg/m³: top of the US AQI band "Unhealthy for sensitive groups"; a display scale, not a limit
+  // The outdoor card's word for a PM2.5 reading: the home's limits (APP.limits pm and pm_high), then the AQI band.
+  function pmLevel(pm, limits) {
+    if (pm == null || Number.isNaN(pm)) return { word: 'No reading', tone: 'muted' };
+    if (!pmOver(pm, limits.pm)) return { word: 'Good', tone: 'good' };
+    if (!pmOver(pm, limits.pm_high)) return { word: 'Moderate', tone: 'warn' };
+    if (!pmOver(pm, PM_AQI_UNHEALTHY)) return { word: 'Unhealthy for sensitive groups', tone: 'warn' };
+    return { word: 'Unhealthy', tone: 'bad' };
+  }
+
+  const api = { pmOver, pmLevel, pollenHigh, creditHtml, freshness, sourceOff, sourcesOn, sourcesLabel, smokeText, smokeMapText, pollenBarsTitle, needsFor, bearingIn, compassIn, compassAway, hourRange, cap, roadClockText, roadWindText, roadWhyText, roadLabel };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   Object.assign(root, api);
 })(typeof window !== 'undefined' ? window : globalThis);

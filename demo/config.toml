@@ -2,7 +2,7 @@
 # about 1 km. Read when DEMO=1, or when there is no config and no AIRGRADIENT_TOKEN.
 
 [place]
-name = "McCarren Park, Williamsburg"
+name = "Williamsburg, Brooklyn NY"
 lat = 40.72
 lon = -73.95
 timezone = "America/New_York"
@@ -15,6 +15,9 @@ region = "New York"
 toddler = true
 sinus = true
 runner = true
+
+[home]
+appliances = ["dehumidifier", "ac_dry"]
 
 [sources]
 smoke = true
