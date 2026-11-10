@@ -29,6 +29,11 @@ The setup (`SETUP.md`, `scripts/setup.py`, the token page) is a stranger's first
 - No new questions. Find the answer from the account, the location or a default; fold anything the user must know into a message they already get (the token step says what's needed, so "I don't have a monitor" is an answer, not an extra question).
 - One way to do each step; a fallback only where the main way can't work (Docker, a home server, Railway).
 - Each option or branch has to be tested and maintained: prefer removing a failure point to documenting it.
+- Make the next action obvious: name the button, link or command, and say what happens after it.
+- Show progress and finish with a checked result, the page's address and how to start it again; say clearly when setup cannot continue.
+- Keep choices and earlier answers visible where they are needed; don't make the user remember technical details or answer twice.
+- When a step fails, explain it in plain words and give one next action that keeps the user's saved work.
+- Judge setup changes by whether the task worked and how many actions, questions and minutes it took.
 
 ## Keys
 
