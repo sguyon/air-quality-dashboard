@@ -1,0 +1,23 @@
+<h2>One step left: connect your monitors</h2>
+<p>Your AirGradient token is an access code that lets this app read your monitors.</p>
+{% if entry %}
+<ol>
+  <li><a href="https://app.airgradient.com/settings/place?tab=4" target="_blank" rel="noopener noreferrer">Open your AirGradient settings</a>.
+    <p>General Settings → Connectivity → API access; turn it on if it's off, then copy the token.</p></li>
+  <li><form method="post" action="/api/token" autocomplete="off">
+    <input type="hidden" name="setup_nonce" value="{{ nonce }}">
+    <label for="airgradient-token">Paste your AirGradient token</label>
+    <div class="token-entry"><input id="airgradient-token" name="token" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" required maxlength="{{ max_length }}"><button type="submit">Save</button></div>
+  </form></li>
+</ol>
+<p class="token-storage">Saved on this computer only, in the app's .env file. It's never shown again, and your agent never sees it.</p>
+{% elif instructions == 'railway' %}
+<p>Add AIRGRADIENT_TOKEN in your Railway project → Variables, then redeploy.</p>
+{% elif instructions == 'docker' %}
+<p>Add AIRGRADIENT_TOKEN to the .env next to docker-compose.yml (or run <code>python scripts/setup.py token</code> there), then run <code>docker compose restart</code>.</p>
+{% elif instructions == 'network' %}
+<p>Open this page on the computer running it to add your token.</p>
+{% else %}
+<p>Add AIRGRADIENT_TOKEN to the app's .env file, or run <code>python scripts/setup.py token</code> in the app's folder, then restart the server.</p>
+{% endif %}
+{% if error %}<p class="token-error" role="alert">{{ error }}</p>{% endif %}

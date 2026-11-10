@@ -10,6 +10,7 @@ import requests
 
 import publicmap
 import server
+import sources
 from config import load_config
 from conftest import REFERENCE_TOML, SAMPLE_PAYLOAD
 from summary import corrected_pm
@@ -61,12 +62,12 @@ def home(monkeypatch, canned):
     before = server.CFG
     calls = {"world": 0, "map_id": [], "history": []}
     state = {"world": []}
-    monkeypatch.setattr(server, "_cache", {})
-    monkeypatch.setattr(server, "_inflight", {})
-    monkeypatch.setattr(server, "_SOURCE_SEEN", {})
-    monkeypatch.setattr(server, "local_now", lambda *a, **k: NOW)
+    monkeypatch.setattr(sources, "_cache", {})
+    monkeypatch.setattr(sources, "_inflight", {})
+    monkeypatch.setattr(sources, "_SOURCE_SEEN", {})
+    monkeypatch.setattr(sources, "local_now", lambda *a, **k: NOW)
     hours = [NOW.replace(minute=0) + timedelta(hours=h) for h in range(-24, 13)]
-    monkeypatch.setattr(server, "get_air_forecast", lambda *a, **k: {t.strftime("%Y-%m-%dT%H:00"): MODEL_PM for t in hours})
+    monkeypatch.setattr(sources, "get_air_forecast", lambda *a, **k: {t.strftime("%Y-%m-%dT%H:00"): MODEL_PM for t in hours})
 
     def world():
         calls["world"] += 1
@@ -83,11 +84,11 @@ def home(monkeypatch, canned):
         value = PINNED_PM if mid - 1_000_000 == PINNED else AREA_PM
         return [{k: v for k, v in r.items() if k == "timestamp" or k in measures.values()} for r in map_rows(value, hours)]
 
-    monkeypatch.setattr(server, "_fetch_world", world)
+    monkeypatch.setattr(sources, "_fetch_world", world)
     monkeypatch.setattr(publicmap, "map_id", map_id)
     monkeypatch.setattr(publicmap, "history", history)
     monkeypatch.setattr(server, "MODE", "live")
-    monkeypatch.setattr(server, "api_get", lambda path, params=None: [{"locationId": 1, "locationType": "indoor", "rco2": 900}])
+    monkeypatch.setattr(sources, "api_get", lambda path, params=None: [{"locationId": 1, "locationType": "indoor", "rco2": 900}])
 
     def set_world(w):
         state["world"] = w
@@ -109,7 +110,7 @@ def test_monitor_online_reads_like_an_own_monitor(home, client):
     set_world, calls = home
     use(PINNED)
     set_world([monitor(PINNED, 1.1, "Cedar & 2nd Ave"), monitor(2, 4, "Far")])
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     assert src["kind"] == "monitor" and src["fallback"] is False and src["id"] == PINNED
     assert src["name"] == "Cedar & 2nd Ave" and src["contributor"] == "Cedar & 2nd Ave owner"
     assert src["url"] == f"https://example.org/{PINNED}" and src["distance_km"] == 1.1
@@ -144,7 +145,7 @@ def test_monitor_history_served_from_the_map(home, client, monkeypatch):
     set_world([monitor(PINNED, 1.1, "Cedar & 2nd Ave")])
     frm, to = datetime.now(timezone.utc) - timedelta(hours=6), datetime.now(timezone.utc)
     rows = client.get(f"/api/history/{PINNED}?from={utc(frm)}&to={utc(to)}").get_json()
-    assert rows and all(set(r) <= set(server.HIST_KEEP) for r in rows) and "atmp" not in rows[0]
+    assert rows and all(set(r) <= set(sources.HIST_KEEP) for r in rows) and "atmp" not in rows[0]
     assert calls["history"][-1][1] == 6   # the 6-hour range
 
 
@@ -156,21 +157,21 @@ def test_monitor_not_reporting_falls_back_to_the_area(home, client, pinned):
     set_world, calls = home
     use(PINNED)
     set_world([pinned, monitor(2, 4, "North"), monitor(3, -6, "South")])
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     assert src["kind"] == "area" and src["fallback"] == "monitor" and src["area_count"] == 2
     assert src["id"] == PINNED and src["name"] == "Cedar & 2nd Ave" and src["row"] is None
     current = client.get("/api/current").get_json()
-    assert current[1] == {"locationType": "outdoor", "source": server.source_facts(src)}
+    assert current[1] == {"locationType": "outdoor", "source": sources.source_facts(src)}
 
 
 def test_monitor_missing_from_the_list_keeps_its_name(home):
     set_world, calls = home
     use(PINNED)
     set_world([monitor(PINNED, 1.1, "Cedar & 2nd Ave"), monitor(2, 4, "North"), monitor(3, -6, "South")])
-    assert server.outdoor_source(NOW)["kind"] == "monitor"
-    server._cache.clear()
+    assert sources.outdoor_source(NOW)["kind"] == "monitor"
+    sources._cache.clear()
     set_world([monitor(2, 4, "North"), monitor(3, -6, "South")])   # it stopped reporting: the list drops it
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     assert src["kind"] == "area" and src["fallback"] == "monitor" and src["name"] == "Cedar & 2nd Ave"
 
 
@@ -178,7 +179,7 @@ def test_area_scales_the_model(home, client):
     set_world, calls = home
     use("area")
     set_world([monitor(2, 4, "North"), monitor(3, -6, "South"), monitor(4, 30, "Too far")])
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     assert src["kind"] == "area" and src["area_count"] == 2 and src["fallback"] is False and src["row"] is None
     k = (AREA_PM + .5) / (MODEL_PM + .5)
     assert src["area_factor"] == pytest.approx(k)
@@ -210,12 +211,12 @@ def test_area_on_a_slow_map_resolves_within_the_budget(home, monkeypatch):
         return fast_history(*a, **k)
     monkeypatch.setattr(publicmap, "map_id", slow_id)
     monkeypatch.setattr(publicmap, "history", slow_history)
-    monkeypatch.setattr(server, "SOURCE_BUDGET", 1.5)
+    monkeypatch.setattr(sources, "SOURCE_BUDGET", 1.5)
     t0 = time.monotonic()
-    first = server.outdoor_source(NOW)
+    first = sources.outdoor_source(NOW)
     assert time.monotonic() - t0 < 1.5
     assert first["kind"] == "area" and first["area_count"] == 3
-    second = server.outdoor_source(NOW)
+    second = sources.outdoor_source(NOW)
     assert (second["kind"], second["area_count"]) == ("area", 3)
     assert len(calls["map_id"]) == 3 and len(calls["history"]) == 3   # the second call read the cache
 
@@ -224,7 +225,7 @@ def test_area_counts_only_monitors_reporting_now(home):
     set_world, calls = home
     use("area")
     set_world([monitor(2, 4, "North"), monitor(3, -6, "South"), monitor(5, 2, "Quiet", age=timedelta(hours=3))])
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     assert src["area_count"] == 2 and 5 not in calls["map_id"]
 
 
@@ -242,14 +243,14 @@ def test_area_with_one_monitor_is_the_model(home):
     set_world, calls = home
     use("area")
     set_world([monitor(2, 4, "North"), monitor(4, 30, "Too far")])
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     assert src["kind"] == "model" and src["area_count"] == 0 and src["fallback"] is False
 
 
 def test_model_fetches_nothing_more(home, client):
     set_world, calls = home
     use("model")
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     assert src["kind"] == "model"
     r = read(client)
     assert r["outdoor_source"]["kind"] == "model"
@@ -282,7 +283,7 @@ def test_world_list_down_is_the_model(home, client, chosen):
     set_world, calls = home
     use(chosen)
     set_world(None)
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     # the chosen monitor may be reporting: it's AirGradient's list that didn't answer, and the fallback says so
     assert src["kind"] == "model" and src["fallback"] == ("list" if chosen == PINNED else False)
     assert client.get("/api/current").status_code == 200
@@ -293,10 +294,10 @@ def test_world_list_down_doesnt_say_the_chosen_monitor_isnt_reporting(home, clie
     set_world, calls = home
     use(PINNED)
     set_world([monitor(PINNED, 1.1, "Cedar & 2nd Ave")])
-    assert server.outdoor_source(NOW)["kind"] == "monitor"   # seen once: its name is known
+    assert sources.outdoor_source(NOW)["kind"] == "monitor"   # seen once: its name is known
     set_world(None)
-    server._cache.clear()   # past the world list's keep: nothing cached to fall back on
-    src = server.outdoor_source(NOW)
+    sources._cache.clear()   # past the world list's keep: nothing cached to fall back on
+    src = sources.outdoor_source(NOW)
     assert src["kind"] == "model" and src["fallback"] == "list" and src["name"] == "Cedar & 2nd Ave"
     pm = next(i for i in read(client)["summary"]["items"] if i["id"] == "pm")
     assert "AirGradient didn’t answer, so this is an estimate for your area." in pm["why"]
@@ -311,16 +312,16 @@ def test_map_down_falls_back_to_the_model(home, monkeypatch):
     def down(mon):
         raise requests.ConnectionError("map down")
     monkeypatch.setattr(publicmap, "map_id", down)
-    src = server.outdoor_source(NOW)
+    src = sources.outdoor_source(NOW)
     assert src["kind"] == "model" and src["fallback"] == "monitor" and src["name"] == "Cedar & 2nd Ave"
 
 
 def test_two_monitor_home_has_no_source(client, monkeypatch):
     monkeypatch.setattr(server, "MODE", "live")
     own = [{"locationId": 1, "locationType": "indoor"}, {"locationId": 2, "locationType": "outdoor"}]
-    monkeypatch.setattr(server, "_cache", {})
-    monkeypatch.setattr(server, "api_get", lambda path, params=None: own)
-    assert server.outdoor_source() is None
+    monkeypatch.setattr(sources, "_cache", {})
+    monkeypatch.setattr(sources, "api_get", lambda path, params=None: own)
+    assert sources.outdoor_source() is None
     assert client.get("/api/current").get_json() == own
     assert "outdoor_source" not in read(client)
 
@@ -472,7 +473,7 @@ TOKEN_SEES = [{"locationId": 1, "locationType": "indoor", "rco2": 900}, {"locati
 
 def test_indoor_only_current_drops_the_tokens_outdoor_rows(home, client, monkeypatch):
     use("model")
-    monkeypatch.setattr(server, "api_get", lambda path, params=None: [dict(r) for r in TOKEN_SEES])
+    monkeypatch.setattr(sources, "api_get", lambda path, params=None: [dict(r) for r in TOKEN_SEES])
     current = client.get("/api/current").get_json()
     assert [m.get("locationId") for m in current] == [1, None]   # the indoor row, then the source entry
     assert current[1]["source"]["kind"] == "model"
@@ -481,7 +482,7 @@ def test_indoor_only_current_drops_the_tokens_outdoor_rows(home, client, monkeyp
 def test_indoor_only_summary_ignores_a_posted_outdoor_id(home, client, monkeypatch):
     use("model")
     asked = []
-    monkeypatch.setattr(server, "history_points", lambda lid, now, hours=24: asked.append(lid) or [])
+    monkeypatch.setattr(sources, "history_points", lambda lid, now, hours=24: asked.append(lid) or [])
     client.post("/api/analyze", json={"format": "read", **SAMPLE_PAYLOAD, "indoor_location_id": 1, "outdoor_location_id": 2})
     assert 2 not in asked
 
@@ -495,8 +496,8 @@ def test_outdoor_only_current_drops_the_tokens_indoor_rows(client, monkeypatch):
     server.use_config(outdoor_only())
     try:
         monkeypatch.setattr(server, "MODE", "live")
-        monkeypatch.setattr(server, "_cache", {})
-        monkeypatch.setattr(server, "api_get", lambda path, params=None: [dict(r) for r in TOKEN_SEES])
+        monkeypatch.setattr(sources, "_cache", {})
+        monkeypatch.setattr(sources, "api_get", lambda path, params=None: [dict(r) for r in TOKEN_SEES])
         assert client.get("/api/current").get_json() == [TOKEN_SEES[1]]
     finally:
         server.use_config(before)
@@ -507,7 +508,7 @@ def test_outdoor_only_summary_reads_no_indoor_history(client, monkeypatch):
     server.use_config(outdoor_only())
     try:
         asked = []
-        monkeypatch.setattr(server, "history_points", lambda lid, now, hours=24: asked.append(lid) or [])
+        monkeypatch.setattr(sources, "history_points", lambda lid, now, hours=24: asked.append(lid) or [])
         client.post("/api/analyze", json={"format": "read", **SAMPLE_PAYLOAD, "indoor_location_id": 1, "outdoor_location_id": 2})
     finally:
         server.use_config(before)
@@ -516,8 +517,8 @@ def test_outdoor_only_summary_reads_no_indoor_history(client, monkeypatch):
 
 def test_two_monitor_home_keeps_every_row(client, monkeypatch):
     monkeypatch.setattr(server, "MODE", "live")
-    monkeypatch.setattr(server, "_cache", {})
-    monkeypatch.setattr(server, "api_get", lambda path, params=None: [dict(r) for r in TOKEN_SEES])
+    monkeypatch.setattr(sources, "_cache", {})
+    monkeypatch.setattr(sources, "api_get", lambda path, params=None: [dict(r) for r in TOKEN_SEES])
     assert client.get("/api/current").get_json() == TOKEN_SEES
 
 

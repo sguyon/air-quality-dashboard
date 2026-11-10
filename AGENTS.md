@@ -32,11 +32,14 @@ If the maintainer's private rules (`internal/AGENTS.local.md`) list services, up
 
 ## Layout
 
-- `server.py`: the Flask app. Fetches the monitors and the outside sources, caches them, serves the page and its JSON.
+- `server.py`: the Flask app, its routes and page, config loading and startup.
+- `sources.py`: the outside sources, monitor history, outdoor source for indoor-only homes, and their shared cache.
+- `air_read.py`: builds the page’s air read, profiles, source facts for the summary, and summary inputs.
 - `summary.py`: the rules that pick the actions, the profiles' states and the day chart's data. No network.
 - `phrases.py`: the sentences behind each explanation, filled from the readings and the limits.
 - `config.py`: reads `config.toml` (or the `CONFIG_TOML` or `CONFIG_FILE` variable) and checks it. `config.example.toml` is the commented starter.
 - `index.html` and `static/`: the page, with no build step. `app.js` (data, readings, charts), `summary.js` (the summary card), `home.js` (the home's profiles and road in words), `sky.js` (the live sky), `map.js` (the neighborhood map), `picker.js` (the demo's banner and its monitor picker).
+- `DESIGN.md`: the page's design rules (cards, disabled states, colors that carry meaning, motion, the check before shipping); read it before changing the page.
 - `publicmap.py`: AirGradient's public monitors for any home or the demo: the outdoor ones in the world list, the nearest, the outdoor source an indoor-only home is offered at setup, a monitor's reading row, its place on the public map and its history there. No import of `demo/` or `server.py`.
 - `demo/`: the demo's home (`config.toml`), its made-up data (`data.py`), its three moments and three hidden one-monitor cases (`moments.py`) and the public monitors' pages at `?monitor=<id>` (`public.py`).
 - `scripts/`: `setup.py` (SETUP.md's answers to a written `config.toml`, the token into `.env` unseen, and `--live`), `check_config.py`, `screenshot.sh` (the README's images, from the demo), `vercel_build.sh` (the demo's build on Vercel).

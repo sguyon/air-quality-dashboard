@@ -12,6 +12,7 @@ REFERENCE_TOML = (Path(__file__).parent / "fixtures" / "config_reference.toml").
 os.environ.pop("DEMO", None)
 os.environ["CONFIG_TOML"] = REFERENCE_TOML
 import server  # noqa: E402
+import sources
 
 SAMPLE_PAYLOAD = {
     "indoor_co2": 1240, "indoor_humidity": 64, "indoor_temp_c": 21, "outdoor_pm25": 4,
@@ -28,12 +29,12 @@ WEATHER = {
 
 @pytest.fixture
 def canned(monkeypatch):
-    monkeypatch.setattr(server, "get_open_meteo_data", lambda *a, **k: WEATHER)
-    monkeypatch.setattr(server, "get_air_forecast", lambda *a, **k: {})
-    monkeypatch.setattr(server, "get_smoke_data", lambda *a, **k: False)   # the real one returns a bool
-    monkeypatch.setattr(server, "get_pollen_data", lambda *a, **k: [])
-    monkeypatch.setattr(server, "get_pollen_days", lambda *a, **k: {"today": [], "tomorrow": []})
-    monkeypatch.setattr(server, "history_points", lambda *a, **k: [])
+    monkeypatch.setattr(sources, "get_open_meteo_data", lambda *a, **k: WEATHER)
+    monkeypatch.setattr(sources, "get_air_forecast", lambda *a, **k: {})
+    monkeypatch.setattr(sources, "get_smoke_data", lambda *a, **k: False)   # the real one returns a bool
+    monkeypatch.setattr(sources, "get_pollen_data", lambda *a, **k: [])
+    monkeypatch.setattr(sources, "get_pollen_days", lambda *a, **k: {"today": [], "tomorrow": []})
+    monkeypatch.setattr(sources, "history_points", lambda *a, **k: [])
 
 
 @pytest.fixture

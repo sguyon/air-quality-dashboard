@@ -544,7 +544,7 @@ def test_token_replaces_the_line_that_wins_and_keeps_the_rest(root, capsys):
     assert code == 0 and TOKEN not in out
     assert env.read_text(encoding="utf-8") == (f"# my keys\nAIRGRADIENT_TOKEN={TOKEN}\nGOOGLE_POLLEN_API_KEY=keep\n"
                                                "# AIRGRADIENT_TOKEN=old-comment\nOTHER=x\n")
-    assert stat.S_IMODE(env.stat().st_mode) == 0o640
+    assert stat.S_IMODE(env.stat().st_mode) == 0o600
     from config import parse_dotenv
     assert parse_dotenv(env.read_text(encoding="utf-8"))["AIRGRADIENT_TOKEN"] == TOKEN
 
@@ -635,7 +635,7 @@ def test_live_without_a_token(root, page, capsys):
     (root / "config.toml").write_text(INDOOR_ONLY, encoding="utf-8")
     serve(routes, INDOOR_ONLY, root, token=False)
     code, out = live(root, url, capsys)
-    assert code == 1 and "Token: missing" in out and "Not live yet: add the token (setup.py token)" in out
+    assert code == 1 and "Token: missing" in out and "Not live yet: open the local page and paste your token in the box" in out
 
 
 def test_live_settings_differ_from_the_file(root, page, capsys):
@@ -780,3 +780,51 @@ def test_token_without_a_terminal_reads_stdin_and_hints_when_empty(root, monkeyp
     code = setup.main(["token"], {}, root)
     out = capsys.readouterr().out
     assert code == 1 and "own Terminal window" in out and not (root / ".env").exists()
+
+
+@pytest.mark.parametrize("platform,env,command", [
+    ("darwin", {}, "open"),
+    ("linux", {"DISPLAY": ":0"}, "xdg-open"),
+    ("linux", {"WAYLAND_DISPLAY": "wayland-0"}, "xdg-open"),
+])
+def test_open_page_uses_desktop_command_and_prints_address(root, monkeypatch, capsys, platform, env, command):
+    monkeypatch.setattr(setup.sys, "platform", platform)
+    monkeypatch.setattr(setup.token_setup, "DOCKER_MARKER", root / "no-container")
+    monkeypatch.setattr(setup, "macos_desktop", lambda: True)
+    launched = []
+    monkeypatch.setattr(setup.subprocess, "run", lambda args, **kwargs: launched.append(args))
+    assert setup.main(["--open", "http://localhost:5600"], env, root) == 0
+    assert launched == [[command, "http://localhost:5600"]]
+    assert "http://localhost:5600" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("env,container", [
+    ({"SSH_CONNECTION": "session", "DISPLAY": ":0"}, False),
+    ({"SSH_CLIENT": "session", "DISPLAY": ":0"}, False),
+    ({"SSH_TTY": "tty", "DISPLAY": ":0"}, False),
+    ({}, False),
+    ({"DISPLAY": ":0"}, True),
+    ({"DISPLAY": ":0", "RAILWAY_PROJECT_ID": ""}, False),
+])
+def test_open_page_skips_remote_headless_and_container_but_prints_address(root, monkeypatch, capsys, env, container):
+    monkeypatch.setattr(setup.sys, "platform", "linux")
+    marker = root / "container-marker"
+    if container:
+        marker.touch()
+    monkeypatch.setattr(setup.token_setup, "DOCKER_MARKER", marker)
+    def unexpected(*a, **k):
+        pytest.fail("No desktop browser should be launched")
+    monkeypatch.setattr(setup.subprocess, "run", unexpected)
+    assert setup.main(["--open"], env, root) == 0
+    assert "http://localhost:5555" in capsys.readouterr().out
+
+
+def test_open_page_skips_macos_without_a_desktop(root, monkeypatch, capsys):
+    monkeypatch.setattr(setup.sys, "platform", "darwin")
+    monkeypatch.setattr(setup.token_setup, "DOCKER_MARKER", root / "no-container")
+    monkeypatch.setattr(setup, "macos_desktop", lambda: False)
+    def unexpected(*a, **k):
+        pytest.fail("No browser should be opened without a desktop")
+    monkeypatch.setattr(setup.subprocess, "run", unexpected)
+    assert setup.main(["--open"], {}, root) == 0
+    assert "http://localhost:5555" in capsys.readouterr().out

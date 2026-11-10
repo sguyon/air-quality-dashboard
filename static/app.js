@@ -54,8 +54,8 @@ function applyConfig() {
   const set = (el, attr, v) => { if (v) el.setAttribute(attr, v); else el.removeAttribute(attr); };
   const runner = `Runner: adds the run check, saying when the outdoor air${road ? ` and ${road.name} traffic` : ''} make${road ? '' : 's'} a run worth it.`;
   const fill = {
-    'place': el => { el.textContent = PUB ? PUB.street || '' : place.name; el.hidden = !!PUB && !PUB.street; },   // the pill: a monitor's street
-    'home-name': el => { if (PUB) el.textContent = PUB.name; },   // the pill names the monitor, not "Home"
+    'place': el => { el.textContent = PUB ? PUB.street || '' : place.name; el.title = el.textContent; el.hidden = !!PUB && !PUB.street; },   // the pill: a monitor's street (full text on hover when cut)
+    'home-name': el => { if (PUB) el.textContent = PUB.name; el.title = el.textContent; },   // the pill names the monitor, not "Home"
     'road-card': el => { el.hidden = !road && !PUB; },   // a public monitor shows the road as Off, like pollen
     'map-home': el => { el.href = links.map_home; el.textContent = place.name; },
     'nearby-about': el => { el.textContent = `Other AirGradient monitors around ${place.name}.`; },

@@ -400,6 +400,7 @@ def install(server, moment_for_request):
 
     The monitor wiring reads the request (?monitor=, flask.g), so every replaced function must run in the request's
     thread: the demo's _CONTEXT_POOL runs inline, and the real cache only ever runs the real fetchers in its pool."""
+    sources, air_read = server.sources, server.air_read
     cfg = server.CFG
     _HOME.update(lat=cfg.place.lat, lon=cfg.place.lon, indoor=cfg.place.indoor, outdoor=cfg.place.outdoor,
                  route=cfg.road.route if cfg.road else None)
@@ -408,13 +409,14 @@ def install(server, moment_for_request):
     key = lambda: data_key(moment_for_request())   # whose made-up readings: a hidden case shows the rush's
     # the real ones, before they're replaced: a public monitor uses them
     _REAL.clear()
-    _REAL.update({name: getattr(server, name) for name in (
+    _REAL.update({name: getattr(sources, name) for name in (
         "cached", "_fetch_world", "_fetch_nearby", "get_open_meteo_data", "get_air_forecast", "smoke_status",
-        "local_now", "road_traffic", "source_on", "page_view", "outdoor_source", "indoor_monitor")},
-        force=server._force, world_cache=server.WORLD_CACHE)
+        "local_now", "source_on", "outdoor_source")},
+        road_traffic=air_read.road_traffic, page_view=server.page_view, indoor_monitor=air_read.indoor_monitor,
+        force=sources._force, world_cache=sources.WORLD_CACHE)
     real = _REAL
     request_monitor = server.request_monitor
-    ranges = sorted(server.HIST_TTL)   # the History card's ranges (h): a monitor's history is fetched and cached by them
+    ranges = sorted(sources.HIST_TTL)   # the History card's ranges (h): a monitor's history is fetched and cached by them
 
     def monitor():
         """The public monitor this request is about, or None (no ?monitor=, or one that can't be shown)."""
@@ -471,7 +473,7 @@ def install(server, moment_for_request):
         w = which()
         if w == "sample":
             return smoke(key())
-        return real["smoke_status"](here()) if source_on("smoke") else server.no_smoke()
+        return real["smoke_status"](here()) if source_on("smoke") else sources.no_smoke()
 
     def weather_now(*a, **k):
         w = which()
@@ -506,8 +508,8 @@ def install(server, moment_for_request):
             return real["outdoor_source"](now, with_history)
         row = source_row(key())
         at = moment_for_request().at
-        rows = source_past(key(), at - timedelta(hours=server.SOURCE_HOURS), at) if with_history else []
-        return server._source("monitor", **server._monitor_facts(row), row=publicmap.reading_row(row), history=rows)
+        rows = source_past(key(), at - timedelta(hours=sources.SOURCE_HOURS), at) if with_history else []
+        return sources._source("monitor", **sources._monitor_facts(row), row=publicmap.reading_row(row), history=rows)
 
     def source_history_rows(location_id, frm, to):
         """server.source_history_rows: indoor-near's public monitor's rows between frm and to; [] for another id."""
@@ -563,33 +565,33 @@ def install(server, moment_for_request):
 
     no_road = {"toward": False, "traffic": None, "wind_impact": None, "pollution_pressure": None}   # road_traffic without a road
 
-    server.api_get = api_get
-    server.get_open_meteo_data = weather_now
-    server.get_air_forecast = air_model
-    server.smoke_status = smoke_status
-    server.get_smoke_data = lambda *a, **k: smoke_status()["detected"]
-    server.get_pollen_days = lambda *a, **k: pollen_days(key()) if which() == "sample" else {"today": [], "tomorrow": []}
-    server.get_pollen_data = lambda *a, **k: pollen_days(key())["today"] if which() == "sample" else []
-    server.source_on = source_on
-    server.pollen_state = lambda: "ok" if server.source_on("pollen") else "off"   # made up, so no key to miss
-    server.history_points = points
-    server._fetch_world = lambda: world_list() if which() == "monitor" else []   # a sample's cached() runs it; nothing leaves the machine
-    server._fetch_nearby = nearby_of
-    server.active_road = lambda: server.ROAD if which() == "sample" else None
-    server.road_traffic = lambda hour, wind: real["road_traffic"](hour, wind) if which() == "sample" else dict(no_road)
-    server.local_now = now
+    sources.api_get = api_get
+    sources.get_open_meteo_data = weather_now
+    sources.get_air_forecast = air_model
+    sources.smoke_status = smoke_status
+    sources.get_smoke_data = lambda *a, **k: smoke_status()["detected"]
+    sources.get_pollen_days = lambda *a, **k: pollen_days(key()) if which() == "sample" else {"today": [], "tomorrow": []}
+    sources.get_pollen_data = lambda *a, **k: pollen_days(key())["today"] if which() == "sample" else []
+    sources.source_on = source_on
+    sources.pollen_state = lambda: "ok" if sources.source_on("pollen") else "off"   # made up, so no key to miss
+    sources.history_points = points
+    sources._fetch_world = lambda: world_list() if which() == "monitor" else []   # a sample's cached() runs it; nothing leaves the machine
+    sources._fetch_nearby = nearby_of
+    air_read.active_road = lambda: server.ROAD if which() == "sample" else None
+    air_read.road_traffic = lambda hour, wind: real["road_traffic"](hour, wind) if which() == "sample" else dict(no_road)
+    sources.local_now = now
     # every sample's answer is computed per request: no shared cache (its keys don't know the moment), no pool threads
-    server.cached = cached
+    sources.cached = cached
     server._CONTEXT_POOL = _Inline()
     server.page_view = page_view
     server.page_clock = page_clock
     server.monitor_missing = lambda: asked() == "missing"
-    server.outdoor_row = monitor   # a public monitor's row from the world list: its age and offline flag; None for a sample
+    air_read.outdoor_row = monitor   # a public monitor's row from the world list: its age and offline flag; None for a sample
     # the hidden one-monitor cases (?moment=indoor-near, indoor-model, outdoor-only): which monitors the home has
-    server.outdoor_from = outdoor_from
-    server.outdoor_source = outdoor_source
-    server.source_history_rows = source_history_rows
-    server.indoor_monitor = indoor_monitor
+    sources.outdoor_from = outdoor_from
+    sources.outdoor_source = outdoor_source
+    sources.source_history_rows = source_history_rows
+    air_read.indoor_monitor = indoor_monitor
 
 
 # ── public monitors (?monitor=) ──

@@ -32,14 +32,14 @@ Railway is the method the maintainer uses, and the most tested one. Docker is be
 
    Railway variables can hold several lines, and `--stdin` keeps them all (checked 2026-11-09; only the final newline is dropped, which doesn't matter). If the page doesn't answer after a deploy, run `railway logs` and look for the config message.
 
-4. **You:** send the token, in your own terminal, from the repo folder. It reads the value from `.env` and never shows it:
+4. **The token**, typed by you on Railway's website, never through the chat. The agent runs `railway open`, which opens the project in your browser; then click the **home-air** service → **Variables** → **New Variable**, name it `AIRGRADIENT_TOKEN`, paste your token, and save. The same for `GOOGLE_POLLEN_API_KEY` if you set one up. (The app's own token form doesn't work on Railway: its address is public, and Railway rebuilds the app at each deploy.)
+
+   If you're at ease with a terminal, this does the same from the repo folder, reading the token from `.env` without showing it:
 
    ```bash
    grep '^AIRGRADIENT_TOKEN=' .env | head -1 | cut -d= -f2- | tr -d '\r\n' \
      | railway variable set AIRGRADIENT_TOKEN --stdin --service home-air --skip-deploys
    ```
-
-   The same for `GOOGLE_POLLEN_API_KEY` if you set one up. Or type the values in the Railway dashboard: your service → Variables.
 
 5. Deploy:
 

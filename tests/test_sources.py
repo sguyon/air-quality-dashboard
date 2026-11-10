@@ -2,6 +2,7 @@
 import pytest
 
 import server
+import sources
 from conftest import SAMPLE_PAYLOAD
 from test_golden import config_from, strings
 
@@ -25,7 +26,7 @@ def test_pollen_without_key_is_not_set_up(monkeypatch, client):
 def test_pollen_with_key_is_ok_or_error(monkeypatch, client):
     monkeypatch.setenv("GOOGLE_POLLEN_API_KEY", "test-key")
     assert status(client)["pollen"] == "error"   # on, set up, and nothing came back
-    monkeypatch.setattr(server, "get_pollen_days", lambda *a, **k: {"today": [{"name": "Grass", "index": 1}], "tomorrow": []})
+    monkeypatch.setattr(sources, "get_pollen_days", lambda *a, **k: {"today": [{"name": "Grass", "index": 1}], "tomorrow": []})
     assert status(client)["pollen"] == "ok"
 
 
@@ -35,7 +36,7 @@ def test_pollen_turned_off_is_off_and_never_fetched(monkeypatch, client, use_con
 
     def boom(*a, **k):
         raise AssertionError("pollen was fetched")
-    monkeypatch.setattr(server, "get_pollen_days", boom)
+    monkeypatch.setattr(sources, "get_pollen_days", boom)
     assert status(client)["pollen"] == "off"
 
 
@@ -44,14 +45,14 @@ def test_smoke_off_in_config(monkeypatch, client, use_config):
 
     def boom(*a, **k):
         raise AssertionError("smoke was fetched")
-    monkeypatch.setattr(server, "smoke_status", boom)
+    monkeypatch.setattr(sources, "smoke_status", boom)
     assert status(client)["smoke"] == "off"
 
 
 def test_smoke_on_is_ok_when_checked_error_when_not(monkeypatch, client):
-    monkeypatch.setattr(server, "smoke_status", lambda: {"checked": True, "detected": False, "density": None, "date": "2026-11-08"})
+    monkeypatch.setattr(sources, "smoke_status", lambda: {"checked": True, "detected": False, "density": None, "date": "2026-11-08"})
     assert status(client)["smoke"] == "ok"
-    monkeypatch.setattr(server, "smoke_status", lambda: {"checked": False, "detected": False, "density": None, "date": None})
+    monkeypatch.setattr(sources, "smoke_status", lambda: {"checked": False, "detected": False, "density": None, "date": None})
     assert status(client)["smoke"] == "error"
 
 
@@ -66,7 +67,7 @@ def test_nearby_off_in_config(monkeypatch, client, use_config):
 
     def boom(*a, **k):
         raise AssertionError("nearby was fetched")
-    monkeypatch.setattr(server, "_fetch_nearby", boom)
+    monkeypatch.setattr(sources, "_fetch_nearby", boom)
     assert status(client)["nearby"] == "off"
     assert client.get("/api/neighborhood").get_json() == []
 
@@ -75,8 +76,8 @@ def test_summary_without_pollen_uses_humidity_only(monkeypatch, client, use_conf
     monkeypatch.delenv("GOOGLE_POLLEN_API_KEY", raising=False)
     high = [{"name": "Grass", "level": "High", "index": 4, "in_season": True}]
     # even if a stale cache held pollen, a source that is not set up is not read
-    monkeypatch.setattr(server, "get_pollen_data", lambda *a, **k: high)
-    monkeypatch.setattr(server, "get_pollen_days", lambda *a, **k: {"today": high, "tomorrow": high})
+    monkeypatch.setattr(sources, "get_pollen_data", lambda *a, **k: high)
+    monkeypatch.setattr(sources, "get_pollen_days", lambda *a, **k: {"today": high, "tomorrow": high})
     body = {"format": "read", **SAMPLE_PAYLOAD, "indoor_humidity": 45}
     out = client.post("/api/analyze", json=body).get_json()
     profiles = out["summary"]["profiles"]

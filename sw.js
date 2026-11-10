@@ -1,9 +1,10 @@
+// v6: discard pages cached before the token setup form's security fixes.
 // v5: the manifest and icons are network-first. v4 kept the manifest cache-first under a fixed cache name,
 // so installed phones never saw a new manifest (an old one with an SVG icon gave iOS a letter icon).
 // v4: the page's CSS and JS moved to /static/, with a ?v=<content hash> the server adds.
 // v3: pages are network-first (v2 served a cached page until the cache name changed),
 // only GET responses are cached, and history is cached once per monitor.
-const CACHE_NAME = 'aq-dashboard-v5';
+const CACHE_NAME = 'aq-dashboard-v6';
 const STATIC_ASSETS = [
   '/',
   'https://cdn.jsdelivr.net/npm/chart.js@4',
@@ -14,8 +15,7 @@ const CROSS_ORIGIN_OK = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdel
 // Install: cache the shell. A failed asset does not block installation.
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => Promise.allSettled(STATIC_ASSETS.map((url) => cache.add(url))))
+    Promise.allSettled(STATIC_ASSETS.map((url) => fetch(url).then((response) => putInCache(url, response))))
       .then(() => self.skipWaiting())
   );
 });
@@ -37,9 +37,9 @@ function cacheKey(request, url) {
 }
 
 function putInCache(key, response) {
-  if (!response || !response.ok) return;
+  if (!response || !response.ok || /\bno-store\b/i.test(response.headers.get('Cache-Control') || '')) return;
   const copy = response.clone();
-  caches.open(CACHE_NAME).then((cache) => cache.put(key, copy)).catch(() => {});
+  return caches.open(CACHE_NAME).then((cache) => cache.put(key, copy)).catch(() => {});
 }
 
 // Network first, then the last cached copy.

@@ -8,6 +8,8 @@ Times are New York local, as Open-Meteo returns them for the reference home.
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import sources
+
 TZ = ZoneInfo("America/New_York")
 MORNING = datetime(2026, 4, 21, 7, 45, tzinfo=TZ)   # the brief's moment: in the morning rush
 EVENING = datetime(2026, 4, 21, 16, 30, tzinfo=TZ)  # in the evening rush, with the PM2.5 peak ahead
@@ -87,11 +89,11 @@ def history(location_id, now_local, hours=24):
 
 def install(server, monkeypatch, now):
     """Point every upstream the summary and /api/context read at the canned data above, at a fixed clock."""
-    monkeypatch.setattr(server, "local_now", lambda: now)
-    monkeypatch.setattr(server, "get_open_meteo_data", lambda *a, **k: WEATHER)
-    monkeypatch.setattr(server, "get_air_forecast", lambda *a, **k: dict(AIR))
-    monkeypatch.setattr(server, "smoke_status", lambda *a, **k: dict(SMOKE))
-    monkeypatch.setattr(server, "get_smoke_data", lambda *a, **k: SMOKE["detected"])
-    monkeypatch.setattr(server, "get_pollen_days", lambda *a, **k: {d: [dict(p) for p in v] for d, v in POLLEN.items()})
-    monkeypatch.setattr(server, "get_pollen_data", lambda *a, **k: [dict(p) for p in POLLEN["today"]])
-    monkeypatch.setattr(server, "history_points", history)
+    monkeypatch.setattr(sources, "local_now", lambda: now)
+    monkeypatch.setattr(sources, "get_open_meteo_data", lambda *a, **k: WEATHER)
+    monkeypatch.setattr(sources, "get_air_forecast", lambda *a, **k: dict(AIR))
+    monkeypatch.setattr(sources, "smoke_status", lambda *a, **k: dict(SMOKE))
+    monkeypatch.setattr(sources, "get_smoke_data", lambda *a, **k: SMOKE["detected"])
+    monkeypatch.setattr(sources, "get_pollen_days", lambda *a, **k: {d: [dict(p) for p in v] for d, v in POLLEN.items()})
+    monkeypatch.setattr(sources, "get_pollen_data", lambda *a, **k: [dict(p) for p in POLLEN["today"]])
+    monkeypatch.setattr(sources, "history_points", history)

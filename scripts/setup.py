@@ -34,7 +34,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import check_config  # noqa: E402
 import publicmap  # noqa: E402
-from config import APPLIANCES, PLACE_DECIMALS, PROFILES, ConfigError, load_config, real_value  # noqa: E402
+import token_setup  # noqa: E402
+from config import APPLIANCES, PLACE_DECIMALS, PROFILES, ConfigError, load_config, real_value, write_env_key  # noqa: E402
 
 REPO_URL = "https://github.com/sguyon/home-air-quality"
 # Nominatim's policy asks for a User-Agent naming the app; one request per run keeps under its 1 request a second
@@ -686,20 +687,55 @@ def gcloud_status():
     return "signed in" if r.stdout.strip() else "not signed in"
 
 
-def token_steps(root, run):
-    return ["  1. Open https://app.airgradient.com and log in.",
-            "  2. In the menu: General Settings → Connectivity → API access. Turn API access on if it's off.",
-            "  3. Copy the token. Don't paste it in the chat: save it with this command, which doesn't show it.",
-            "     Run it in your own Terminal window, not through the agent (it needs a terminal to hide the token):",
-            f"     cd {shlex.quote(str(root))} && {run} scripts/setup.py token"]
+def macos_desktop():
+    """The console belongs to the logged-in desktop user; a headless machine has no such user."""
+    try:
+        return Path("/dev/console").stat().st_uid == os.getuid()
+    except OSError:
+        return False
+
+
+def open_page(url, env):
+    """An optional agent action after starting the server. Always print the address, even without a desktop."""
+    from urllib.parse import urlsplit
+    try:
+        parsed = urlsplit(url)
+        valid = (parsed.scheme in ("http", "https") and token_setup.LOCAL_HOST.fullmatch(parsed.netloc)
+                 and parsed.path in ("", "/") and not parsed.query and not parsed.fragment)
+    except ValueError:
+        valid = False
+    if not valid:
+        print("Use the local page's address, such as http://localhost:5555.")
+        return 2
+    print(f"Open {url}")
+    if (any(key in env for key in ("SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY"))
+            or token_setup.hosted(env) or token_setup.DOCKER_MARKER.exists()):
+        return 0
+    if sys.platform == "darwin" and macos_desktop():
+        command = "open"
+    elif sys.platform.startswith("linux") and (env.get("DISPLAY") or env.get("WAYLAND_DISPLAY")):
+        command = "xdg-open"
+    else:
+        return 0
+    try:
+        subprocess.run([command, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        pass  # the printed address still works when a desktop opener isn't installed
+    return 0
+
+
+def token_steps(root, run, url):
+    return [f"  1. Open {url} on the computer running the app.",
+            "  2. In the box, follow Open your AirGradient settings, turn API access on if it's off, then copy the token.",
+            "  3. Paste your token in the box on the Home Air Quality page and press Save. Never paste it in the chat.",
+            "     The page checks it, saves it on this computer and loads your monitors without a restart.",
+            f"     For Terminal users and servers: cd {shlex.quote(str(root))} && {run} scripts/setup.py token; then restart."]
 
 
 def next_steps(plan, keys, root, env):
     a, run = plan.answers, run_prefix()
     lines = ["", "Keep a private copy of config.toml (a password manager note, a private repo): it isn't in git, "
                  "so it has no history and no backup.", "", "Next:"]
-    if not keys.get("AIRGRADIENT_TOKEN") and a.token == "now":
-        lines += ["- The AirGradient token (about 2 minutes). The user does it:"] + token_steps(root, run)
     if a.pollen == "now" and not keys.get("GOOGLE_POLLEN_API_KEY"):
         g = gcloud_status()
         lines.append(f"- Pollen: SETUP.md step 5, with gcloud ({g})." if g else
@@ -715,11 +751,13 @@ def next_steps(plan, keys, root, env):
     url = f"http://localhost:{free}"
     lines += [f"- Start the page (SETUP.md step 6): cd {shlex.quote(str(root))} && {prefix}{run} server.py",
               f"  Then open {url}. To stop it: Ctrl+C in its terminal.",
+              f"  The agent may open it on this computer: {run} scripts/setup.py --open {url}",
               f"- Check it's live: {run} scripts/setup.py --live" + ("" if free == DEFAULT_PORT else f" {url}")]
+    if not keys.get("AIRGRADIENT_TOKEN") and a.token == "now":
+        lines += ["- The AirGradient token (about 2 minutes). The user does it:"] + token_steps(root, run, url)
     later = []
     if not keys.get("AIRGRADIENT_TOKEN") and a.token == "later":
-        later += ["- The AirGradient token: the page says \"Add AIRGRADIENT_TOKEN to .env\" until then."] + token_steps(root, run) + [
-            "  Then restart the page and run setup.py --live."]
+        later += ["- The AirGradient token: open the page and paste your token in the box when ready."] + token_steps(root, run, url)
     if a.pollen == "later" and not keys.get("GOOGLE_POLLEN_API_KEY"):
         later.append("- Pollen (optional): SETUP.md step 5. The pollen card says \"Off\" until the key is in .env.")
     if later:
@@ -796,42 +834,6 @@ def backup_path(path):
 
 
 # ---------- setup.py token ----------
-
-def defines(line, key):
-    """Whether a .env line sets `key`, read the way config.parse_dotenv reads it."""
-    s = line.strip()
-    return bool(s) and not s.startswith("#") and "=" in s and s.split("=", 1)[0].strip().removeprefix("export ").strip() == key
-
-
-def write_env_key(path, key, value):
-    """Puts `key=value` where the first line for the key was (the one that wins), drops any other line for it, and
-    keeps every other line as it was. A new .env is readable by its owner only."""
-    target = path.resolve() if path.is_symlink() else path
-    try:
-        text = target.read_text(encoding="utf-8")
-        mode = target.stat().st_mode & 0o777
-    except FileNotFoundError:
-        text, mode = "", 0o600
-    out, placed = [], False
-    for line in text.splitlines():
-        if defines(line, key):
-            if not placed:
-                out.append(f"{key}={value}")
-                placed = True
-            continue
-        out.append(line)
-    if not placed:
-        out.append(f"{key}={value}")
-    tmp = target.with_name(target.name + ".setup-tmp")
-    try:
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write("\n".join(out) + "\n")
-        os.chmod(tmp, mode)
-        os.replace(tmp, target)
-    finally:
-        tmp.unlink(missing_ok=True)   # gone after a good replace; left behind only if a step above failed
-
 
 TOKEN_PROMPT = "Paste your AirGradient token (nothing shows while you paste), then press Enter: "
 
@@ -941,7 +943,7 @@ def live(url, env, root, get=None, now=None):
         print("Not live yet: fix the problems above, then run setup.py --live again.")
         return 1
     if not token:
-        print("Not live yet: add the token (setup.py token), then restart the server.")
+        print("Not live yet: open the local page and paste your token in the box, or use setup.py token and restart.")
         return 1
     print("Live OK")
     return 0
@@ -981,7 +983,7 @@ def current_check(get, base, cfg, now, problem):
                 "(setup.py token saves a new one), then restart the server.")
         return
     if isinstance(data, dict) and data.get("state") == "no_token":
-        problem("the page has no token yet. Restart the server after saving it.")
+        problem("the page has no token yet. Open the local page and paste your token in the box.")
         return
     rows = [x for x in data if isinstance(x, dict)] if isinstance(data, list) else []
     expect = ([k for k, n in (("indoor", cfg.place.indoor), ("outdoor", cfg.place.outdoor)) if n is not None]
@@ -1051,6 +1053,8 @@ def parser():
     r.add_argument("--replace", action="store_true", help="replace an existing config.toml, saving it as config.toml.bak-<time> first")
     r.add_argument("--live", nargs="?", const="", metavar="URL",
                    help=f"check the running page (default http://localhost:$PORT, else {DEFAULT_PORT}); GET requests only")
+    r.add_argument("--open", nargs="?", const="", metavar="URL",
+                   help="open the local page on this desktop; skip over SSH, in containers or without a display")
     return ap
 
 
@@ -1062,6 +1066,8 @@ def main(argv, env, root=ROOT, stdin=None):
         return save_token(root, stdin)
     ap = parser()
     args = ap.parse_args(argv)
+    if args.open is not None:
+        return open_page(args.open or f"http://localhost:{port_from(env)}", env)
     if args.live is not None:
         return live(args.live or f"http://localhost:{port_from(env)}", env, root)
     if not args.monitors:

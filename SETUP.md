@@ -77,10 +77,10 @@ Put the suggested source first, with its reason in plain words (the `Suggested o
 ```
 6. Your AirGradient token (required). The app reads your monitors with an access code from
    AirGradient, called a token. Without it, the page can't show your readings. It takes about
-   2 minutes: I'll tell you where to click in your AirGradient dashboard and give you a command
-   that saves it on this computer. You never paste it here.
+   2 minutes: open the page and paste your token in the box. The page shows where to find it
+   in AirGradient and saves it on this computer. You never paste it here.
    a) Now (Recommended)
-   b) Later: the page says "Add AIRGRADIENT_TOKEN to .env" until then
+   b) Later: the page shows a box to connect your monitors until then
 
 7. Pollen levels (optional) come from Google and need a free Google key. It takes 5–10 minutes:
    the hard part is creating a Google Cloud account (with a payment card) and finding your way
@@ -156,19 +156,24 @@ Tell the user to keep a copy of `config.toml` somewhere private (a password mana
 
 ## 4. The AirGradient token
 
-Question 6. The page reads the monitors through AirGradient's API, with the user's token. Tell the user these steps (step 3's output prints them too):
+Question 6. Start the server (step 6), then tell the user: **open the page and paste your token in the box**. Use the address printed by setup, usually http://localhost:5555, on the computer running the app.
 
-1. Open the AirGradient dashboard, [app.airgradient.com](https://app.airgradient.com), and log in.
-2. In the menu: **General Settings → Connectivity → API access**. Turn API access on if it's off.
-3. Copy the token shown there. Don't paste it in the chat. Save it with this command, which the user runs **in their own Terminal window**, in the repo folder, **not through the agent**: it needs a terminal to read the token without showing it, and Claude Code's `!` commands have none.
+The card says **One step left: connect your monitors**:
 
-   ```
-   uv run --with-requirements requirements.txt scripts/setup.py token
-   ```
+1. Follow **Open your AirGradient settings** to [Connectivity](https://app.airgradient.com/settings/place?tab=4). Log in, then **General Settings → Connectivity → API access**; turn it on if it's off, then copy the token.
+2. Paste it in the password field on the Home Air Quality page and press **Save**. Never paste it in the chat. The app checks it with AirGradient, saves it in its .env file with owner-only permissions, and loads the monitors without a restart. The token is never shown again, and the agent never sees it.
 
-   (Without uv: `python scripts/setup.py token`.) It asks for the token without showing it, replaces any `AIRGRADIENT_TOKEN` line already in `.env` (or adds one), and prints only "Token saved in .env". Never run it yourself with the token.
+The box appears only on this computer's local page, with no proxy, hosting service or container, and when the app's folder is writable. From another device on the network, open the local address on the computer running the app. Railway shows instructions for Variables; Docker shows instructions for the .env next to docker-compose.yml and `docker compose restart`. Other servers show .env instructions.
 
-For "later", put these steps in the handover's checklist, with "then restart the server" (step 8).
+Terminal users and servers can still run this in their own terminal, in the repo folder:
+
+```bash
+uv run --with-requirements requirements.txt scripts/setup.py token
+```
+
+Without uv: `python scripts/setup.py token`. It reads the token without showing it and writes it safely to .env, keeping the other lines. Restart the server after using this command. Never run it yourself with the user's token.
+
+For "later", put the page's address and "paste your token in the box, then press Save" in the handover's checklist.
 
 ## 5. Pollen: now or later
 
@@ -225,13 +230,21 @@ Step 3's output gives the exact command, from the repo folder, on a free port:
 uv run --with-requirements requirements.txt server.py
 ```
 
-Then open http://localhost:5555. "localhost" means "this computer": the address works only in a browser on the computer running the server. If port 5555 is taken (step 3 says so), set another with `PORT=5600 uv run …` and use that port everywhere after. The server reads `config.toml` and `.env` when it starts: restart it after changing them. To stop it, press Ctrl+C in its terminal (or stop the process you started). Flask may print a line about python-dotenv; ignore it, the server reads `.env` itself.
+Then open http://localhost:5555. "localhost" means "this computer": the address works only in a browser on the computer running the server. If port 5555 is taken (step 3 says so), set another with `PORT=5600 uv run …` and use that port everywhere after. The server reads `config.toml` and `.env` when it starts: restart it after changing them by hand. Saving the token in the page takes effect immediately. To stop it, press Ctrl+C in its terminal (or stop the process you started). Flask may print a line about python-dotenv; ignore it, the server reads `.env` itself.
+
+**The agent may open the page** after starting the server, when running on the user's own computer:
+
+```bash
+uv run --with-requirements requirements.txt scripts/setup.py --open http://localhost:5555
+```
+
+Use the actual port. This uses macOS `open` or Linux `xdg-open`; it skips opening over SSH, on a hosting service, inside a container or without a desktop session (macOS) or display (Linux). It always prints the address, including when no browser can open. Give the user that address too; never enter or inspect their token through browser tools.
 
 **On a phone,** in plain words for the user: the phone and the computer must be on the same Wi-Fi. Start the server with `HOST=0.0.0.0` in front (`HOST=0.0.0.0 uv run …`); anyone on that Wi-Fi can then open the page. Find the computer's address on the Wi-Fi (macOS: `ipconfig getifaddr en0`; Linux: `hostname -I`; Windows: `ipconfig`, the "IPv4 Address"), and give the user the exact address to type on the phone, like `http://192.168.1.23:5555`. To open it away from home, put it online ([`DEPLOYMENT.md`](DEPLOYMENT.md)).
 
 **What the user should see:**
 
-- No token yet: the page with their home's name and a card that says "Config loaded. Add AIRGRADIENT_TOKEN to .env".
+- No token yet, on this computer: their home's name and **One step left: connect your monitors**, with a password box and Save. Other devices and servers show the instructions for that copy.
 - With the token: their monitors' readings, the actions, the profiles they picked and whether the air suits each of them, and the local conditions for their place.
 - Indoor monitor only: the outdoor card named after the source: "Nearby public monitor" with that monitor's name and distance, or "Estimate for your area".
 - Outdoor monitor only: a greyed indoor card titled "No indoor monitor", and the toddler profile, if picked, greyed with "Needs an indoor monitor".
@@ -254,7 +267,7 @@ Before you finish, tell the user in a few lines:
 
 - the address to open (http://localhost:5555, or the port you used), the phone address if they want it, and what they should see there;
 - how to start it again, as one command with the full path, e.g. `cd /Users/dana/home-air-quality && uv run --with-requirements requirements.txt server.py` (with the same `PORT` and `HOST`), and how to stop it (Ctrl+C in its terminal, or the process you started in the background, and where its log is);
-- anything left for later, as a short checklist. The usual one is the token: step 4's steps, then restart the server and run `setup.py --live`.
+- anything left for later, as a short checklist. The usual one is the token: open the page, follow step 4 and press Save, then run `setup.py --live`. The Terminal fallback needs a restart.
 
 If the user is away and your checks passed (`Config OK`, `Live OK`, or `/health` answers without a token yet), don't wait for them to look at the page: put the address and what to check in that message.
 

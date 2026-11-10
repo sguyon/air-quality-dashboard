@@ -1,4 +1,5 @@
 import server
+import sources
 from conftest import SAMPLE_PAYLOAD
 
 
@@ -12,8 +13,8 @@ def test_weather_asks_for_sun_times_and_past_hours(monkeypatch):
     def fake_get(url, params=None, timeout=None):
         seen.update(params or {})
         return R()
-    monkeypatch.setattr(server.requests, "get", fake_get)
-    server._fetch_weather(server.home_here())
+    monkeypatch.setattr(sources.requests, "get", fake_get)
+    sources._fetch_weather(sources.home_here())
     assert seen["daily"] == "sunrise,sunset" and seen["past_hours"] == 4 and seen["forecast_days"] == 2
 
 
@@ -34,7 +35,7 @@ def test_read_carries_no_unread_fields(client):
 def test_history_keeps_humidity_for_the_chart(monkeypatch, client):
     import server
     row = {"timestamp": "2026-11-08T10:00:00.000Z", "pm02": 3, "rco2": 600, "rhum": 52, "rhum_corrected": 51, "atmp": 21}
-    monkeypatch.setattr(server, "api_get", lambda path, params=None: [row])
+    monkeypatch.setattr(sources, "api_get", lambda path, params=None: [row])
     rows = client.get("/api/history/1?from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z").get_json()
     assert rows[0]["rhum_corrected"] == 51 and rows[0]["rhum"] == 52 and "atmp" not in rows[0]
 
@@ -62,7 +63,7 @@ def test_home_without_outdoor_history_draws_no_model_past(monkeypatch):
     (AirGradient failed, or no outdoor monitor) draws no past PM2.5, as before."""
     from fixtures import golden_inputs as gi
     gi.install(server, monkeypatch, gi.EVENING)
-    monkeypatch.setattr(server, "history_points", lambda lid, now, hours=24: gi.history(lid, now, hours) if lid == 1 else [])
+    monkeypatch.setattr(sources, "history_points", lambda lid, now, hours=24: gi.history(lid, now, hours) if lid == 1 else [])
     with server.app.test_client() as c:
         pm = c.post("/api/analyze", json={"format": "read", **gi.PAYLOAD}).get_json()["summary"]["timeline"]["pm"]
     assert "source" not in pm and pm["past"] == [] and pm["fc"]
@@ -76,7 +77,7 @@ def test_outdoor_only_home_reads_nothing_indoors(client, monkeypatch):
     before = server.CFG
     server.use_config(load_config({"CONFIG_TOML": REFERENCE_TOML.replace('indoor = "apartment"\n', "")}))
     try:
-        monkeypatch.setattr(server, "get_pollen_days", lambda *a, **k: {"today": [{"name": "Tree", "index": 1}], "tomorrow": []})
+        monkeypatch.setattr(sources, "get_pollen_days", lambda *a, **k: {"today": [{"name": "Tree", "index": 1}], "tomorrow": []})
         monkeypatch.setenv("GOOGLE_POLLEN_API_KEY", "test-key")
         s = client.post("/api/analyze", json={"format": "read", **SAMPLE_PAYLOAD}).get_json()["summary"]
     finally:
@@ -93,13 +94,13 @@ def test_dev_server_keeps_the_days_pollen_on_disk(monkeypatch, tmp_path):
     """The reloading dev server reuses the day's pollen across restarts; production never writes it."""
     import server
     calls = []
-    monkeypatch.setattr(server, "_fetch_pollen", lambda: calls.append(1) or {"today": [{"name": "Tree"}], "tomorrow": []})
-    monkeypatch.setattr(server, "DEV_CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(sources, "_fetch_pollen", lambda: calls.append(1) or {"today": [{"name": "Tree"}], "tomorrow": []})
+    monkeypatch.setattr(sources, "DEV_CACHE_DIR", tmp_path / "cache")
     monkeypatch.delenv("WERKZEUG_RUN_MAIN", raising=False)
-    server._fetch_pollen_kept()
+    sources._fetch_pollen_kept()
     assert calls == [1] and not (tmp_path / "cache").exists()   # production: nothing stored
     monkeypatch.setenv("WERKZEUG_RUN_MAIN", "true")
-    first, again = server._fetch_pollen_kept(), server._fetch_pollen_kept()   # a restart reads the file
+    first, again = sources._fetch_pollen_kept(), sources._fetch_pollen_kept()   # a restart reads the file
     assert first == again == {"today": [{"name": "Tree"}], "tomorrow": []} and calls == [1, 1]
 
 
@@ -108,18 +109,18 @@ def test_pollen_is_asked_once_a_day(monkeypatch):
     import server
     from datetime import datetime, timedelta
     calls, clock = [], {"t": 1_000_000.0}
-    monkeypatch.setattr(server, "_fetch_pollen", lambda: calls.append(1) or {"today": [], "tomorrow": []})
+    monkeypatch.setattr(sources, "_fetch_pollen", lambda: calls.append(1) or {"today": [], "tomorrow": []})
     monkeypatch.delenv("WERKZEUG_RUN_MAIN", raising=False)
-    monkeypatch.setattr(server.time, "time", lambda: clock["t"])
+    monkeypatch.setattr(sources.time, "time", lambda: clock["t"])
     day = {"d": datetime(2026, 11, 10, 8, 0)}
-    monkeypatch.setattr(server, "local_now", lambda *a: day["d"])
-    with server._cache_lock:
-        for k in [k for k in server._cache if k.startswith("pollen:")]:
-            del server._cache[k]
-    server.get_pollen_days()
+    monkeypatch.setattr(sources, "local_now", lambda *a: day["d"])
+    with sources._cache_lock:
+        for k in [k for k in sources._cache if k.startswith("pollen:")]:
+            del sources._cache[k]
+    sources.get_pollen_days()
     clock["t"] += 14 * 3600; day["d"] += timedelta(hours=14)   # 10 PM, same day
-    server.get_pollen_days()
+    sources.get_pollen_days()
     assert calls == [1]
     clock["t"] += 3 * 3600; day["d"] += timedelta(hours=3)     # 1 AM, the next day
-    server.get_pollen_days()
+    sources.get_pollen_days()
     assert calls == [1, 1]

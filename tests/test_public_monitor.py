@@ -10,6 +10,8 @@ from zoneinfo import ZoneInfo
 import pytest
 
 import server as server_module
+import air_read
+import sources
 import summary as summary_rules
 import publicmap
 from demo import public
@@ -50,7 +52,7 @@ class FakeResponse:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise server_module.requests.HTTPError(f"{self.status_code}")
+            raise sources.requests.HTTPError(f"{self.status_code}")
 
     def json(self):
         return self.payload
@@ -74,7 +76,7 @@ def net(demo, monkeypatch):
     net["world"] or net["model"] to answer with another world list or PM2.5 model (a function of the request's params
     answers by place). AirGradient's public map: net["area"] (its monitors around a point; none by default) and
     net["history"] (measure → [{"timebucket", "value"}]); either set to a status code or an exception fails that call."""
-    demo._cache.clear()
+    sources._cache.clear()
     state = {"calls": [], "world_down": False, "world": WORLD, "model": MODEL, "area": [], "history": {}}
 
     def map_answer(answer, payload):
@@ -99,9 +101,9 @@ def net(demo, monkeypatch):
         if "nesdis.noaa.gov" in url:
             return FakeResponse(status=200, text=state["kml"]) if state.get("kml") else FakeResponse(status=404)
         raise AssertionError(f"unexpected call to {url}")
-    monkeypatch.setattr(demo.requests, "get", get)
+    monkeypatch.setattr(sources.requests, "get", get)
     yield state
-    demo._cache.clear()
+    sources._cache.clear()
 
 
 @pytest.fixture
@@ -218,8 +220,8 @@ def test_monitor_data_is_cached_per_monitor(c, net, demo):
     assert len(weather) == 1 and len(world) == 1
     c.get(f"/api/context?monitor={BANGKOK}")
     assert len([u for u in net["calls"] if "api.open-meteo.com/v1/forecast" in u]) == 2
-    assert {f"wx:m{ROOF}", f"aq:m{ROOF}", f"wx:m{BANGKOK}", "ag:world"} <= set(demo._cache)
-    assert "wx" not in demo._cache   # the home's key stays untouched
+    assert {f"wx:m{ROOF}", f"aq:m{ROOF}", f"wx:m{BANGKOK}", "ag:world"} <= set(sources._cache)
+    assert "wx" not in sources._cache   # the home's key stays untouched
 
 
 def test_bangkok_clock_and_smoke(c, net, demo):
@@ -230,7 +232,7 @@ def test_bangkok_clock_and_smoke(c, net, demo):
     assert ctx["status"]["smoke"] == "off"
     assert not any("nesdis.noaa.gov" in u for u in net["calls"])   # NOAA's map stops at North America
     with demo.app.test_request_context(f"/?monitor={BANGKOK}"):
-        assert str(demo.local_now().tzinfo) == "Asia/Bangkok"
+        assert str(sources.local_now().tzinfo) == "Asia/Bangkok"
 
 
 def sample_answers(c, mid):
@@ -378,7 +380,7 @@ def test_samples_unchanged(demo, monkeypatch):
     """The API answers are pinned. The page (`/`) now carries each moment's number, so test_demo.py checks it instead."""
     def refuse(*a, **k):
         raise AssertionError("a sample called the network")
-    monkeypatch.setattr(demo.requests, "get", refuse)
+    monkeypatch.setattr(sources.requests, "get", refuse)
     with demo.app.test_client() as client:
         for url, want in SAMPLE_BEFORE.items():
             resp = client.get(url)
@@ -464,11 +466,11 @@ def test_monitor_has_no_road(c, net, demo, pinned):
     net["world"] = world_with(timestamp=ago(0.1))
     net["model"] = model_at("America/New_York", lambda k: 30.0 if 1 <= k <= 2 else 5.0)   # a peak ahead: the PM2.5 item
     with demo.app.test_request_context(f"/?monitor={ROOF}"):
-        inputs = demo.summary_inputs({}, None, None, None, None, None, 4.2, [], [], demo.local_now())
+        inputs = air_read.summary_inputs({}, None, None, None, None, None, 4.2, [], [], sources.local_now())
         assert inputs["road"] is None and inputs["rush"] == []
-        assert demo.rush_state(8)["in_rush"] is False and demo.rush_hours() == []
+        assert air_read.rush_state(8)["in_rush"] is False and air_read.rush_hours() == []
     with demo.app.test_request_context("/"):
-        assert demo.rush_state(8)["in_rush"] is True   # a sample keeps the home's road
+        assert air_read.rush_state(8)["in_rush"] is True   # a sample keeps the home's road
     read = read_of(c)
     pm = next(i for i in read["summary"]["items"] if i["id"] == "pm")
     assert "cause" not in pm["facts"] and pm["ctx"] == "Peak 12 AM · now 5"   # no ", BQE rush" cause (now: 4.8 corrected)
@@ -587,7 +589,7 @@ def test_monitor_chart_uses_real_history(c, net, demo, pinned):
     assert pm["past"] == want
     # cached per monitor and range: a second read asks the map nothing
     read_of(c)
-    assert {f"ag:mapid:m{ROOF}", f"ag:maphist:m{ROOF}:24h"} <= set(demo._cache)
+    assert {f"ag:mapid:m{ROOF}", f"ag:maphist:m{ROOF}:24h"} <= set(sources._cache)
     assert len([u for u in net["calls"] if u.endswith("/measurements/current/area")]) == 1
     assert len([u for u in net["calls"] if u.endswith("/measures/history")]) == len(publicmap.MAP_MEASURES)
     # the History card's rows: the asked span, the fields it charts
@@ -600,8 +602,8 @@ def test_monitor_chart_uses_real_history(c, net, demo, pinned):
 
 
 @pytest.mark.parametrize("fail", [
-    {"area": 503}, {"area": server_module.requests.ConnectionError("down")}, {"history": 404},
-    {"history": server_module.requests.Timeout("slow")}, {"area": []}])
+    {"area": 503}, {"area": sources.requests.ConnectionError("down")}, {"history": 404},
+    {"history": sources.requests.Timeout("slow")}, {"area": []}])
 def test_history_falls_back(c, net, pinned, fail):
     net["world"], net["model"] = world_with(timestamp=ago(0.1)), model_at("America/New_York", lambda k: 5.0)
     net["area"] = [map_entry(MAP_ROOF, "Oak & Elm st", 10)]
@@ -692,14 +694,14 @@ def test_each_range_gets_its_own_cache_key(c, net, demo):
     net["area"] = [map_entry(MAP_ROOF, "Oak & Elm st", 10)]
     net["history"] = gp_history(lambda k: 2.0)
     for h in (1, 6, 24, 168):
-        demo._cache.pop(f"ag:maphist:m{ROOF}:{h}h", None)
+        sources._cache.pop(f"ag:maphist:m{ROOF}:{h}h", None)
         now = datetime.now(timezone.utc)
         frm = now - timedelta(hours=h, seconds=30)
-        before = {k for k in demo._cache if k.startswith("ag:maphist:")}
+        before = {k for k in sources._cache if k.startswith("ag:maphist:")}
         resp = c.get(f"/api/history/{ROOF}?monitor={ROOF}&from={frm.strftime('%Y-%m-%dT%H:%M:%SZ')}"
                      f"&to={now.strftime('%Y-%m-%dT%H:%M:%SZ')}")
         assert resp.status_code == 200
-        assert {k for k in demo._cache if k.startswith("ag:maphist:")} - before == {f"ag:maphist:m{ROOF}:{h}h"}, h
+        assert {k for k in sources._cache if k.startswith("ag:maphist:")} - before == {f"ag:maphist:m{ROOF}:{h}h"}, h
 
 
 def test_map_calls_wait_briefly(c, net, demo, monkeypatch):
