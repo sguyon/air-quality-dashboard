@@ -519,3 +519,14 @@ def test_two_monitor_home_keeps_every_row(client, monkeypatch):
     monkeypatch.setattr(server, "_cache", {})
     monkeypatch.setattr(server, "api_get", lambda path, params=None: [dict(r) for r in TOKEN_SEES])
     assert client.get("/api/current").get_json() == TOKEN_SEES
+
+
+def test_suggest_before_a_source_is_chosen_is_not_a_problem(tmp_path, capsys, monkeypatch):
+    """An indoor-only config without outdoor_from yet: --suggest is how the agent picks one, so the missing choice is
+    'still to choose', not a Problem and not a failed command (setup lab runs, 2026-11-10)."""
+    text = "\n".join(l for l in EXAMPLE.splitlines() if not l.startswith("outdoor =")) + "\n"
+    code, out, _ = check(tmp_path, capsys, monkeypatch, [ex_monitor(12, 1.2, "Nearer")], text=text, argv=["--suggest"])
+    assert code == 0 and "Problem" not in out
+    assert "Suggested outdoor_from = 12" in out and "Still to choose: sources.outdoor_from" in out and "Config OK" not in out
+    code, out, _ = check(tmp_path, capsys, monkeypatch, [ex_monitor(12, 1.2, "Nearer")], text=text)
+    assert code == 1 and "outdoor_from is needed" in out   # without --suggest it's still a problem

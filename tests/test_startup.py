@@ -126,3 +126,19 @@ def test_dotenv_drops_one_pair_of_matching_quotes():
         '# C=commented\n'
         'B=second\n')       # the first line for a key wins
     assert env == {"AIRGRADIENT_TOKEN": "abc", "GOOGLE_POLLEN_API_KEY": "k1", "A": "\"x'", "B": "plain"}
+
+
+def test_airgradient_api_base_is_airgradients_unless_a_test_server_is_named(monkeypatch):
+    """Production talks to AirGradient; AIRGRADIENT_API_BASE (simulated setups only) points the monitors' calls elsewhere."""
+    import importlib, sys
+    monkeypatch.delenv("AIRGRADIENT_API_BASE", raising=False)
+    import server
+    assert server.API_BASE == "https://api.airgradient.com/public/api/v1"
+    monkeypatch.setenv("AIRGRADIENT_API_BASE", "http://127.0.0.1:5696/public/api/v1/")
+    sys.modules.pop("server", None)
+    try:
+        assert importlib.import_module("server").API_BASE == "http://127.0.0.1:5696/public/api/v1"
+    finally:
+        monkeypatch.delenv("AIRGRADIENT_API_BASE")
+        sys.modules.pop("server", None)
+        importlib.import_module("server")

@@ -10,6 +10,7 @@ __pycache__/
 .env.*
 !.env.example
 /config.toml
+/config.toml.bak-*
 
 # Private notes: a separate private repo cloned here
 /internal

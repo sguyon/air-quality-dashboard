@@ -199,3 +199,21 @@ def test_outdoor_source_line_tests_for_none():
     assert line(NS(place=NS(indoor=None, outdoor="porch"), outdoor_from=None)) == "Monitors: outdoor only"
     assert line(NS(place=NS(indoor="living room", outdoor=None), outdoor_from="area")) == \
         "Monitors: indoor only; outdoor PM2.5 from the area estimate"
+
+
+def test_keys_present_reads_keys_the_way_the_server_does(tmp_path):
+    """The first .env line for a key wins (a placeholder above a real token means no token), and the environment beats
+    the file: check_config must say what the server will do."""
+    (tmp_path / ".env").write_text("AIRGRADIENT_TOKEN=your_token_here\nAIRGRADIENT_TOKEN=real-looking-value-123\n")
+    assert check_config.keys_present({}, tmp_path)["AIRGRADIENT_TOKEN"] is False
+    (tmp_path / ".env").write_text("AIRGRADIENT_TOKEN=real-looking-value-123\n")
+    assert check_config.keys_present({"AIRGRADIENT_TOKEN": ""}, tmp_path)["AIRGRADIENT_TOKEN"] is False
+    assert check_config.keys_present({}, tmp_path)["AIRGRADIENT_TOKEN"] is True
+
+
+def test_config_ok_without_a_token_says_it_is_not_live_yet(tmp_path, capsys):
+    """Config OK means the file is valid; without the token the page can't read a monitor: say so (setup lab)."""
+    code, out = run(tmp_path, capsys=capsys)
+    assert code == 0 and "Config OK" in out and "Not live yet: add your AirGradient token" in out
+    code, out = run(tmp_path, dotenv="AIRGRADIENT_TOKEN=real-looking-value-123\n", capsys=capsys)
+    assert "Not live yet" not in out

@@ -4,6 +4,7 @@
 **/.env*
 config.toml
 **/config.toml
+config.toml.bak-*
 !demo/config.toml
 
 # Private notes, tests, docs and build output

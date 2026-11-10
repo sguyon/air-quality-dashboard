@@ -38,6 +38,23 @@ def env_key(name: str, env: Mapping[str, str] = os.environ) -> str:
     return value if real_value(value) else ""
 
 
+def parse_dotenv(text):
+    """KEY=value lines from a .env file. One pair of matching quotes around a value is dropped
+    (AIRGRADIENT_TOKEN="abc" is abc); the first line for a key wins, like the environment over the file."""
+    out = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, val = line.split("=", 1)
+            key, val = key.strip().removeprefix("export ").strip(), val.strip()
+            if not key or key == "export":   # "=x" or "export =x": no name to set
+                continue
+            if len(val) >= 2 and val[0] == val[-1] and val[0] in "'\"":
+                val = val[1:-1]
+            out.setdefault(key, val)
+    return out
+
+
 class ConfigError(Exception):
     """The message names the source and the problem."""
 

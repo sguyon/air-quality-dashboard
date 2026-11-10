@@ -27,7 +27,7 @@ If the maintainer's private rules (`internal/AGENTS.local.md`) list services, up
 - Never read, print or `cat` `.env` or `.env.*`. Repo settings deny it to Claude Code; every other agent follows this line.
 - Never ask the user to paste a key into the chat. The user types keys into `.env` themselves, or a command writes them there without showing them (see `SETUP.md`).
 - `scripts/check_config.py` says whether each key is set, never its value. Use it instead of looking.
-- A paid key gets a cap when it's created: the pollen key is limited to the Pollen API and to 150 calls a day (`SETUP.md`, step 6). Check both on an existing key too: `gcloud services api-keys list` and `gcloud beta quotas info list --service=pollen.googleapis.com`.
+- A paid key gets a cap when it's created: the pollen key is limited to the Pollen API and to 150 calls a day (`SETUP.md`, step 5). Check both on an existing key too: `gcloud services api-keys list` and `gcloud beta quotas info list --service=pollen.googleapis.com`.
 - Never commit `config.toml`, `.env*` or real readings. `config.toml` and `.env*` are gitignored, and CI fails a PR that adds them.
 
 ## Layout
@@ -39,7 +39,7 @@ If the maintainer's private rules (`internal/AGENTS.local.md`) list services, up
 - `index.html` and `static/`: the page, with no build step. `app.js` (data, readings, charts), `summary.js` (the summary card), `home.js` (the home's profiles and road in words), `sky.js` (the live sky), `map.js` (the neighborhood map), `picker.js` (the demo's banner and its monitor picker).
 - `publicmap.py`: AirGradient's public monitors for any home or the demo: the outdoor ones in the world list, the nearest, the outdoor source an indoor-only home is offered at setup, a monitor's reading row, its place on the public map and its history there. No import of `demo/` or `server.py`.
 - `demo/`: the demo's home (`config.toml`), its made-up data (`data.py`), its three moments and three hidden one-monitor cases (`moments.py`) and the public monitors' pages at `?monitor=<id>` (`public.py`).
-- `scripts/`: `check_config.py`, `screenshot.sh` (the README's images, from the demo), `vercel_build.sh` (the demo's build on Vercel).
+- `scripts/`: `setup.py` (SETUP.md's answers to a written `config.toml`, the token into `.env` unseen, and `--live`), `check_config.py`, `screenshot.sh` (the README's images, from the demo), `vercel_build.sh` (the demo's build on Vercel).
 - `Dockerfile`, `docker-compose.yml` and `.dockerignore`: the container (DEPLOYMENT.md, "Docker"). `.github/workflows/image.yml` publishes the image to `ghcr.io/sguyon/home-air-quality` from `main`.
 - `tests/`: Python tests (pytest) and page tests (`*.test.mjs`, Node's test runner).
 

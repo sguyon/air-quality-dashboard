@@ -20,7 +20,7 @@ import requests
 import phrases
 import publicmap
 import summary as summary_rules
-from config import (APPLIANCES, DEFAULT_LIMITS, ConfigError, Here, airgradient_map, bearing_in, env_key, load_config, public_view,
+from config import (parse_dotenv, APPLIANCES, DEFAULT_LIMITS, ConfigError, Here, airgradient_map, bearing_in, env_key, load_config, public_view,
                     real_value, route_path)
 
 # One shared pool for short-lived upstream calls (weather / smoke / pollen).
@@ -122,23 +122,6 @@ def _note_cache(info):
         pass
 
 
-def parse_dotenv(text):
-    """KEY=value lines from a .env file. One pair of matching quotes around a value is dropped
-    (AIRGRADIENT_TOKEN="abc" is abc); the first line for a key wins, like the environment over the file."""
-    out = {}
-    for line in text.splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, val = line.split("=", 1)
-            key, val = key.strip().removeprefix("export ").strip(), val.strip()
-            if not key or key == "export":   # "=x" or "export =x": no name to set
-                continue
-            if len(val) >= 2 and val[0] == val[-1] and val[0] in "'\"":
-                val = val[1:-1]
-            out.setdefault(key, val)
-    return out
-
-
 # Load .env file if it exists
 env_path = Path(__file__).parent / ".env"
 if env_path.exists():
@@ -148,6 +131,8 @@ if env_path.exists():
 app = Flask(__name__)
 
 API_BASE = "https://api.airgradient.com/public/api/v1"   # AirGradient's public API: the monitors and the world map
+# A stand-in for AirGradient's API (a test server with made-up monitors), for simulated setups; unset everywhere else
+API_BASE = os.environ.get("AIRGRADIENT_API_BASE", "").rstrip("/") or API_BASE
 TOKEN = env_key("AIRGRADIENT_TOKEN")   # .env.example's placeholder counts as no token
 NEARBY_RADIUS_KM = 15   # km: public monitors closer than this show as Nearby monitors (the source note says 15 km)
 MAP_LINK_DECIMALS = 4   # a neighbor's link on AirGradient's map: its coordinates to about 10 m (the list gives 14 digits)

@@ -29,7 +29,7 @@ Clone https://github.com/sguyon/home-air-quality and set up Home Air Quality for
 
 It asks a few questions, writes your config and runs the page on your computer, then can put it online ([`DEPLOYMENT.md`](DEPLOYMENT.md)).
 
-**With Docker,** on a home server or NAS: copy `config.example.toml` to `config.toml` and fill it in, put your token in `.env`, then run `docker compose up -d` and open http://localhost:8000. [Details](DEPLOYMENT.md#docker).
+**With Docker,** on a home server or NAS: write `config.toml` and save your token with `scripts/setup.py` ([`SETUP.md`](SETUP.md) steps 1–4), then run `docker compose up -d` and open http://localhost:8000. [Details](DEPLOYMENT.md#docker).
 
 **Just trying it?** A fresh copy with no token opens the demo: `uv run --with-requirements requirements.txt server.py`, then http://localhost:5555.
 

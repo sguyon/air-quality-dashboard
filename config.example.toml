@@ -56,8 +56,8 @@ pollen = 3
 [sources]
 # Only without an outdoor monitor (ignored with one): where outdoor PM2.5 comes from. A nearby public AirGradient
 # monitor's id (a number), "area" (an estimate from the public monitors around you) or "model" (Open-Meteo's forecast
-# alone). Chosen once at setup: scripts/check_config.py --suggest says which and why (SETUP.md).
-# outdoor_from = 900002   # an example id, not a real monitor: use the one --suggest gives
+# alone). Chosen once at setup: scripts/setup.py writes it, and scripts/check_config.py --suggest says which and why.
+# outdoor_from = 900002   # an example id, not a real monitor: use the one setup.py or --suggest gives
 # NOAA wildfire smoke data. US only.
 smoke = true
 # Pollen levels from Google. Also needs GOOGLE_POLLEN_API_KEY in .env.

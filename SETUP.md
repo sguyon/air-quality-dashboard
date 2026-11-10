@@ -7,122 +7,174 @@ Two rules for the whole setup:
 - **Keys never pass through the chat.** Don't ask the user to paste a token or key into the conversation, and don't read, print or `cat` `.env`. The user types keys into `.env` themselves, or a command writes them there without showing them.
 - **`config.toml` and `.env` stay private.** Both are gitignored. Never commit them, and never paste their contents into an issue or PR.
 
+## How to ask
+
+The user answers up to seven questions, **one per message**, in this order: address → monitors → profiles → drying (indoor monitor only) → outdoor source (no outdoor monitor only) → token → pollen. Skip what doesn't apply. Keep it easy for them:
+
+- **One topic per question,** in plain words and short sentences: many users read English as a second language. Say in a sentence why you ask and what each choice leads to.
+- **Don't ask what you can find out:** the home's name, the timezone and the coordinates come from `scripts/setup.py` (step 1).
+- **With a question tool** (Claude Code's AskUserQuestion, or your agent's equivalent), use it for every question with options, one question per call: 2–4 options, the recommended option first with "(Recommended)" in its label, several picks allowed where the question says "pick any". The tool adds "Other" itself. Ask free-text questions (the address) in a normal message.
+- **Without one,** send each question as written below, alone in its message: lettered options, the default marked. A missing answer or "ok" takes the default.
+- **Ask each question once.** If the user already answered one (in their first message, or earlier), don't ask it again.
+- **End with a recap** and write nothing until the user says ok.
+
+**The home** (questions 1 and 2, one message each)
+
+```
+1. What's your home address?
+   The page uses it for weather, pollen and the public monitors near you. It keeps only a rough
+   location (about 1 km). If you'd rather not share your address, a nearby landmark works too, or
+   a house number on your street (it doesn't have to be yours).
+   e.g. "350 5th Ave, New York" or "Times Square, New York"
+
+2. Which AirGradient monitors do you have? The app works with one indoor monitor, one outdoor
+   monitor, or one of each.
+   a) Indoor only: an AirGradient ONE (or an indoor DIY kit)
+   b) Outdoor only: an Open Air (or an Open Air Max)
+   c) One of each
+   d) Something else (tell me)
+   Optional: where they are ("bedroom", "balcony"). If you skip it, I'll call them "home" and "outside".
+```
+
+For "something else": the app reads one indoor and one outdoor AirGradient monitor (with more of one kind, it uses the first one AirGradient lists), tells them apart by model (Open Air models are outdoor), and reads no other brand for now.
+
+After question 2, run step 1: it finds the place, and for an indoor-only home it lists the public monitors for question 5.
+
+**The people at home** (questions 3 and 4, one message each)
+
+```
+3. Which profiles fit your home? A profile tailors the advice to someone who lives there.
+   Pick any, or none.
+   1) Toddler: stale air (CO₂) and the air at nap and bed time
+   2) Sinus or allergies: humidity and pollen
+   3) Runner: when the air outside is good for a run
+   4) Something else (not built yet: it needs a code change)
+
+4. Which of these do you have at home? When the air inside gets too humid (too much water in
+   the air, which can lead to mold), the page tells you what to turn on. Pick any, or none.
+   a) A dehumidifier (a machine that takes water out of the air)
+   b) An air conditioner with a "dry" mode
+
+```
+
+Without an indoor monitor, skip question 4 (the humidity action reads the indoor monitor), and add under question 3: "The toddler profile reads CO₂ indoors, so it stays greyed until you add an indoor monitor." For "something else": say which profile they meant, that it isn't built, and that an adventurous user's agent can add it ("Adding a profile" below); a pull request is welcome.
+
+**Outdoor air, only without an outdoor monitor** (question 5) (the monitors and the suggestion come from step 1's output)
+
+```
+5. Where should outdoor air readings come from? You don't have an outdoor monitor, so the
+   page uses one nearby.
+   a) <name>, a public monitor <d> km away (Recommended: the closest, real readings)
+   b) <name>, <d> km
+   c) <name>, <d> km
+   d) An estimate for your area: less precise, but it doesn't depend on one monitor
+```
+
+Put the suggested source first, with its reason in plain words (the `Suggested outdoor_from` line says it). If they pick a monitor, add: "If it stops reporting, the page shows the estimate until it's back."
+
+**The keys** (questions 6 and 7, one message each)
+
+```
+6. Your AirGradient token (required). The app reads your monitors with an access code from
+   AirGradient, called a token. Without it, the page can't show your readings. It takes about
+   2 minutes: I'll tell you where to click in your AirGradient dashboard and give you a command
+   that saves it on this computer. You never paste it here.
+   a) Now (Recommended)
+   b) Later: the page says "Add AIRGRADIENT_TOKEN to .env" until then
+
+7. Pollen levels (optional) come from Google and need a free Google key. It takes 5–10 minutes:
+   the hard part is creating a Google Cloud account (with a payment card) and finding your way
+   in Google's console, so I do every step I can for you. This app stays within Google's free
+   allowance, and setup caps its use so it can't cost money.
+   a) Later (Recommended)
+   b) Now
+```
+
+**Recap, before writing anything:** the command prints it (step 2's `--check` output). Show the user that recap as is, don't rewrite it, and ask them to reply "ok" or the number of a line to change.
+
+One recap, one ok. If the user gave every answer up front and asked you to set it up, still show the recap once, then write after their ok without asking again.
+
 ## 0. Get the code
 
-If you're not already in a copy of this repo, clone it and work from there. Every command below runs in the repo folder:
+If you're not already in a copy of this repo, clone it and work from there. Every command below runs in the repo folder. Set it up in this folder: never copy or move the project elsewhere (for Docker too), or the config ends up outside the copy the user runs.
 
 ```bash
 git clone https://github.com/sguyon/home-air-quality
 cd home-air-quality
 ```
 
-## 1. Copy the config
+The commands use [uv](https://docs.astral.sh/uv/), which installs Python 3.12 and the packages on the fly. Without uv, with Python 3.11 or newer (macOS's own `python3` may be older): `python3 -m venv .venv`, `. .venv/bin/activate`, `pip install -r requirements.txt`, then replace `uv run --with-requirements requirements.txt` with `python` in every command below.
+
+## 1. Look up the place
+
+After question 2:
 
 ```bash
-cp config.example.toml config.toml
+uv run --with-requirements requirements.txt scripts/setup.py --check --address "Times Square, New York" --monitors indoor
 ```
 
-Everything about the home goes in `config.toml`. The comments in it say what each setting does.
+It writes nothing. It sends the address to OpenStreetMap once (or Open-Meteo if OpenStreetMap finds nothing) and keeps only the coordinates, rounded to about 1 km. It prints:
 
-## 2. The place
+- `Place:` what it found, the rounded coordinates, the timezone and the ZIP (US). Check it's the right city.
+- `Name on the page:` the area the user named, or the address's district. If the user calls it something else ("Capitol Hill"), pass `--name`.
+- For an indoor-only home, `Outdoor air:` and the public monitors within 15 km with their ids: question 5's options.
 
-Ask the user for their address (a street corner or a neighborhood is enough). Then fill `[place]`:
+If it says several places match, ask the user which city and add it to `--address`. If it finds nothing, ask for a landmark near them or a house number on their street, or coordinates from a map app (`--lat`, `--lon`).
 
-- `name`: what the page calls the home, usually the neighborhood ("Maplewood").
-- `lat`, `lon`: the address's coordinates, from your own knowledge or the user's map app (say which), **rounded to 2 decimals** (about 1 km). The page shows them, and weather, pollen and smoke don't need more. `scripts/check_config.py` flags more decimals.
-- `timezone`: the IANA name for the address ("America/Chicago").
-- `indoor`, `outdoor`: ask the user which monitors they have: an indoor one, an outdoor one, or both. Each line says what to call that monitor in sentences ("bedroom", "balcony"). Delete the line of a monitor they don't have, with the comment line above it; one must stay. The page finds the monitors through the token on its own: the first one AirGradient lists as indoor and the first as outdoor.
-- `pollen_zip`: the US ZIP code, for the pollen.com link. Delete the line outside the US.
-- `region` (optional): the city or region, used in a few sentences ("the usual Chicago season"). Leave it out for neutral wording.
+## 2. The recap
 
-The `[[pollen_seasons]]` dates in the example are for the northeastern US; they're typical dates, not a forecast. For a home elsewhere, adjust them from what you know of the region's seasons (or the user does) and tell the user what you changed, or delete the blocks: the pollen card then shows no season calendar.
+With every answer, run the same command again, still with `--check`. One flag per question:
 
-Outside the US, make the changes in [Outside the US](#outside-the-us) (end of this file) now, while you're in the config.
+| Question | Flag | Values (default) |
+|---|---|---|
+| 1. Address | `--address "…"` | text, or `--lat` and `--lon` |
+| 2. Monitors | `--monitors` | `indoor`, `outdoor`, `both` |
+| 2. Their names | `--indoor-name`, `--outdoor-name` | (`home`, `outside`) |
+| 3. Profiles | `--profiles` | any of `toddler,sinus,runner`, or (`none`) |
+| 4. Drying (indoor monitor only) | `--dry` | any of `dehumidifier,ac_dry`, or (`none`) |
+| 5. Outdoor air (indoor only) | `--outdoor-from` | (`suggest`), a monitor's id, `area`, `model` |
+| 6. Token | `--token` | (`now`), `later` |
+| 7. Pollen | `--pollen` | (`later`), `now`, `off` |
 
-Keep a copy of `config.toml` somewhere private (a password manager note, a private repo): it isn't in git, so it has no history and no backup.
+Overrides when the lookup is wrong or the user knows better: `--name`, `--lat` and `--lon`, `--zip`, `--region` (the city in a few sentences, `""` for none), `--timezone`.
 
-### Indoor monitor only: where outdoor PM2.5 comes from
+A profile the page doesn't know stops the command with "Not a profile yet": see "Adding a profile" below.
 
-Skip this part when the home has an outdoor monitor.
+**Pollen seasons.** The pollen card's season calendar is kept for the northeastern US (its dates are typical there) and left out elsewhere. If the user wants one, look up the region's typical seasons and pass each with `--season` (repeatable): `--season "Tree: Jan 15 – Apr 30, peak Feb 1 – Mar 15"`. Names are Tree, Grass or Weed (the types Google reports), the peak is optional, and a season can't cross the new year. Say where the dates came from: they're typical dates, not a forecast.
 
+**Outside the US,** the command turns off wildfire smoke (NOAA covers North America), leaves out the pollen.com link and, without `--season`, the season calendar. Google's pollen covers more than 65 countries, so pollen can stay. The weather card's forecast link still goes to the US National Weather Service, which has no page for other places.
 
-Without an outdoor monitor, the page reads outdoor PM2.5 from a source chosen now and kept: a nearby public AirGradient monitor, an estimate for the area, or Open-Meteo's model alone. Once `lat` and `lon` are filled, run:
+Show the user the recap the command prints, as is (see "Recap, before writing anything" above), and wait for ok.
 
-```bash
-uv run --with-requirements requirements.txt scripts/check_config.py --suggest
-```
+## 3. Write it
 
-(Without uv, with Python 3.11 or newer: create the virtualenv first, with step 8's first three commands (`python3 -m venv .venv`, `. .venv/bin/activate`, `pip install -r requirements.txt`), then run `python scripts/check_config.py --suggest`.) It asks AirGradient's public list of monitors (one request, no token). It lists up to 5 public outdoor monitors reporting now within 15 km, nearest first, each with its distance, its last corrected PM2.5 and its id:
+The same command without `--check`. It writes `config.toml` from `config.example.toml`, keeping its comments (they say what each setting does), then checks it and ends with `Config OK`, then prints the next steps.
 
-```
-Public outdoor monitors reporting now within 15 km, nearest first:
-  <name>, <distance> km, corrected PM2.5 <value> µg/m³, id <id>
-```
+If `config.toml` is already there, it writes nothing and shows what would change. Ask the user before running it again with `--replace`, which saves the old file as `config.toml.bak-<date>-<time>` next to it first. Don't make backups yourself.
 
-(No list when none reports within 15 km; "(the 5 nearest of <n>)" after "nearest first" when more do.) Then one line with the source to choose and why, one of:
+Tell the user to keep a copy of `config.toml` somewhere private (a password manager note, a private repo): it isn't in git, so it has no history and no backup.
 
-- `Suggested outdoor_from = <id>: <name>, <distance> km away, the nearest public outdoor monitor reporting now (within 3 km, its readings stand for your street).`
-- `Suggested outdoor_from = "area": no public outdoor monitor within 3 km; <n> public outdoor monitors within 15 km tune the forecast to your area.`
-- `Suggested outdoor_from = "model": <n> public outdoor monitors within 15 km, fewer than 2 for an area estimate, so Open-Meteo's model alone.`
+## 4. The AirGradient token
 
-Until `outdoor_from` is written, the same run also prints `Problem: … no outdoor monitor, so sources.outdoor_from is needed …`: expected at this point.
+Question 6. The page reads the monitors through AirGradient's API, with the user's token. Tell the user these steps (step 3's output prints them too):
 
-Show the user the listed monitors (name, distance, last reading) and the suggestion with its reason in plain words (the monitor's name and distance, or why it's an estimate). Then write their choice (the suggestion, if they have no preference) under `[sources]`: `outdoor_from = <id>` for a monitor (a number, no quotes; another listed monitor's id if they prefer it), or `outdoor_from = "area"` or `"model"`. The page labels both "Estimate for your area" (the model with "Open-Meteo" after it). If the chosen monitor stops reporting, the page shows an estimate for the area until it's back, and step 7's check says when it has been silent for 7 days, with the next best.
+1. Open the AirGradient dashboard, [app.airgradient.com](https://app.airgradient.com), and log in.
+2. In the menu: **General Settings → Connectivity → API access**. Turn API access on if it's off.
+3. Copy the token shown there. Don't paste it in the chat. Save it with this command, which the user runs **in their own Terminal window**, in the repo folder, **not through the agent**: it needs a terminal to read the token without showing it, and Claude Code's `!` commands have none.
 
-### Outdoor monitor only
+   ```
+   uv run --with-requirements requirements.txt scripts/setup.py token
+   ```
 
-Delete the `indoor` line; `outdoor_from` isn't needed. The toddler profile can still be picked: it shows greyed, "Needs an indoor monitor", and gives no actions until an indoor monitor is added and named in `indoor`.
+   (Without uv: `python scripts/setup.py token`.) It asks for the token without showing it, replaces any `AIRGRADIENT_TOKEN` line already in `.env` (or adds one), and prints only "Token saved in .env". Never run it yourself with the token.
 
-## 3. The profiles
+For "later", put these steps in the handover's checklist, with "then restart the server" (step 8).
 
-Ask the user: "Which profiles fit your home: a toddler, sinus allergies, a runner? You can pick several." Then set each one in `[profiles]` to `true` (picked) or `false`:
+## 5. Pollen: now or later
 
-- `toddler`: a small child at home. CO₂ and the air at sleep time, and whether outdoor air is fine for them.
-- `sinus`: sinus trouble or allergies. Humidity and pollen.
-- `runner`: someone who runs outdoors. When outdoor PM2.5, smoke and a road's rush hours make a run worth it.
+Question 7. Skipping is fine. Without a key the pollen card says "Off" ("Needs a Google Pollen key") and keeps its season calendar, and the sinus & allergy profile goes on humidity only. `--pollen off` turns pollen off entirely; for "later", adding the key later needs only a restart.
 
-Without an indoor monitor, say so when you ask: the toddler profile reads CO₂ indoors, so it shows greyed ("Needs an indoor monitor") and gives no actions until one is added. Sinus & allergy then goes on pollen alone. They can still pick both.
-
-These are the only profiles the page knows. A new one is a code change (see "Adding a profile" below). A config from before this name may say `[needs]` instead: it still works, and `scripts/check_config.py` notes the old name.
-
-Then ask what they have to dry a damp room, and set `[home] appliances` to `["dehumidifier", "ac_dry"]` (both, the default), one of them, or `[]`: the humidity action uses these.
-
-## 4. The road: leave it out
-
-In this version the road is off for new homes: leave the `[road]` section commented out. The page then has no road, no rush-hour rule and no exhaust on the map.
-
-If the user wants one later, a road needs a route file. It's possible to build, but untested:
-
-- A JSON array of `[longitude, latitude]` points in order along the road (the `coordinates` of a GeoJSON LineString, without the wrapper). `static/bqe.json`, the demo's road, is an example: 120 points.
-- At least one point within 2 km of the home, or set `toward` by hand: the compass bearings (degrees) from the home toward the road, `[min, max]`.
-- Then fill `[road]`: `name`, `route` (the file's path from the repo folder), `rush` (`[start hour, end hour, label]`, 24-hour clock).
-
-A route can be traced from OpenStreetMap data, but nothing in this repo does it yet.
-
-## 5. The AirGradient token
-
-The page reads the monitors through AirGradient's API, with the user's token.
-
-**Getting it:** the user logs in to the AirGradient dashboard (https://app.airgradient.com), opens the menu at the top left, goes to their place's **Connectivity Settings** (some versions: **General Settings → Connectivity**), turns on API access and copies the token. These steps come from integrations' docs, not AirGradient's own; if the menu differs, the user looks for "API access" in the dashboard settings.
-
-**Putting it in `.env`:** the user does it, never through the chat. Either:
-
-- they open `.env` in an editor (create it if missing) and add a line `AIRGRADIENT_TOKEN=<their token>`; or
-- they run this in their own terminal, in the repo folder, then paste the token and press Enter (nothing shows while they paste):
-
-  ```bash
-  read -rs T && printf '\nAIRGRADIENT_TOKEN=%s\n' "$T" >> .env && unset T
-  ```
-
-Don't copy `.env.example` to `.env`: the first line for a key wins, so a placeholder line above the real one hides it (the server and `scripts/check_config.py` treat placeholders as missing). If `.env` already has an `AIRGRADIENT_TOKEN` line, the user replaces it instead of adding a second one.
-
-If the user will add the token later, give them the `read -rs` line above and tell them to restart the server afterwards; everything else can be set up now.
-
-## 6. Pollen: now or later
-
-Ask the user: set up pollen now, or later? Skipping is fine. Without a key the pollen card says "Off" ("Needs a Google Pollen key") and keeps its season calendar, and the sinus & allergy profile goes on humidity only. To turn pollen off entirely, set `pollen = false` under `[sources]`. For "later", leave `pollen` as it is: adding the key later needs only a restart.
-
-The key comes from Google's Pollen API. It needs a Google Cloud project with billing turned on. Google gives 5,000 calls a month free, then charges $10 per 1,000 (Google's price list, checked November 2026). The app keeps each day's pollen until midnight, so each running copy (your computer, a server) makes about one call a day, plus one after each restart or deploy, and one when the page's Refresh button is pressed more than 10 minutes after the last. The setup below caps the calls at 150 a day and limits the key to the Pollen API, so a bug or a leaked key can't run up a bill.
+For "now", step 3's output says whether `gcloud` is installed and signed in. The key comes from Google's Pollen API. It needs a Google Cloud project with billing turned on: 5–10 minutes, most of it creating the account and adding a payment card. Do every step you can with `gcloud` so the user only signs in and adds the card. Google gives 5,000 calls a month free, then charges $10 per 1,000 (Google's price list, checked November 2026). The app keeps each day's pollen until midnight, so each running copy (your computer, a server) makes about one call a day, plus one after each restart or deploy, and one when the page's Refresh button is pressed more than 10 minutes after the last. The setup below caps the calls at 150 a day and limits the key to the Pollen API, so a bug or a leaked key can't run up a bill.
 
 **With `gcloud`** (the agent runs the commands, except the two the user does):
 
@@ -162,37 +214,20 @@ The key comes from Google's Pollen API. It needs a Google Cloud project with bil
 1. Pick or create a project, and make sure billing is on.
 2. APIs & Services → Library → "Pollen API" → Enable.
 3. APIs & Services → Credentials → Create credentials → API key. Edit the key: under API restrictions, restrict it to the Pollen API.
-4. Copy the key into `.env` as `GOOGLE_POLLEN_API_KEY=<key>`, the same way as the token.
+4. Copy the key into `.env` as `GOOGLE_POLLEN_API_KEY=<key>`: they open `.env` in an editor and add the line (replacing one that's already there).
 5. Cap the calls: APIs & Services → Pollen API → Quotas & System Limits. Set the forecast's per-day limit ("Pollen - Forecast Usage", per day) to 150 and the heatmap's per-day limit ("Pollen - HeatMap Usage", per day) to 0.
 
-## 7. Check the config
+## 6. Run it
 
-```bash
-uv run --with-requirements requirements.txt scripts/check_config.py
-```
-
-Without uv, in the virtualenv from step 8 (Python 3.11 or newer; macOS's own `python3` may be older): `python scripts/check_config.py`. It prints `AIRGRADIENT_TOKEN set` or `missing` (and the same for the pollen key), never their values, then which monitors the home has (`Monitors: indoor and outdoor`, `Monitors: outdoor only`, or `Monitors: indoor only; outdoor PM2.5 from …`), then any problems in plain words, then `Config OK`. For a home with an indoor monitor only, it also checks the chosen source is reporting (one request to AirGradient's public list). Fix every problem it lists and run it again.
-
-## 8. Run it
-
-One command, with [uv](https://docs.astral.sh/uv/) (it installs Python 3.12 and the packages on the fly):
+Step 3's output gives the exact command, from the repo folder, on a free port:
 
 ```bash
 uv run --with-requirements requirements.txt server.py
 ```
 
-Without uv, with Python 3.11 or newer:
+Then open http://localhost:5555. "localhost" means "this computer": the address works only in a browser on the computer running the server. If port 5555 is taken (step 3 says so), set another with `PORT=5600 uv run …` and use that port everywhere after. The server reads `config.toml` and `.env` when it starts: restart it after changing them. To stop it, press Ctrl+C in its terminal (or stop the process you started). Flask may print a line about python-dotenv; ignore it, the server reads `.env` itself.
 
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-python server.py
-```
-
-Then open http://localhost:5555. Set `PORT` to use another port (`PORT=5600 uv run …`). The page answers only on this computer; to open it from a phone on the same network, start it with `HOST=0.0.0.0` and open `http://<this computer's address>:5555` on the phone. The server reads `config.toml` and `.env` when it starts: restart it after changing them. To stop it, press Ctrl+C in its terminal (or stop the process you started). Flask may print a line about python-dotenv; ignore it, the server reads `.env` itself.
-
-**Check it's running** without a browser: `curl -s http://localhost:5555/health` answers `{"airgradient_token_set":false,"status":"ok"}` until the token is in `.env` (`true` after a restart).
+**On a phone,** in plain words for the user: the phone and the computer must be on the same Wi-Fi. Start the server with `HOST=0.0.0.0` in front (`HOST=0.0.0.0 uv run …`); anyone on that Wi-Fi can then open the page. Find the computer's address on the Wi-Fi (macOS: `ipconfig getifaddr en0`; Linux: `hostname -I`; Windows: `ipconfig`, the "IPv4 Address"), and give the user the exact address to type on the phone, like `http://192.168.1.23:5555`. To open it away from home, put it online ([`DEPLOYMENT.md`](DEPLOYMENT.md)).
 
 **What the user should see:**
 
@@ -203,18 +238,37 @@ Then open http://localhost:5555. Set `PORT` to use another port (`PORT=5600 uv r
 - No `config.toml` and no token: the demo, with made-up data.
 - A token but no `config.toml`: the server stops with "No config: copy config.example.toml to config.toml (or set CONFIG_TOML)".
 
-If a monitor named in `[place]` is missing on the page, check that the token's account has a monitor of that kind: one set as indoor for `indoor`, one set as outdoor for `outdoor`.
+## 7. Check it's live
 
-## Outside the US
+With the server running:
 
-The page is built for the US. Outside it, in `config.toml`:
+```bash
+uv run --with-requirements requirements.txt scripts/setup.py --live
+```
 
-- set `smoke = false` under `[sources]` (NOAA's smoke map covers North America);
-- pollen: Google's Pollen API covers more than 65 countries, so keep it if the user wants pollen (step 6); otherwise set `pollen = false` under `[sources]`;
-- delete the `pollen_zip` line (pollen.com is US-only);
-- adjust or delete the `[[pollen_seasons]]` blocks (northeastern US dates; see step 2).
+Add the address if it isn't http://localhost:5555 (`--live http://localhost:5600`; Docker: `--live http://localhost:8000`). It asks the running page, with GET requests only: that it answers, that the token is set, which monitors it reads and how old their last readings are, the outdoor source (indoor only), and that the page's name, monitors and profiles match `config.toml`. It ends with `Live OK`, or says what to fix. A missing monitor usually means the token's account has no monitor set as that kind (indoor or outdoor) in AirGradient's dashboard.
 
-The weather card's forecast link still goes to the US National Weather Service, which has no page for other places. Open-Meteo (weather and the PM2.5 forecast) and AirGradient's nearby monitors work everywhere.
+## 8. Hand over
+
+Before you finish, tell the user in a few lines:
+
+- the address to open (http://localhost:5555, or the port you used), the phone address if they want it, and what they should see there;
+- how to start it again, as one command with the full path, e.g. `cd /Users/dana/home-air-quality && uv run --with-requirements requirements.txt server.py` (with the same `PORT` and `HOST`), and how to stop it (Ctrl+C in its terminal, or the process you started in the background, and where its log is);
+- anything left for later, as a short checklist. The usual one is the token: step 4's steps, then restart the server and run `setup.py --live`.
+
+If the user is away and your checks passed (`Config OK`, `Live OK`, or `/health` answers without a token yet), don't wait for them to look at the page: put the address and what to check in that message.
+
+## The road
+
+In this version the road is off for new homes: `setup.py` leaves the `[road]` section commented out. The page then has no road, no rush-hour rule and no exhaust on the map.
+
+If the user wants one later, a road needs a route file. It's possible to build, but untested:
+
+- A JSON array of `[longitude, latitude]` points in order along the road (the `coordinates` of a GeoJSON LineString, without the wrapper). `static/bqe.json`, the demo's road, is an example: 120 points.
+- At least one point within 2 km of the home, or set `toward` by hand: the compass bearings (degrees) from the home toward the road, `[min, max]`.
+- Then fill `[road]`: `name`, `route` (the file's path from the repo folder), `rush` (`[start hour, end hour, label]`, 24-hour clock).
+
+A route can be traced from OpenStreetMap data, but nothing in this repo does it yet.
 
 ## Adding a profile
 
@@ -227,6 +281,7 @@ A profile is code, not a setting. To add one, touch each of these and keep the t
 - `static/home.js`, `static/app.js`, `static/summary.js`: its name, icon and wording.
 - `index.html`: its chip under "Profiles" in the Home menu.
 - `config.example.toml`: a commented line under `[profiles]`.
+- `scripts/setup.py`: its words in `PROFILE_WORDS`.
 - `demo/` and its tests: the demo moments are the test fixtures, so a new profile shows up in them in the same commit.
 
 ### Ideas for more profiles

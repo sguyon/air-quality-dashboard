@@ -14,30 +14,23 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from config import DEFAULT_LIMITS, OLD_PROFILES_TABLE, PROFILES, ConfigError, _clean, limit_order_problems, load_config, real_value, route_path  # noqa: E402
+from config import DEFAULT_LIMITS, parse_dotenv, OLD_PROFILES_TABLE, PROFILES, ConfigError, _clean, limit_order_problems, load_config, real_value, route_path  # noqa: E402
 import publicmap  # noqa: E402
 from publicmap import AREA_KM, AREA_MIN_MONITORS, NEARBY_SOURCE_KM, PINNED_OFFLINE_DAYS  # noqa: E402
 
 KEYS = ("AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY")
+OUTDOOR_FROM_NEEDED = "sources.outdoor_from is needed"   # config.py's words when an indoor-only home hasn't chosen yet
 SUGGEST_LIST = 5   # monitors --suggest lists before its choice: the nearest reporting within AREA_KM, enough to compare
 
 
 def keys_present(env, root: Path) -> dict[str, bool]:
-    """True per key if it is in .env or the environment, with a real value. Values are never kept."""
-    found = {k: real_value(env.get(k, "")) for k in KEYS}
+    """True per key if it has a real value where the server takes it from: the environment first, else .env's first
+    line for that key (config.parse_dotenv, the server's own reader). Values are never kept or printed."""
     try:
-        lines = (root / ".env").read_text(encoding="utf-8").splitlines()
+        file = parse_dotenv((root / ".env").read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError):
-        lines = []
-    for line in lines:
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        name, _, value = line.partition("=")
-        name = name.strip().removeprefix("export ").strip()
-        if name in found and real_value(value):
-            found[name] = True
-    return found
+        file = {}
+    return {k: real_value(env[k] if k in env else file.get(k, "")) for k in KEYS}
 
 
 def decimals(x: float) -> int:
@@ -232,7 +225,8 @@ def main(argv, env, root: Path = ROOT) -> int:
         elif not any(p in msg for p in problems):   # load_config stops at the first problem already listed above
             problems.append(msg)
 
-    for k, ok in keys_present(env, root).items():
+    keys = keys_present(env, root)
+    for k, ok in keys.items():
         print(f"{k} {'set' if ok else 'missing'}")
     if cfg:
         print(outdoor_source_line(cfg))
@@ -245,11 +239,21 @@ def main(argv, env, root: Path = ROOT) -> int:
         for line in lines:
             print(line)
         problems += more
+    pending = []
+    if args.suggest:   # --suggest is how the outdoor source gets chosen: its absence is the next step, not a problem
+        pending = [p for p in problems if OUTDOOR_FROM_NEEDED in p]
+        problems = [p for p in problems if OUTDOOR_FROM_NEEDED not in p]
+        if pending:
+            print("Still to choose: sources.outdoor_from (write the user's pick, then run this check again without --suggest)")
     for p in problems:
         print(f"Problem: {p}")
     if problems:
         return 1
+    if args.suggest and pending:
+        return 0   # not "Config OK" yet: the source is still to write
     print("Config OK")
+    if not keys.get("AIRGRADIENT_TOKEN"):
+        print("Not live yet: add your AirGradient token to .env (scripts/setup.py token, SETUP.md step 4), then restart the server.")
     return 0
 
 
