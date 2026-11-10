@@ -165,7 +165,7 @@ def test_existing_token_cannot_be_replaced(local, monkeypatch, where):
     else:
         server.env_path.write_text("AIRGRADIENT_TOKEN=already-set\n")
     assert 'type="password"' not in page(local).get_data(as_text=True)
-    assert submit(local, value).status_code == 409
+    assert submit(local, value).status_code == 303
     assert server.TOKEN != TOKEN
 
 
@@ -188,7 +188,7 @@ def test_nonce_is_one_use_and_bound_to_browser_and_origin(local):
     assert submit(local, "wrong-value").status_code == 403
     assert submit(local, value, headers={"Origin": BASE, "Host": "127.0.0.1:5555"}).status_code == 403
     assert submit(local, value).status_code == 303
-    assert submit(local, value).status_code == 409
+    assert submit(local, value).status_code == 303
 
 
 def test_wrong_token_is_not_saved_or_logged_and_nonce_is_consumed(local, monkeypatch, caplog, capsys):
@@ -200,7 +200,7 @@ def test_wrong_token_is_not_saved_or_logged_and_nonce_is_consumed(local, monkeyp
     response = submit(local, value)
     assert response.status_code == 400
     assert response.headers["Cache-Control"] == "no-store"
-    assert "AirGradient didn't accept this token" in unescape(response.get_data(as_text=True))
+    assert "AirGradient refused this token" in unescape(response.get_data(as_text=True))
     assert TOKEN not in response.get_data(as_text=True) + caplog.text + str(capsys.readouterr())
     assert not server.env_path.exists() and server.TOKEN == ""
     assert submit(local, value).status_code == 403
@@ -308,7 +308,7 @@ def test_another_writer_winning_during_validation_is_not_overwritten(local, monk
         server.env_path.write_text("AIRGRADIENT_TOKEN=from-terminal\n")
         return Reply()
     monkeypatch.setattr(sources.requests, "get", other_writer)
-    assert submit(local).status_code == 409
+    assert submit(local).status_code == 303
     assert server.env_path.read_text() == "AIRGRADIENT_TOKEN=from-terminal\n"
     assert server.TOKEN == ""
 
@@ -343,7 +343,7 @@ def test_fresh_copy_with_an_empty_account_says_to_add_a_monitor(local, monkeypat
     monkeypatch.setattr(sources.requests, "get", lambda *a, **k: Empty())
     assert submit(local).status_code == 303
     text = local.get("/", base_url=BASE).get_data(as_text=True)
-    assert "Connected to AirGradient" in text and "No monitors with readings yet" in text and "token-found" not in text
+    assert "Connected to AirGradient" in text and "No monitors with readings yet" in text and 'class="plist token-found"' not in text
 
 
 def test_fresh_copy_card_lists_the_account_monitors(local, monkeypatch):
@@ -379,7 +379,7 @@ def test_rejected_credentials_get_the_same_plain_error(local, monkeypatch, statu
     monkeypatch.setattr(sources.requests, "get", lambda *a, **k: Rejected())
     response = submit(local)
     assert response.status_code == 400
-    assert "AirGradient didn't accept this token" in unescape(response.get_data(as_text=True))
+    assert "AirGradient refused this token" in unescape(response.get_data(as_text=True))
     assert not server.env_path.exists()
 
 
@@ -463,7 +463,7 @@ def test_validation_does_not_block_local_page_or_allow_a_second_save(local, monk
             assert pool.submit(another_browser).result(timeout=5) == 303
             return Reply()
         monkeypatch.setattr(sources.requests, "get", validate)
-        assert submit(local, value).status_code == 409
+        assert submit(local, value).status_code == 303
     assert server.TOKEN == winner
 
 
@@ -542,3 +542,42 @@ def test_werkzeug_logs_only_the_first_request_with_the_setup_code(local):
     handler.log_request(response.status_code)
     assert code in lines[0]  # Werkzeug's initial request line includes the query string.
     assert code not in lines[1] and "GET / HTTP/1.1" in lines[1]
+
+
+def test_connected_card_names_each_monitor_indoor_or_outdoor_and_sends_the_user_back(local, monkeypatch):
+    from dataclasses import replace
+    class Two(Reply):
+        def json(self):
+            return [{"locationId": 1, "locationName": "Living room", "locationType": "indoor", "model": "I-9PSL"},
+                    {"locationId": 2, "locationName": "Back porch", "model": "O-1PST"}]
+    monkeypatch.setattr(server, "CFG", replace(server.CFG, demo=True))
+    monkeypatch.setattr(server, "MODE", "demo")
+    monkeypatch.delenv("DEMO", raising=False)
+    monkeypatch.setattr(sources.requests, "get", lambda *a, **k: Two())
+    assert submit(local).status_code == 303
+    text = unescape(local.get("/", base_url=BASE).get_data(as_text=True))
+    assert "<b>Living room</b><em>Indoor monitor</em>" in text and "<b>Back porch</b><em>Outdoor monitor</em>" in text
+    assert "go back to your agent" in text and "You can close this tab" in text
+    assert "<button" not in text.split("token-found", 1)[1].split("token-next", 1)[0]   # the monitors are a list, not controls
+
+
+def test_a_malformed_token_is_told_apart_from_a_refused_one(local, monkeypatch):
+    called = []
+    monkeypatch.setattr(sources.requests, "get", lambda *a, **k: called.append(1) or Reply())
+    response = local.post("/api/token", base_url=BASE, data={"setup_nonce": nonce(page(local)), "token": "has spaces in it"},
+                          headers={"Origin": BASE, "Referer": BASE + "/"})
+    assert response.status_code == 400 and not called   # never sent to AirGradient
+    assert "doesn't look like an AirGradient token" in unescape(response.get_data(as_text=True))
+
+
+def test_an_expired_form_is_a_page_with_a_way_forward_never_raw_json(local):
+    page(local)
+    response = submit(local, "a-form-value-from-an-old-tab")
+    assert response.status_code == 403 and response.mimetype == "text/html"
+    text = unescape(response.get_data(as_text=True))
+    assert "nothing was sent" in text and 'name="setup_nonce"' in text   # a fresh form, ready for the token
+    local.delete_cookie(server.token_setup.COOKIE_NAME)   # as after a restart: the old link no longer counts
+    response = submit(local, "a-form-value-from-an-old-tab")
+    assert response.status_code == 403 and response.mimetype == "text/html"
+    assert "Ask your agent for the new setup link" in unescape(response.get_data(as_text=True))
+

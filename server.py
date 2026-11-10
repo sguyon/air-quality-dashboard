@@ -249,21 +249,31 @@ def print_setup_link(port):
         print(f"Paste your AirGradient token here: http://localhost:{port}/?setup={token_state.code}", flush=True)
 
 
-def render_page(error=None, status=200):
-    """The missing-token card works without JavaScript; no credential is ever embedded in the page."""
+TOKEN_FORMAT_ERROR = ("This doesn't look like an AirGradient token. Press the copy button next to API Access "
+                      "(not \"Renew API token\"), then paste it here.")
+TOKEN_REFUSED_ERROR = ("AirGradient refused this token. Check that API Access is turned on for the place that shows your monitor, "
+                       "then copy the token again.")
+FORM_EXPIRED_ERROR = "This form had expired, so nothing was sent. Paste the token again."
+LINK_EXPIRED_ERROR = ("This page is from before the app restarted, so it can't connect. Ask your agent for the new setup link, "
+                      "or restart the app to get one.")
+
+
+def render_page(error=None, status=200, card=False):
+    """The missing-token card works without JavaScript; no credential is ever embedded in the page.
+    card: show the token card even without a valid setup cookie (an expired link explains itself instead of showing the demo)."""
     html_path = Path(__file__).parent / "index.html"
     html = inline_touch_icon(tag_env(version_assets(html_path.read_text())))
     browser = None
     # A fresh copy (the demo, no home yet) shows only the card: the token box with its link, then "saved" until setup restarts it.
     saved = setup_mode() and MODE == "demo" and token_state.saved
-    show_setup = MODE == "no_token" or saved or (setup_mode() and token_state.authorized(request.cookies.get(token_setup.COOKIE_NAME, "")))
+    show_setup = MODE == "no_token" or saved or (setup_mode() and (card or token_state.authorized(request.cookies.get(token_setup.COOKIE_NAME, ""))))
     html = inject_app(html, setup_page=show_setup)
     if show_setup:
         entry = (token_setup.allowed(request, env_path, TOKEN, "no_token")
                  and token_state.authorized(request.cookies.get(token_setup.COOKIE_NAME, "")))
         value, browser = token_state.issue(request) if entry else (None, None)
         card = render_template("token_card.html", entry=entry and not saved, saved=saved,
-                               found=token_state.saved["names"] if saved else [], shown=SAVED_NAMES_SHOWN, nonce=value, error=error,
+                               found=token_state.saved["monitors"] if saved else [], shown=SAVED_NAMES_SHOWN, nonce=value, error=error,
                                instructions=token_setup.instructions(request), max_length=token_setup.TOKEN_MAX_LENGTH)
         html = html.replace('id="no-token" hidden', 'id="no-token"')
         html = html.replace("<!-- token-setup -->", card)
@@ -297,12 +307,15 @@ def save_token():
         if (MODE == "demo" and not setup_mode()) or not token_setup.local_entry(request, env_path) or not token_setup.same_origin(request):
             return jsonify(error="Token entry is only available on this computer's local page."), 403
         if token_setup.has_token(env_path, TOKEN):
-            return jsonify(error="A token is already set."), 409
+            return redirect("/", code=303)   # sent twice, or from an old tab: the page shows where things stand
         if not setup_mode():
             return jsonify(error="Token entry is only available on this computer's local page."), 403
         request.max_content_length = token_setup.TOKEN_POST_MAX_BYTES
         if not token_state.consume(request, request.form.get("setup_nonce", "")):
-            return jsonify(error="This form expired. Open the page again."), 403
+            # A page, never raw JSON: a fresh form when this browser still holds the setup link, else what to do.
+            if token_state.authorized(request.cookies.get(token_setup.COOKIE_NAME, "")):
+                return render_page(FORM_EXPIRED_ERROR, 403)
+            return render_page(LINK_EXPIRED_ERROR, 403, card=True)
         retry = token_state.retry_after()
         if retry:
             response = render_page("Too many attempts. Wait five minutes, then try again.", 429)
@@ -312,7 +325,7 @@ def save_token():
         if (not candidate or len(candidate) > token_setup.TOKEN_MAX_LENGTH
                 or not token_setup.TOKEN_CHARACTERS.fullmatch(candidate) or not real_value(candidate)):
             token_state.failed()
-            return render_page("AirGradient didn't accept this token. Copy it again from API access and paste it here.", 400)
+            return render_page(TOKEN_FORMAT_ERROR, 400)
     try:
         accepted = sources.validate_token(candidate)
     except (sources.requests.RequestException, ValueError):
@@ -323,10 +336,10 @@ def save_token():
     with token_state.lock:
         if accepted is None:
             token_state.failed()
-            return render_page("AirGradient didn't accept this token. Copy it again from API access and paste it here.", 400)
+            return render_page(TOKEN_REFUSED_ERROR, 400)
         # Recheck for a token written while the validation call was waiting.
         if token_setup.has_token(env_path, TOKEN):
-            return jsonify(error="A token is already set."), 409
+            return redirect("/", code=303)   # another tab or the terminal won: keep theirs, show the page
         try:
             write_env_key(env_path, "AIRGRADIENT_TOKEN", candidate)
         except (OSError, UnicodeError, ValueError):
@@ -334,7 +347,7 @@ def save_token():
         os.environ["AIRGRADIENT_TOKEN"] = candidate
         TOKEN, MODE = candidate, server_mode(CFG, candidate)
         token_state.code = None
-        token_state.saved = {"names": accepted}   # the account's monitors, for the "connected" card
+        token_state.saved = {"monitors": accepted}   # the account's monitors and their kinds, for the "connected" card
         token_state.nonces.clear()
         token_state.failures.clear()
         response = redirect("/", code=303)

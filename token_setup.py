@@ -109,7 +109,7 @@ class TokenState:
 
     def __init__(self, token=""):
         self.code = None if real_value(token) else secrets.token_urlsafe(SETUP_CODE_BYTES)
-        self.saved = None   # {"names": [...]} once a token was saved from the page; a fresh copy says so until it restarts
+        self.saved = None   # {"monitors": [{"name", "kind"}]} once a token was saved from the page; a fresh copy says so until it restarts
         self.lock = threading.RLock()
         self.nonces = {}
         self.failures = deque()

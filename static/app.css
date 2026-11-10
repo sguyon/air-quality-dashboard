@@ -1736,12 +1736,20 @@ html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }
 .token-entry :focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 3px; }
 .no-token-card .token-storage { margin: 0; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 .no-token-card .token-error { margin: 14px 0 0; color: var(--bad); }
-/* After saving: a check in the "good" color, what the check found, then the next step. */
+/* After saving: a check in the "good" color, the monitors the check found (the Home panel's product rows), then the one next step. */
 .token-ok { display: flex; gap: 14px; align-items: flex-start; }
 .token-ok > svg.i { flex: none; width: 32px; height: 32px; margin-top: -1px; color: var(--good); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.token-found { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
-.token-found li { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--tile); font-size: 14px; color: var(--ink); }
-.no-token-card .token-next { margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--line); color: var(--soft); }
+.token-ok p { margin: 4px 0 0; color: var(--soft); }
+.no-token-card .token-found-title { margin: 24px 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.token-found { border: 1px solid var(--line); border-radius: 12px; padding: 4px 8px; background: var(--tile); }
+.token-found .pr { grid-template-rows: auto; cursor: default; }
+.token-found .pr-ic svg { width: 36px; height: 36px; }
+.token-more { grid-template-columns: minmax(0, 1fr) !important; }
+.no-token-card .token-next { display: flex; gap: 14px; align-items: flex-start; margin: 22px 0 0; padding: 16px 18px; border-radius: 12px;
+  background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--ink); }
+.token-next > svg.i { flex: none; width: 24px; height: 24px; margin-top: 1px; color: var(--accent-ink); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.token-next b { display: block; font-size: 17px; line-height: 1.35; }
+.token-next p { margin: 4px 0 0; color: var(--soft); }
 @media (max-width: 640px) {
   .no-token-card { margin-top: 24px; padding: 24px 18px; }
   #no-token h2 { font-size: 21px; }

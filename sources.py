@@ -193,7 +193,8 @@ logging.getLogger("urllib3.connectionpool").addFilter(_TokenURLFilter())
 
 def validate_token(token):
     """One uncached call, without changing the running credential or exposing upstream bodies/errors.
-    None: AirGradient refused the token. A list (maybe empty): accepted, with the account's monitor names."""
+    None: AirGradient refused the token. A list (maybe empty): accepted, with the account's monitors as
+    {"name": ..., "kind": "indoor" | "outdoor" | None}, for the page's "connected" card."""
     response = requests.get(f"{API_BASE}/locations/measures/current", params={"token": token}, timeout=10, allow_redirects=False)
     if response.status_code in (400, 401, 403):
         return None
@@ -204,7 +205,16 @@ def validate_token(token):
     rows = response.json()
     if not isinstance(rows, list):
         raise ValueError("Unexpected AirGradient response")
-    return [publicmap.plain_text(row.get("locationName") or "") or "Unnamed monitor" for row in rows if isinstance(row, dict)]
+    return [{"name": publicmap.plain_text(row.get("locationName") or "") or "Unnamed monitor", "kind": monitor_kind(row)}
+            for row in rows if isinstance(row, dict)]
+
+
+def monitor_kind(row):
+    """Indoor or outdoor, from the place's setting in AirGradient, else the model ("O-…" is an Open Air); None if neither says."""
+    if row.get("locationType") in ("indoor", "outdoor"):
+        return row["locationType"]
+    model = str(row.get("model") or "")
+    return "outdoor" if model.startswith(publicmap.OUTDOOR_PREFIX) else "indoor" if model.startswith("I-") else None
 
 
 def api_get(path, params=None):
