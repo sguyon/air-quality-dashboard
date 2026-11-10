@@ -71,7 +71,7 @@ Then http://localhost:5555 (`PORT` changes the port). Without uv: a virtualenv w
 ## Test
 
 ```bash
-pytest -q && node --test tests/
+pytest -q && node --test tests/*.test.mjs
 ```
 
 Both must pass before a commit.

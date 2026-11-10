@@ -43,4 +43,4 @@ How the page looks and behaves, for anyone (or any agent) changing it. Values li
 - Contrast at least 4.5:1 for text, focus rings on everything you can tab to, labels on controls.
 - Screenshots of the demo stories (`?moment=rush`, `clear`, `humid`) before and after, compared side by side (`scripts/screenshot.sh`).
 - A change to the token page or setup also compares `scripts/setup_shots.sh` screenshots before and after.
-- `pytest -q && node --test tests/`.
+- `pytest -q && node --test tests/*.test.mjs`.

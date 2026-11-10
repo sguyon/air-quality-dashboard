@@ -67,7 +67,7 @@ A route can be traced from OpenStreetMap data, but nothing in this repo does it 
 
 ## Adding a profile
 
-A profile is code, not a setting. To add one, touch each of these and keep the tests green (`pytest -q && node --test tests/`):
+A profile is code, not a setting. To add one, touch each of these and keep the tests green (`pytest -q && node --test tests/*.test.mjs`):
 
 - `config.py`: add it to `PROFILES`.
 - `summary.py`: its state in `profiles_row`, and which items serve it.
