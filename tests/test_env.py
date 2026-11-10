@@ -41,10 +41,16 @@ def test_app_env_dev_and_junk(client, monkeypatch):
     assert app_env(page(client, "x.example.com").get_data(as_text=True)) == "null"
 
 
-def test_local_address_is_dev(client, monkeypatch):
+def test_local_address_is_dev_only_on_the_reloading_dev_server(client, monkeypatch):
+    """The maintainer's `flask run --reload` is dev; a home running the app on its own network is not."""
     monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.setenv("WERKZEUG_RUN_MAIN", "true")
     for host in ("localhost:5555", "127.0.0.1", "192.168.1.5", "10.0.0.2", "172.20.1.1"):
         assert app_env(page(client, host).get_data(as_text=True)) == '"dev"', host
+    monkeypatch.delenv("WERKZEUG_RUN_MAIN")
+    for host in ("localhost:5555", "192.168.1.5"):
+        html = page(client, host).get_data(as_text=True)
+        assert app_env(html) == "null" and "DEV ·" not in html, host
 
 
 def test_noindex_unless_demo(client, monkeypatch):

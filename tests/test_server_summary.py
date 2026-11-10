@@ -87,3 +87,39 @@ def test_outdoor_only_home_reads_nothing_indoors(client, monkeypatch):
     assert states["sinus"] == (True, "Pollen low")
     assert "pollen only: no indoor monitor for humidity" in next(n for n in s["profiles"] if n["id"] == "sinus")["why"]
     assert "config" not in str(s).lower()
+
+
+def test_dev_server_keeps_the_days_pollen_on_disk(monkeypatch, tmp_path):
+    """The reloading dev server reuses the day's pollen across restarts; production never writes it."""
+    import server
+    calls = []
+    monkeypatch.setattr(server, "_fetch_pollen", lambda: calls.append(1) or {"today": [{"name": "Tree"}], "tomorrow": []})
+    monkeypatch.setattr(server, "DEV_CACHE_DIR", tmp_path / "cache")
+    monkeypatch.delenv("WERKZEUG_RUN_MAIN", raising=False)
+    server._fetch_pollen_kept()
+    assert calls == [1] and not (tmp_path / "cache").exists()   # production: nothing stored
+    monkeypatch.setenv("WERKZEUG_RUN_MAIN", "true")
+    first, again = server._fetch_pollen_kept(), server._fetch_pollen_kept()   # a restart reads the file
+    assert first == again == {"today": [{"name": "Tree"}], "tomorrow": []} and calls == [1, 1]
+
+
+def test_pollen_is_asked_once_a_day(monkeypatch):
+    """A daily forecast: the second read the same day, hours later, is the first answer; a new day asks again."""
+    import server
+    from datetime import datetime, timedelta
+    calls, clock = [], {"t": 1_000_000.0}
+    monkeypatch.setattr(server, "_fetch_pollen", lambda: calls.append(1) or {"today": [], "tomorrow": []})
+    monkeypatch.delenv("WERKZEUG_RUN_MAIN", raising=False)
+    monkeypatch.setattr(server.time, "time", lambda: clock["t"])
+    day = {"d": datetime(2026, 11, 10, 8, 0)}
+    monkeypatch.setattr(server, "local_now", lambda *a: day["d"])
+    with server._cache_lock:
+        for k in [k for k in server._cache if k.startswith("pollen:")]:
+            del server._cache[k]
+    server.get_pollen_days()
+    clock["t"] += 14 * 3600; day["d"] += timedelta(hours=14)   # 10 PM, same day
+    server.get_pollen_days()
+    assert calls == [1]
+    clock["t"] += 3 * 3600; day["d"] += timedelta(hours=3)     # 1 AM, the next day
+    server.get_pollen_days()
+    assert calls == [1, 1]

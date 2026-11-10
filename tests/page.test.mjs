@@ -773,3 +773,19 @@ test("the neighborhood on an indoor-only home: no You row; the pinned monitor st
   assert.doesNotMatch(home.nbRowHTML({ ...B, pm02_corrected: 4, distance_km: 2 }, false, home.selfWords(false), '', { limit: 15, barMax: 55, limPct: 27 }, f), /nb-used/);
   assert.equal(home.NB_USED, 'used for your outdoor PM2.5');
 });
+
+test('nbCountText: with no Show more button, the count leads the credit line', () => {
+  assert.equal(home.nbCountText(6), '6 public monitors within 15 km');
+  assert.equal(home.nbCountText(1), '1 public monitor within 15 km');
+  assert.equal(home.nbCountText(0), '');
+});
+
+test("monitorPill: an indoor-only home's chosen public monitor shows live, an estimate greyed", () => {
+  const now = new Date('2026-11-10T03:30:00Z'), place = { indoor: 'apartment', outdoor: null };
+  const indoor = { timestamp: '2026-11-10T03:28:00Z' };
+  const pinned = { timestamp: '2026-11-10T03:25:00Z', source: { kind: 'monitor', name: 'Long Island City' } };
+  const live = home.monitorPill(place, indoor, pinned, now, {}, 'Nearby public monitor, 1.4 km');
+  assert.equal((live.match(/class="vhw off"/g) || []).length, 0);
+  const est = home.monitorPill(place, indoor, { locationType: 'outdoor', source: { kind: 'model' } }, now, {}, 'Estimate for your area');
+  assert.equal((est.match(/class="vhw off"/g) || []).length, 1);
+});

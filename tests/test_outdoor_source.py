@@ -136,8 +136,10 @@ def test_monitor_online_reads_like_an_own_monitor(home, client):
     assert pm["past"] and "source" not in pm   # its measured past, not the model's
 
 
-def test_monitor_history_served_from_the_map(home, client):
+def test_monitor_history_served_from_the_map(home, client, monkeypatch):
     set_world, calls = home
+    # /api/history picks its range from the real clock: the fake map rows end now too, not at the fixed NOW
+    monkeypatch.setitem(globals(), "NOW", datetime.now(TZ))
     use(PINNED)
     set_world([monitor(PINNED, 1.1, "Cedar & 2nd Ave")])
     frm, to = datetime.now(timezone.utc) - timedelta(hours=6), datetime.now(timezone.utc)

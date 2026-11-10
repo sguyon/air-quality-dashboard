@@ -41,7 +41,7 @@
   const roundCoord = x => Number(Number(x).toFixed(COORD_DECIMALS));
 
   // The strip: the Demo tag, the samples (the shown one marked; none on a monitor's page), the live option's dropdown
-  // (the chosen monitor's name, or "Pick a monitor"), and the code's link.
+  // (the chosen monitor's name, or "Select a monitor"; the picker says what public monitors are), and the code's link: the GitHub mark, with "GitHub" beside it on a wide screen.
   function bannerHTML(app) {
     const pub = app.public || null;
     const listed = (app.now && app.now.moments) || [];
@@ -51,8 +51,8 @@
     const name = pub && !pub.error && pub.name ? esc(pub.name) : '';
     return `<div class="db-inner">
   <div class="db-sample"><span class="db-tag">Demo</span><span class="db-label" id="db-label">Sample data</span><nav class="db-seg" aria-labelledby="db-label">${links}</nav></div>
-  <div class="db-end"><p class="db-live">Or live: a public AirGradient monitor</p><span class="db-pickwrap" id="db-pickwrap"><button type="button" class="db-pick${name ? ' is-chosen' : ''}" id="db-pick" aria-haspopup="dialog" aria-expanded="false" aria-controls="db-pop"><i class="live" aria-hidden="true"></i><span class="db-pick-t">${name || 'Pick a monitor'}</span>${ICON.chev}</button></span></div>
-  <a class="db-gh" href="${SOURCE_URL}" target="_blank" rel="noopener">${ICON.octo}Source and setup</a>
+  <div class="db-end"><p class="db-live">Or live:</p><span class="db-pickwrap" id="db-pickwrap"><button type="button" class="db-pick${name ? ' is-chosen' : ''}" id="db-pick" aria-haspopup="dialog" aria-expanded="false" aria-controls="db-pop"><i class="live" aria-hidden="true"></i><span class="db-pick-t">${name || 'Select a monitor'}</span>${ICON.chev}</button></span></div>
+  <a class="db-gh" href="${SOURCE_URL}" target="_blank" rel="noopener" aria-label="Source and setup on GitHub" title="Source and setup on GitHub">${ICON.octo}<span class="db-gh-t">GitHub</span></a>
 </div>`;
   }
 

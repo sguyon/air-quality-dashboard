@@ -31,3 +31,6 @@ public/
 .cursor/hooks.json
 .github/hooks/
 PRODUCT.md
+
+# the local dev server keeps the day's pollen here (server.py, DEV_CACHE_DIR)
+/.cache/

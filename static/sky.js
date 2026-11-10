@@ -3,6 +3,27 @@
 // ── Sky band: real sun position, cloud cover, wind and PM2.5. Preview overrides from the Customize panel. ──
 var SKY = (() => {
   const HAZY_PM = 12;   // µg/m³ outdoor PM2.5: over this the Weather pill says "Hazy air" (the old US AQI "Good" edge); over pm_high, "Smoky"
+  // Text on the sky (title, weather line, sky control): its ink follows what is actually behind it (gradient, sun, clouds, haze).
+  const INK_ON_LIGHT = [22, 33, 46], INK_ON_DARK = [242, 246, 251];      // rgb: the ink over a light sky, over a dark one
+  const HALO_ON_LIGHT = [255, 255, 255], HALO_ON_DARK = [8, 14, 26];    // rgb: the soft halo around that ink, the opposite tone
+  const INK_CONTRAST = 4.5;     // WCAG AA for normal text: the halo grows until the worst spot behind the text reaches it
+  const HALO_MIN = .35, HALO_MAX = .9, HALO_STEP = .05;   // halo opacity: always a little, at most nearly solid, searched in these steps
+  const INK_FLIP = 1.15;        // the other ink must do 15% better at the worst spot before the text switches (no flicker as a cloud passes)
+  const INK_EVERY = 1500;       // ms between two looks at the sky behind the text: clouds drift slowly
+  const INK_GRID = [6, 3];      // points sampled across and down each piece of text
+  const INK_SCROLL = 300;       // ms: at most one look per this while the page scrolls (the text moves over the fixed sky)
+  // What app.css draws, rebuilt to judge the text's background: the sun's glow (.sky-sun: 70vmax wide; stops at a share of its
+  // radius, [rgb, alpha]) and the haze (.sky-haze: top and bottom, rgba).
+  const SUN_R = .35;            // the glow's radius, a share of the screen's longer side
+  const SUN_GLOW = [[0, [255, 246, 220], .55], [.4, [255, 236, 200], .18], [.72, [255, 236, 200], 0]];
+  const SUN_GLOW_WARM = [[0, [255, 196, 140], .6], [.42, [255, 170, 120], .2], [.72, [255, 170, 120], 0]];
+  const HAZE = [[186, 166, 132, .55], [176, 158, 128, .85]];
+  // A tap on the weather card's compass: the dial turns one way, the needle the other, then both settle on the reading.
+  const COMPASS_MS = 800;        // ms, there and back
+  const COMPASS_DIAL = -80;      // deg the dial (ring, ticks, N) turns: counter-clockwise
+  const COMPASS_NEEDLE = 140;    // deg the needle swings the other way, on top of the wind's direction
+  const COMPASS_TURN = .38;      // share of the time spent turning away; the rest settles back
+  const COMPASS_EASE_AWAY = 'cubic-bezier(.4, 0, .2, 1)', COMPASS_EASE_BACK = 'cubic-bezier(.34, 1.4, .5, 1)';   // the way back overshoots a little
   const LAT = APP.place.lat, LON = APP.place.lon, reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Start from the last real weather this browser saw, so a reload never shows made-up defaults.
   const LIVE_KEY = 'aq-sky-live' + (APP.now ? ':' + APP.now.moment : '');   // the demo keeps one per moment
@@ -119,21 +140,18 @@ var SKY = (() => {
     rainAmt = on.wind ? rain : 0; thunder = !!v.thunder && on.sky && !reduce;
     if (!cur.top || reduce) { cur.top = top.slice(); cur.hor = hor.slice(); }
     $('sky-grad').style.opacity = on.sky ? 1 : 0;
-    const topLum = top[0] * .3 + top[1] * .59 + top[2] * .11;
-    // clouds lighten what's behind the text: blend in their tint before choosing light or dark text
-    const tintLum = cloudTint[0] * .3 + cloudTint[1] * .59 + cloudTint[2] * .11, ck = Math.min(.6, cloudCover * .6);
-    const seenLum = topLum * (1 - ck) + tintLum * ck;
-    document.documentElement.classList.toggle('sky-dark', on.sky && seenLum < 150);
     document.documentElement.classList.toggle('sky-on', on.sky);
     $('sky-haze').style.opacity = on.haze ? Math.min((v.pm || 0) / 55, 1) * .75 : 0;
+    inkDue = true;   // the next frame looks at the new sky behind the text (measureInk)
     // sun glow: horizontal place from azimuth (east left, west right), height from elevation
     const clear = 1 - (v.cloud || 0) / 100 * .85;
     const glow = on.sky ? Math.max(0, Math.min(1, (elev + 5) / 6)) * (elev > 25 ? Math.max(.25, 1 - (elev - 25) / 40) : 1) * clear : 0;
     const sun = $('sky-sun');
-    sun.style.left = `${Math.max(4, Math.min(96, 50 + (azim - 180) / 120 * 50))}%`;
-    sun.style.top = `${Math.max(6, Math.min(78, 70 - elev * 1.4))}%`;
+    sunAt = { x: Math.max(4, Math.min(96, 50 + (azim - 180) / 120 * 50)), y: Math.max(6, Math.min(78, 70 - elev * 1.4)), a: glow, warm: elev < 12 };
+    sun.style.left = `${sunAt.x}%`;
+    sun.style.top = `${sunAt.y}%`;
     sun.style.opacity = glow.toFixed(2);
-    sun.classList.toggle('warm', elev < 12);
+    sun.classList.toggle('warm', sunAt.warm);
     // stars: only when it is dark and the sky is not covered
     $('sky-stars').style.opacity = on.sky ? (Math.max(0, Math.min(1, (-elev - 4) / 8)) * (1 - (v.cloud || 0) / 100 * .65)).toFixed(2) : 0;
     starsOn = on.sky && elev < -4;
@@ -339,8 +357,86 @@ var SKY = (() => {
       // tint the white sprites to the light of the moment
       cctx.globalCompositeOperation = 'source-atop'; cctx.fillStyle = `rgb(${cloudTint})`; cctx.fillRect(0, 0, W, H); cctx.globalCompositeOperation = 'source-over';
     }
+    if (inkDue || t - inkAt > INK_EVERY) measureInk(t);
     if ((on.wind || moving || starsOn || cloudsMoving || rainAmt > .02 || thunder || bolt) && visible && !reduce && !document.hidden) raf = requestAnimationFrame(frame);
   }
+  // ── The ink of the text on the sky ──
+  // Rebuilds what is drawn behind the title, the weather line and the sky control (the gradient, the sun's glow, the
+  // clouds as drawn, the haze), then picks the ink that reads best at the worst spot, and a halo strong enough for 4.5:1 there.
+  let sunAt = { x: 50, y: 50, a: 0, warm: false }, inkDue = true, inkAt = -1e9, inkLight = null;
+  const lin = c => { c /= 255; return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; };
+  const relLum = c => .2126 * lin(c[0]) + .7152 * lin(c[1]) + .0722 * lin(c[2]);
+  const ratio = (a, b) => (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+  const over = (b, c, a) => b.map((v, i) => v + (c[i] - v) * a);
+  const glowAt = r => {   // the sun's radial gradient: [rgb, alpha] at r, a share of its radius
+    const s = sunAt.warm ? SUN_GLOW_WARM : SUN_GLOW;
+    if (r >= s[2][0]) return null;
+    const [a, b] = r < s[1][0] ? [s[0], s[1]] : [s[1], s[2]], k = (r - a[0]) / (b[0] - a[0]);
+    return [mix(a[1], b[1], k), a[2] + (b[2] - a[2]) * k];
+  };
+  function measureInk(t) {
+    inkDue = false; inkAt = t;
+    const html = document.documentElement, hazeA = on.haze ? Number($('sky-haze').style.opacity) || 0 : 0;
+    if (!on.sky && !hazeA) { html.classList.remove('sky-ink', 'sky-dark'); inkLight = null; return; }
+    const bodyBg = !on.sky && (getComputedStyle(document.body).backgroundColor.match(/\d+/g) || []).slice(0, 3).map(Number);
+    const dpr = cc.width / (W || 1), R = SUN_R * Math.max(W, H), lums = [];
+    for (const el of document.querySelectorAll('.bar .site, .now-bar .now-h, .now-bar .sky-cap, .now-line .dsp-top')) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;   // the phone's visually hidden "Today"
+      const x0 = Math.max(0, r.left), x1 = Math.min(W, r.right), y0 = Math.max(0, Math.min(H - 2, r.top)), y1 = Math.max(y0 + 1, Math.min(H, r.bottom));
+      if (x1 - x0 < 1) continue;
+      let px = null;
+      if (cloudCover > .01 || clouds.some(c => c.a > .01)) {
+        try { px = cctx.getImageData(Math.floor(x0 * dpr), Math.floor(y0 * dpr), Math.max(1, Math.floor((x1 - x0) * dpr)), Math.max(1, Math.floor((y1 - y0) * dpr))); } catch {}
+      }
+      for (let i = 0; i < INK_GRID[0]; i++) for (let j = 0; j < INK_GRID[1]; j++) {
+        const x = x0 + (x1 - x0) * (i + .5) / INK_GRID[0], y = y0 + (y1 - y0) * (j + .5) / INK_GRID[1];
+        let c = bodyBg || mix(tgt.top, tgt.hor, y / H);
+        if (on.sky && sunAt.a > 0) {   // screen blend
+          const g = glowAt(Math.hypot(x - sunAt.x / 100 * W, y - sunAt.y / 100 * H) / R);
+          if (g) c = c.map((v, k) => 255 - (255 - v) * (1 - g[0][k] / 255 * g[1] * sunAt.a));
+        }
+        if (px) {
+          const p = (Math.min(px.height - 1, Math.floor((y - y0) * dpr)) * px.width + Math.min(px.width - 1, Math.floor((x - x0) * dpr))) * 4;
+          if (px.data[p + 3]) c = over(c, [px.data[p], px.data[p + 1], px.data[p + 2]], px.data[p + 3] / 255);
+        }
+        if (hazeA) { const f = y / H, h = HAZE[0].map((v, k) => v + (HAZE[1][k] - v) * f); c = over(c, h.slice(0, 3), h[3] * hazeA); }
+        lums.push(c);
+      }
+    }
+    if (!lums.length) return;
+    const worst = ink => Math.min(...lums.map(c => ratio(relLum(ink), relLum(c))));
+    const forLight = worst(INK_ON_DARK), forDark = worst(INK_ON_LIGHT);   // light ink on this sky, dark ink on it
+    if (inkLight === null) inkLight = forLight > forDark;
+    else if (inkLight && forDark > forLight * INK_FLIP) inkLight = false;
+    else if (!inkLight && forLight > forDark * INK_FLIP) inkLight = true;
+    const ink = inkLight ? INK_ON_DARK : INK_ON_LIGHT, halo = inkLight ? HALO_ON_DARK : HALO_ON_LIGHT;
+    const withHalo = a => Math.min(...lums.map(c => ratio(relLum(ink), relLum(over(c, halo, a)))));
+    let a = HALO_MIN;
+    while (a < HALO_MAX && withHalo(a) < INK_CONTRAST) a = Math.min(HALO_MAX, a + HALO_STEP);
+    html.classList.add('sky-ink');
+    html.classList.toggle('sky-dark', inkLight);
+    html.style.setProperty('--sky-ink', `rgb(${ink})`);
+    html.style.setProperty('--sky-halo', `rgba(${halo},${a.toFixed(2)})`);
+    html.style.setProperty('--sky-halo-rgb', `${halo}`);
+    html.dataset.skyContrast = `${worst(ink).toFixed(1)}/${withHalo(a).toFixed(1)}`;   // worst spot without / with the halo, for checks
+  }
+  addEventListener('scroll', () => { if (performance.now() - inkAt > INK_SCROLL) { inkDue = true; kick(); } }, { passive: true });   // the text moves over the fixed sky
+  (() => {   // the compass's spin on a tap (COMPASS_*): transforms only, nothing under reduced motion, one at a time
+    const svg = document.querySelector('.compass'), dial = svg && svg.querySelector('.c-dial'), needle = $('needle');
+    if (!svg || !dial || !needle) return;
+    let busy = false;
+    const spin = (el, from, by) => el.animate([{ transform: `rotate(${from}deg)`, easing: COMPASS_EASE_AWAY },
+      { transform: `rotate(${from + by}deg)`, offset: COMPASS_TURN, easing: COMPASS_EASE_BACK }, { transform: `rotate(${from}deg)` }], { duration: COMPASS_MS });
+    svg.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();   // a tap here never follows a link around it
+      if (busy || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      busy = true;
+      const deg = Number((needle.style.transform.match(/-?[\d.]+/) || [0])[0]);   // the needle's wind direction, set in paint()
+      spin(needle, deg, COMPASS_NEEDLE);
+      spin(dial, 0, COMPASS_DIAL).finished.then(() => { busy = false; }, () => { busy = false; });
+    });
+  })();
   function kick() { if (!raf) raf = requestAnimationFrame(t => { last = t; frame(t); }); }
   new IntersectionObserver(es => { visible = es[0].isIntersecting; if (visible) kick(); }).observe($('sky'));
   document.addEventListener('visibilitychange', kick);

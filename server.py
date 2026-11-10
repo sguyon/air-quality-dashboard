@@ -477,10 +477,41 @@ def _fetch_pollen():
     return {"today": _pollen_types(daily[0]), "tomorrow": _pollen_types(daily[1]) if len(daily) > 1 else []}
 
 
-def get_pollen_days():
-    """{"today": [...], "tomorrow": [...]} from Google (a daily forecast), cached per local day."""
+# The local dev server (`flask run --reload`, which sets WERKZEUG_RUN_MAIN in the process that serves) restarts on every
+# .py edit and would ask Google for the day's pollen again each time: with the Pollen API capped at 150 calls a day
+# (SETUP.md), a day of edits could use them up. There it keeps the day's answer in a gitignored file. Production
+# (gunicorn) never sets the variable and stores nothing.
+DEV_CACHE_DIR = Path(__file__).parent / ".cache"
+
+
+def _dev_server():
+    return os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+
+
+def _fetch_pollen_kept():
+    """_fetch_pollen, kept on disk for the day on the local dev server only."""
+    if not _dev_server():
+        return _fetch_pollen()
+    f = DEV_CACHE_DIR / f"pollen-{local_now():%Y-%m-%d}-{HOME_LAT:.2f}-{HOME_LON:.2f}.json"   # the day's, like the cache
     try:
-        value, _ = cached("pollen:" + local_now().strftime("%Y-%m-%d"), _fetch_pollen, ttl=3 * 3600, swr=12 * 3600,
+        return json.loads(f.read_text())
+    except (OSError, ValueError):
+        pass
+    value = _fetch_pollen()
+    try:
+        DEV_CACHE_DIR.mkdir(exist_ok=True)
+        f.write_text(json.dumps(value))
+    except OSError:
+        pass
+    return value
+
+
+def get_pollen_days():
+    """{"today": [...], "tomorrow": [...]} from Google, kept for the rest of the home's day: it's a daily forecast, so one
+    call a day per running server (plus restarts and the Refresh button), in every season. A new day is a new key."""
+    try:
+        # the key is the day's, so an answer never outlives its day: a day's ttl keeps it until the key changes
+        value, _ = cached("pollen:" + local_now().strftime("%Y-%m-%d"), _fetch_pollen_kept, ttl=24 * 3600,
                           keep=24 * 3600, force=_force(), force_floor=600, wait=7)
         return value if isinstance(value, dict) else {"today": value or [], "tomorrow": []}
     except Exception:
@@ -562,10 +593,12 @@ def api_headers(resp):
 
 
 def icon_env():
-    """"dev" or "preview" or None (a normal deployment). A local address is always "dev"; anywhere else the
-    deployment names itself with APP_ENV, never by its address."""
+    """"dev" or "preview" or None (a normal deployment). The reloading dev server (`flask run --reload`) at a local
+    address is "dev"; otherwise a deployment names itself with APP_ENV, never by its address: a home that runs the app
+    on its own network (a laptop, a small home server at 192.168.…) is a normal deployment."""
     host = (request.host or "").split(":")[0].lower()
-    if host in ("localhost", "127.0.0.1", "0.0.0.0") or host.startswith(("127.", "10.", "192.168.")) or re.match(r"^172\.(1[6-9]|2\d|3[01])\.", host):
+    local = host in ("localhost", "127.0.0.1", "0.0.0.0") or host.startswith(("127.", "10.", "192.168.")) or re.match(r"^172\.(1[6-9]|2\d|3[01])\.", host)
+    if local and _dev_server():
         return "dev"
     env = os.environ.get("APP_ENV", "").strip().lower()
     return env if env in ENV_LABEL else None

@@ -623,6 +623,9 @@ body { position: relative; }
 .c-ticks { stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; }
 .compass text { font: 600 9px Inter, sans-serif; fill: var(--muted); }
 #needle { transform-origin: 32px 32px; transition: transform 1.1s cubic-bezier(.34, 1.4, .5, 1); }
+.c-dial { transform-origin: 32px 32px; }
+.compass { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }   /* a tap spins it (sky.js) */
+@media (hover: hover) { .compass { cursor: pointer; } }
 .c-head { fill: var(--accent); }
 .c-tail { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
 .c-hub { fill: var(--ink); }
@@ -1090,7 +1093,7 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
 .grid4 > .card { display: flex; flex-direction: column; }
 /* The demo's banner: a full-bleed strip above the page (as Stripe's "Test mode" bar). Its own solid fill is the
    separation: no border, no colored edge. Left to right: the Demo tag, Sample data 1 2 3, the live option and its
-   dropdown, Source and setup. The picker opens as a panel under the dropdown (static/picker.js). */
+   dropdown, the GitHub link. The picker opens as a panel under the dropdown (static/picker.js). */
 :root, :root[data-theme="light"] { --demo-bar: #13283b; --demo-bar-ink: #eef3f8; --demo-bar-soft: rgba(238, 243, 248, .72);
   --demo-bar-chip: rgba(255, 255, 255, .12); --demo-bar-chip-hover: rgba(255, 255, 255, .2); --demo-bar-rule: rgba(255, 255, 255, .18); --demo-bar-live: #4fd1a1; }
 :root[data-theme="dark"] { --demo-bar: #222d39; --demo-bar-soft: rgba(238, 243, 248, .7); --demo-bar-chip: rgba(255, 255, 255, .09); --demo-bar-chip-hover: rgba(255, 255, 255, .16); }
@@ -1122,15 +1125,17 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
 .db-octo { width: 16px; height: 16px; flex: none; }
 @media (max-width: 900px) { .db-inner { padding: 7px 16px; } }
 @media (max-width: 700px) {
-  /* two lines: Demo, Sample data and Source and setup; then the live option */
-  .db-inner { padding: 8px 12px; flex-wrap: wrap; gap: 8px; font-size: 12px; }   /* tight enough for line 1 to fit at 375 px */
-  .db-sample { order: 1; gap: 7px; }
+  /* one line down to 375 px (measured: Demo + 1 2 3, "Or live:" and the dropdown, the GitHub mark); it wraps below that */
+  .db-inner { padding: 8px 10px; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+  .db-sample { gap: 5px; }
   .db-tag { padding: 5px 6px; }
-  .db-gh { order: 2; gap: 6px; }
-  .db-end { order: 3; flex: 1 1 100%; justify-content: space-between; gap: 8px; }
-  .db-live { margin: 0; padding: 0; border: 0; white-space: normal; }
-  .db-pickwrap { position: static; flex: none; max-width: 60%; }
-  .db-seg a { min-width: 26px; padding: 6px; }
+  .db-label { display: none; }   /* the 1 2 3 sit next to DEMO: their label is what made the line too long */
+  .db-seg a { min-width: 24px; padding: 6px 5px; }
+  .db-end { flex: 1 1 auto; gap: 6px; }
+  .db-live { margin: 0; padding: 0; border: 0; }
+  .db-pickwrap { position: static; flex: 0 1 auto; }
+  .db-pick { gap: 5px; padding: 6px 6px 6px 8px; }
+  .db-gh-t { display: none; }
 }
 
 /* The picker: a panel like the Home menu's, under the dropdown (the full strip's width on a phone) */
@@ -2310,3 +2315,18 @@ html.outside-dark .mc-out .mc-status.warn { color: var(--warn); }
 .nbt td.loc .nb-used { color: var(--muted); font-weight: 400; }
 .hist-est { margin: -4px 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
 .hist-est[hidden] { display: none; }
+/* ── Text on the sky follows what is behind it, in both themes ──
+   sky.js (measureInk) rebuilds the sky behind the title, the weather line and the sky control, then sets html.sky-ink,
+   --sky-ink (dark over a bright sky, light over a dark one; light also sets html.sky-dark) and --sky-halo, whose strength
+   brings the worst spot to 4.5:1. So a dark-theme page under a bright fog gets dark text, a light one at night light text. */
+html.sky-ink .bar .site, html.sky-ink .now-bar .now-h, html.sky-ink .now-bar .sky-cap, html.sky-ink .now-bar .cap-i.air,
+html.sky-ink .now-line .dsp-top, html.sky-ink .now-line .dsp-top .theme-quick, html.sky-ink .now-line .dsp-open, html.sky-ink .now-line .dsp-open .chev { color: var(--sky-ink) !important; }
+html.sky-ink .bar .site, html.sky-ink .now-bar .now-h, html.sky-ink .now-bar .sky-cap { text-shadow: 0 0 2px var(--sky-halo), 0 0 6px var(--sky-halo), 0 0 12px var(--sky-halo) !important; }
+html.sky-ink .now-line .dsp-top { background: rgba(var(--sky-halo-rgb), .32) !important; border-color: color-mix(in srgb, var(--sky-ink) 22%, transparent) !important; }
+:root.sky-ink.wx-full .now-bar::before { background: rgba(var(--sky-halo-rgb), .6) !important; }
+/* the status icons keep their tone, a shade that holds on a bright sky */
+html.sky-ink:not(.sky-dark) .now-bar .cap-i.air.warn svg.i { color: #b45309; }
+html.sky-ink:not(.sky-dark) .now-bar .cap-i.air.bad svg.i { color: #b42318; }
+/* the logo's frame follows the ink too (the dark theme draws it light) */
+html.sky-ink:not(.sky-dark) .site svg.mark .mk-fr, html.sky-ink:not(.sky-dark) .site svg.mark .mk-br { stroke: #0f2233; }
+html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }

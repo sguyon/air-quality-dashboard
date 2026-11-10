@@ -114,7 +114,8 @@
   // greys the outdoor picture too and names where its outdoor PM2.5 comes from (`outWords`, sourceLine's menu words).
   function monitorPill(place, indoor, outdoor, now, icons, outWords) {
     const noOut = place.outdoor === null;
-    return [['one', 'Indoor · AirGradient ONE', indoor, place.indoor === null], ['openair', noOut ? 'Outdoor PM2.5' : 'Outdoor · AirGradient Open Air', outdoor, noOut]]
+    // an indoor-only home's outdoor slot is its source: live when a chosen public monitor reports, greyed for an estimate
+    return [['one', 'Indoor · AirGradient ONE', indoor, place.indoor === null], ['openair', noOut ? 'Outdoor PM2.5' : 'Outdoor · AirGradient Open Air', outdoor, noOut && !(outdoor && outdoor.timestamp)]]
       .map(([id, name, m, absent]) => { const f = freshness(m, now, absent), label = id === 'openair' && noOut && outWords ? outWords : f.label;
         return `<span class="vhw${f.tone === 'off' ? ' off' : ''}" data-tip="${name}: ${label}">${(icons && icons[id]) || ''}<i class="${f.tone}"></i></span>`; }).join('');
   }
@@ -312,6 +313,10 @@
   function nbMoreText(extra, total) {
     return `Show ${extra} more of ${total} within ${NB_RADIUS_KM} km`;
   }
+  // Without a "Show more" button (8 monitors or fewer), the count goes in front of the credit line under the table
+  function nbCountText(total) {
+    return total > 0 ? `${total} public monitor${total === 1 ? '' : 's'} within ${NB_RADIUS_KM} km` : '';
+  }
 
   const NB_COLS = 8;   // the neighborhood table's columns (dot, dist, location, PM2.5, temp, humidity, bar, toggle): the open band spans them
   const MIN_PER_H = 60;   // minutes in an hour: a last reading over an hour old reads "1 h 25 min ago"
@@ -416,7 +421,7 @@
     return { word: 'Unhealthy', tone: 'bad' };
   }
 
-  const api = { MAP_PAGE, NB_USED, NO_OUT_YET, pickEntries, rowOff, nbSplit, sourceLine, sourceStatus, histUrl, estimateNow, estimateNote, profileOff, ghostWords, pmOver, pmLevel, pollenHigh, creditHtml, freshness, monitorPill, monitorsLive, monitorRow, safeUrl, monitorCredit, noHistoryHTML, selfWords, nbPm, nbYou, nbLead, nbMoreText, nbRowHTML, nbDetailHTML, lastReadingText, pollenSeasonHTML, sourceOff, sourcesOn, sourcesLabel, smokeText, smokeMapText, pollenBarsTitle, profilesFor, bearingIn, compassIn, compassAway, hourRange, cap, roadClockText, roadWindText, roadWhyText, roadLabel };
+  const api = { nbCountText, MAP_PAGE, NB_USED, NO_OUT_YET, pickEntries, rowOff, nbSplit, sourceLine, sourceStatus, histUrl, estimateNow, estimateNote, profileOff, ghostWords, pmOver, pmLevel, pollenHigh, creditHtml, freshness, monitorPill, monitorsLive, monitorRow, safeUrl, monitorCredit, noHistoryHTML, selfWords, nbPm, nbYou, nbLead, nbMoreText, nbRowHTML, nbDetailHTML, lastReadingText, pollenSeasonHTML, sourceOff, sourcesOn, sourcesLabel, smokeText, smokeMapText, pollenBarsTitle, profilesFor, bearingIn, compassIn, compassAway, hourRange, cap, roadClockText, roadWindText, roadWhyText, roadLabel };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   Object.assign(root, api);
 })(typeof window !== 'undefined' ? window : globalThis);

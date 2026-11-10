@@ -571,6 +571,8 @@ function drawNbRows() {
   more.innerHTML = state.nbAll ? 'Show the nearest 8 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>'
     : `${nbMoreText(extra, state.nbCount)} <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   more.setAttribute('aria-expanded', String(!!state.nbAll));
+  const credit = $('nb-credit'), count = extra <= 0 ? nbCountText(state.nbCount) : '';   // the count, when no Show more carries it
+  if (credit) credit.innerHTML = (count ? count + ' · ' : '') + creditHtml(!!APP.now);
   [...$('nb').querySelectorAll('tr[data-id]')].forEach((tr, i) => { tr.classList.toggle('nb-extra', i >= 8); });   // an open row's band hides with it (app.css)
 }
 

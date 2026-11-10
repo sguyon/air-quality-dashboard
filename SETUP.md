@@ -9,7 +9,7 @@ Two rules for the whole setup:
 
 ## 0. Get the code
 
-If you're not already in a copy of this repo, clone it and work from there:
+If you're not already in a copy of this repo, clone it and work from there. Every command below runs in the repo folder:
 
 ```bash
 git clone https://github.com/sguyon/home-air-quality
@@ -29,17 +29,22 @@ Everything about the home goes in `config.toml`. The comments in it say what eac
 Ask the user for their address (a street corner or a neighborhood is enough). Then fill `[place]`:
 
 - `name`: what the page calls the home, usually the neighborhood ("Maplewood").
-- `lat`, `lon`: the address's coordinates, **rounded to 2 decimals** (about 1 km). The page shows them, and weather, pollen and smoke don't need more. `scripts/check_config.py` flags more decimals.
+- `lat`, `lon`: the address's coordinates, from your own knowledge or the user's map app (say which), **rounded to 2 decimals** (about 1 km). The page shows them, and weather, pollen and smoke don't need more. `scripts/check_config.py` flags more decimals.
 - `timezone`: the IANA name for the address ("America/Chicago").
-- `indoor`, `outdoor`: ask the user which monitors they have: an indoor one, an outdoor one, or both. Each line says what to call that monitor in sentences ("bedroom", "balcony"). Delete the line of a monitor they don't have; one must stay. The page finds the monitors through the token on its own: the first one AirGradient lists as indoor and the first as outdoor.
+- `indoor`, `outdoor`: ask the user which monitors they have: an indoor one, an outdoor one, or both. Each line says what to call that monitor in sentences ("bedroom", "balcony"). Delete the line of a monitor they don't have, with the comment line above it; one must stay. The page finds the monitors through the token on its own: the first one AirGradient lists as indoor and the first as outdoor.
 - `pollen_zip`: the US ZIP code, for the pollen.com link. Delete the line outside the US.
 - `region` (optional): the city or region, used in a few sentences ("the usual Chicago season"). Leave it out for neutral wording.
 
-The `[[pollen_seasons]]` dates in the example are for the northeastern US. Adjust them for another region if the user knows the local seasons; they're typical dates, not a forecast.
+The `[[pollen_seasons]]` dates in the example are for the northeastern US; they're typical dates, not a forecast. For a home elsewhere, adjust them from what you know of the region's seasons (or the user does) and tell the user what you changed, or delete the blocks: the pollen card then shows no season calendar.
+
+Outside the US, make the changes in [Outside the US](#outside-the-us) (end of this file) now, while you're in the config.
 
 Keep a copy of `config.toml` somewhere private (a password manager note, a private repo): it isn't in git, so it has no history and no backup.
 
 ### Indoor monitor only: where outdoor PM2.5 comes from
+
+Skip this part when the home has an outdoor monitor.
+
 
 Without an outdoor monitor, the page reads outdoor PM2.5 from a source chosen now and kept: a nearby public AirGradient monitor, an estimate for the area, or Open-Meteo's model alone. Once `lat` and `lon` are filled, run:
 
@@ -62,7 +67,7 @@ Public outdoor monitors reporting now within 15 km, nearest first:
 
 Until `outdoor_from` is written, the same run also prints `Problem: … no outdoor monitor, so sources.outdoor_from is needed …`: expected at this point.
 
-Show the user the listed monitors (name, distance, last reading) and the suggestion with its reason in plain words (the monitor's name and distance, or why it's an estimate). Then write their choice under `[sources]`: `outdoor_from = <id>` for a monitor (a number, no quotes; another listed monitor's id if they prefer it), or `outdoor_from = "area"` or `"model"`. The page labels both "Estimate for your area" (the model with "Open-Meteo" after it). If the chosen monitor stops reporting, the page shows an estimate for the area until it's back, and step 7's check says when it has been silent for 7 days, with the next best.
+Show the user the listed monitors (name, distance, last reading) and the suggestion with its reason in plain words (the monitor's name and distance, or why it's an estimate). Then write their choice (the suggestion, if they have no preference) under `[sources]`: `outdoor_from = <id>` for a monitor (a number, no quotes; another listed monitor's id if they prefer it), or `outdoor_from = "area"` or `"model"`. The page labels both "Estimate for your area" (the model with "Open-Meteo" after it). If the chosen monitor stops reporting, the page shows an estimate for the area until it's back, and step 7's check says when it has been silent for 7 days, with the next best.
 
 ### Outdoor monitor only
 
@@ -75,6 +80,8 @@ Ask the user: "Which profiles fit your home: a toddler, sinus allergies, a runne
 - `toddler`: a small child at home. CO₂ and the air at sleep time, and whether outdoor air is fine for them.
 - `sinus`: sinus trouble or allergies. Humidity and pollen.
 - `runner`: someone who runs outdoors. When outdoor PM2.5, smoke and a road's rush hours make a run worth it.
+
+Without an indoor monitor, say so when you ask: the toddler profile reads CO₂ indoors, so it shows greyed ("Needs an indoor monitor") and gives no actions until one is added. Sinus & allergy then goes on pollen alone. They can still pick both.
 
 These are the only profiles the page knows. A new one is a code change (see "Adding a profile" below). A config from before this name may say `[needs]` instead: it still works, and `scripts/check_config.py` notes the old name.
 
@@ -109,11 +116,13 @@ The page reads the monitors through AirGradient's API, with the user's token.
 
 Don't copy `.env.example` to `.env`: the first line for a key wins, so a placeholder line above the real one hides it (the server and `scripts/check_config.py` treat placeholders as missing). If `.env` already has an `AIRGRADIENT_TOKEN` line, the user replaces it instead of adding a second one.
 
+If the user will add the token later, give them the `read -rs` line above and tell them to restart the server afterwards; everything else can be set up now.
+
 ## 6. Pollen: now or later
 
-Ask the user: set up pollen now, or later? Skipping is fine. Without a key the pollen card says "Off" ("Needs a Google Pollen key") and keeps its season calendar, and the sinus & allergy profile goes on humidity only. To turn pollen off entirely, set `pollen = false` under `[sources]`.
+Ask the user: set up pollen now, or later? Skipping is fine. Without a key the pollen card says "Off" ("Needs a Google Pollen key") and keeps its season calendar, and the sinus & allergy profile goes on humidity only. To turn pollen off entirely, set `pollen = false` under `[sources]`. For "later", leave `pollen` as it is: adding the key later needs only a restart.
 
-The key comes from Google's Pollen API. It needs a Google Cloud project with billing turned on. The API has a free monthly allowance, and the app makes about one call a day, since it keeps each day's pollen.
+The key comes from Google's Pollen API. It needs a Google Cloud project with billing turned on. Google gives 5,000 calls a month free, then charges $10 per 1,000 (Google's price list, checked November 2026). The app keeps each day's pollen until midnight, so each running copy (your computer, a server) makes about one call a day, plus one after each restart or deploy, and one when the page's Refresh button is pressed more than 10 minutes after the last. The setup below caps the calls at 150 a day and limits the key to the Pollen API, so a bug or a leaked key can't run up a bill.
 
 **With `gcloud`** (the agent runs the commands, except the two the user does):
 
@@ -134,6 +143,19 @@ The key comes from Google's Pollen API. It needs a Google Cloud project with bil
    The output of `create` and `get-key-string` contains the key. Never run either of them again without the redirect or the `K="$(…)"` capture above, or the key lands in the chat. `describe` confirms the key exists without showing it.
 
    If `.env` already has a `GOOGLE_POLLEN_API_KEY` line, remove it first without printing anything: `{ grep -v '^GOOGLE_POLLEN_API_KEY=' .env || true; } > .env.tmp && mv .env.tmp .env`.
+5. Cap the calls: at most 150 pollen forecasts a day (under 5,000 a month, the free allowance), and no heatmap calls (the app doesn't use them). The quota commands are in gcloud's beta group: `gcloud components install beta` if it's missing.
+
+   ```bash
+   gcloud beta quotas preferences create --project=<id> --service=pollen.googleapis.com \
+     --quota-id=ForecastQueriesPerDay --preferred-value=150 --preference-id=pollen-forecast-daily-cap \
+     --allow-high-percentage-quota-decrease
+   gcloud beta quotas preferences create --project=<id> --service=pollen.googleapis.com \
+     --quota-id=HeatMapQueriesPerDay --preferred-value=0 --preference-id=pollen-heatmap-off \
+     --allow-high-percentage-quota-decrease
+   gcloud beta quotas info list --service=pollen.googleapis.com --project=<id> --format='table(quotaId,dimensionsInfos[0].details.value)'
+   ```
+
+   The last command shows the limits: 150 for `ForecastQueriesPerDay`, 0 for `HeatMapQueriesPerDay`. When a day's 150 are used, the pollen card says "No data" until the next day; nothing is charged. If the project already used more than 150 pollen calls in a recent day, Google refuses the cap; add `--allow-quota-decrease-below-usage` to the first command, and tell the user, since something called pollen far more than the app does.
 
 **Without `gcloud`**, give the user these steps in the Cloud console (https://console.cloud.google.com):
 
@@ -141,6 +163,7 @@ The key comes from Google's Pollen API. It needs a Google Cloud project with bil
 2. APIs & Services → Library → "Pollen API" → Enable.
 3. APIs & Services → Credentials → Create credentials → API key. Edit the key: under API restrictions, restrict it to the Pollen API.
 4. Copy the key into `.env` as `GOOGLE_POLLEN_API_KEY=<key>`, the same way as the token.
+5. Cap the calls: APIs & Services → Pollen API → Quotas & System Limits. Set the forecast's per-day limit ("Pollen - Forecast Usage", per day) to 150 and the heatmap's per-day limit ("Pollen - HeatMap Usage", per day) to 0.
 
 ## 7. Check the config
 
@@ -167,7 +190,9 @@ pip install -r requirements.txt
 python server.py
 ```
 
-Then open http://localhost:5555. Set `PORT` to use another port (`PORT=5600 uv run …`). The page answers only on this computer; to open it from a phone on the same network, start it with `HOST=0.0.0.0` and open `http://<this computer's address>:5555` on the phone. The server reads `config.toml` and `.env` when it starts: restart it after changing them. Flask may print a line about python-dotenv; ignore it, the server reads `.env` itself.
+Then open http://localhost:5555. Set `PORT` to use another port (`PORT=5600 uv run …`). The page answers only on this computer; to open it from a phone on the same network, start it with `HOST=0.0.0.0` and open `http://<this computer's address>:5555` on the phone. The server reads `config.toml` and `.env` when it starts: restart it after changing them. To stop it, press Ctrl+C in its terminal (or stop the process you started). Flask may print a line about python-dotenv; ignore it, the server reads `.env` itself.
+
+**Check it's running** without a browser: `curl -s http://localhost:5555/health` answers `{"airgradient_token_set":false,"status":"ok"}` until the token is in `.env` (`true` after a restart).
 
 **What the user should see:**
 
@@ -185,8 +210,9 @@ If a monitor named in `[place]` is missing on the page, check that the token's a
 The page is built for the US. Outside it, in `config.toml`:
 
 - set `smoke = false` under `[sources]` (NOAA's smoke map covers North America);
-- set `pollen = false` under `[sources]`;
-- delete the `pollen_zip` line.
+- pollen: Google's Pollen API covers more than 65 countries, so keep it if the user wants pollen (step 6); otherwise set `pollen = false` under `[sources]`;
+- delete the `pollen_zip` line (pollen.com is US-only);
+- adjust or delete the `[[pollen_seasons]]` blocks (northeastern US dates; see step 2).
 
 The weather card's forecast link still goes to the US National Weather Service, which has no page for other places. Open-Meteo (weather and the PM2.5 forecast) and AirGradient's nearby monitors work everywhere.
 

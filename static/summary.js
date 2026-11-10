@@ -261,8 +261,8 @@
   function itemHtml(it, now, profiles) {
     const when = staleWhen(it.action, now);
     return `<div class="sx-row">
-      <div class="sx-lab"><span>${it.key ? `<i class="sx-key ${it.key}"></i>` : ''}${esc(it.label)}${it.forecast ? ' · <span class="sx-fct">forecast</span>' : ''}</span>${itemProfileHtml(it, profiles)}</div>
-      <div class="sx-num">${it.forecast ? `<span class="sx-fcn">${esc(it.num)}</span>` : esc(it.num)}<small>${esc(it.unit)}</small></div>
+      <div class="sx-lab"><span>${it.key ? `<i class="sx-key ${it.key}${it.forecast ? ' fc' : ''}"></i>` : ''}${esc(it.label)}${it.forecast ? ' · <span class="sx-fct">forecast</span>' : ''}</span>${itemProfileHtml(it, profiles)}</div>
+      <div class="sx-num">${esc(it.num)}<small>${esc(it.unit)}</small></div>
       <div class="sx-ctx">${esc(it.ctx)}</div>
       ${it.action && it.action.text ? `<div class="sx-do">${esc(it.action.text)}${when ? ` <span class="sx-when">· ${esc(when)}</span>` : ''}</div>` : ''}
     </div>`;

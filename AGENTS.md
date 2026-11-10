@@ -27,6 +27,7 @@ If the maintainer's private rules (`internal/AGENTS.local.md`) list services, up
 - Never read, print or `cat` `.env` or `.env.*`. Repo settings deny it to Claude Code; every other agent follows this line.
 - Never ask the user to paste a key into the chat. The user types keys into `.env` themselves, or a command writes them there without showing them (see `SETUP.md`).
 - `scripts/check_config.py` says whether each key is set, never its value. Use it instead of looking.
+- A paid key gets a cap when it's created: the pollen key is limited to the Pollen API and to 150 calls a day (`SETUP.md`, step 6). Check both on an existing key too: `gcloud services api-keys list` and `gcloud beta quotas info list --service=pollen.googleapis.com`.
 - Never commit `config.toml`, `.env*` or real readings. `config.toml` and `.env*` are gitignored, and CI fails a PR that adds them.
 
 ## Layout
