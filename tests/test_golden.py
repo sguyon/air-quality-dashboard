@@ -87,13 +87,13 @@ TESTVILLE = {"name": "Testville", "lat": 41.0, "lon": -74.0, "timezone": "Americ
              "indoor": "kitchen", "outdoor": "yard"}
 
 
-def test_no_needs_no_road(monkeypatch, use_config):
+def test_no_profiles_no_road(monkeypatch, use_config):
     use_config(config_from(place=TESTVILLE, road=None,
-                           needs={"toddler": False, "sinus": False, "runner": False}))
+                           profiles={"toddler": False, "sinus": False, "runner": False}))
     for now in MOMENTS.values():
         out = run(monkeypatch, now)
         read, ctx = out["read"], out["context"]
-        assert read["needs"] == [] and read["summary"]["needs"] == []
+        assert read["profiles"] == [] and read["summary"]["profiles"] == []
         assert ctx.get("road") in (None, {"toward": False})
         assert all(f["bqe_toward"] in (False, None) for f in ctx["forecast"])
         said = [s for s in strings(out) if "rush" in s.lower() or "BQE" in s or "Greenpoint" in s]
@@ -104,7 +104,7 @@ def test_place_name_flows_into_text(monkeypatch, use_config):
     use_config(config_from(place=TESTVILLE, road={"name": "I-95", "route": "static/bqe.json",
                                                   "rush": [[7, 10, "morning"], [16, 20, "evening"]], "toward": [80, 200]}))
     morning, evening = run(monkeypatch, gi.MORNING), run(monkeypatch, gi.EVENING)
-    runner = next(n for n in morning["read"]["needs"] if n["id"] == "runner")
+    runner = next(n for n in morning["read"]["profiles"] if n["id"] == "runner")
     assert runner["why"] == "The I-95 rush runs until 10 AM, with the wind toward Testville."
     pm = next(i for i in evening["read"]["summary"]["items"] if i["id"] == "pm")
     assert "I-95 rush" in pm["ctx"] and "I-95 rush-hour fumes" in pm["why"]

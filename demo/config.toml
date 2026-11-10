@@ -11,7 +11,7 @@ outdoor = "balcony"
 pollen_zip = "11211"
 region = "New York"
 
-[needs]
+[profiles]
 toddler = true
 sinus = true
 runner = true

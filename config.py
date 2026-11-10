@@ -11,8 +11,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 ROOT = Path(__file__).resolve().parent   # the app's folder: config.toml, demo/ and relative road routes live here
 
-# the needs the page knows ([needs]); a new one is code (SETUP.md, "Adding a need")
-NEEDS = ("toddler", "sinus", "runner")
+# the profiles the page knows ([profiles]); a new one is code (SETUP.md, "Adding a profile")
+PROFILES = ("toddler", "sinus", "runner")
+# [profiles]' old name (v0.1 configs): still read when [profiles] is absent; [profiles] wins when both are there
+OLD_PROFILES_TABLE = "needs"
 # the keys [limits] may set
 LIMITS = ("co2", "pm", "pm_high", "rh_dry", "rh_good", "rh_damp", "rh_stop", "pollen")
 # the household's thresholds, [limits] in config.toml; config.example.toml says what each one means
@@ -20,6 +22,8 @@ DEFAULT_LIMITS = {"co2": 800, "pm": 15, "pm_high": 35, "rh_dry": 30, "rh_good": 
 SOURCES = ("smoke", "pollen", "nearby")   # outside sources [sources] can turn off
 # what [home] appliances may list: the damp-room action runs the first one the home has. Default: both.
 APPLIANCES = ("dehumidifier", "ac_dry")
+# the named ways to get outdoor PM2.5 without an outdoor monitor of your own ([sources] outdoor_from); the other way is a public monitor's id
+OUTDOOR_FROM_KINDS = ("area", "model")
 
 
 def real_value(value) -> bool:
@@ -38,6 +42,7 @@ class ConfigError(Exception):
     """The message names the source and the problem."""
 
 
+PLACE_DECIMALS = 2   # decimals kept on the home's coordinates: about 1 km, enough for weather, pollen and smoke
 Here = namedtuple("Here", "key lat lon tz")   # a place the fetchers can look at: a cache key, coordinates, a timezone name
 
 
@@ -47,8 +52,8 @@ class Place:
     lat: float
     lon: float
     timezone: str
-    indoor: str
-    outdoor: str
+    indoor: str | None    # None: no indoor monitor
+    outdoor: str | None   # None: no outdoor monitor; Config.outdoor_from says where outdoor PM2.5 comes from
     pollen_zip: str | None
     region: str | None = None   # city or region for a few sentences ("the usual New York season"); None: neutral wording
 
@@ -68,11 +73,12 @@ class Config:
     demo: bool
     place: Place
     road: Road | None
-    needs: dict[str, bool]
+    profiles: dict[str, bool]
     limits: dict[str, float]
     pollen_seasons: tuple[dict, ...]
     sources: dict[str, bool]
     appliances: tuple[str, ...] = APPLIANCES
+    outdoor_from: int | str | None = None   # without an outdoor monitor: a public monitor's locationId, "area" or "model"
 
 
 def _clean(text: str) -> str:
@@ -170,6 +176,24 @@ def _appliances(home: dict, source: str) -> tuple[str, ...]:
     return tuple(x for x in APPLIANCES if x in v)
 
 
+def _outdoor_from(sources_t: dict, place: Place, source: str) -> int | str | None:
+    """sources.outdoor_from: needed without an outdoor monitor, ignored with one."""
+    if place.outdoor is not None:
+        return None
+    if "outdoor_from" not in sources_t:
+        raise ConfigError(f"{source}: no outdoor monitor, so sources.outdoor_from is needed: a public monitor's id, \"area\" or \"model\"")
+    v = sources_t["outdoor_from"]
+    if (isinstance(v, int) and not isinstance(v, bool) and v > 0) or v in OUTDOOR_FROM_KINDS:
+        return v
+    raise ConfigError(f"{source}: sources.outdoor_from must be a public monitor's id, \"area\" or \"model\"")
+
+
+def _monitor_name(p: dict, key: str) -> str | None:
+    """A monitor's name from [place], or None when the line is missing or blank (blanking it is deleting it)."""
+    name = str(p.get(key, ""))
+    return name if name.strip() else None
+
+
 def _parse(text: str, source: str, root: Path, demo: bool) -> Config:
     try:
         raw = tomllib.loads(_clean(text))
@@ -180,25 +204,30 @@ def _parse(text: str, source: str, root: Path, demo: bool) -> Config:
         raise ConfigError(f"{source}: missing [place]")
     place = Place(
         name=str(_need(p, "name", "place", source)),
-        lat=_num(_need(p, "lat", "place", source), "place.lat", source),
-        lon=_num(_need(p, "lon", "place", source), "place.lon", source),
+        # rounded to about 1 km whatever the file says: the place leaves the server (weather, pollen) and shows on the page
+        lat=round(_num(_need(p, "lat", "place", source), "place.lat", source), PLACE_DECIMALS),
+        lon=round(_num(_need(p, "lon", "place", source), "place.lon", source), PLACE_DECIMALS),
         timezone=str(_need(p, "timezone", "place", source)),
-        indoor=str(_need(p, "indoor", "place", source)),
-        outdoor=str(_need(p, "outdoor", "place", source)),
+        indoor=_monitor_name(p, "indoor"),
+        outdoor=_monitor_name(p, "outdoor"),
         pollen_zip=str(p["pollen_zip"]) if p.get("pollen_zip") else None,
         region=_region(p.get("region"), source),
     )
+    if place.indoor is None and place.outdoor is None:
+        raise ConfigError(f"{source}: [place] needs indoor, outdoor or both (the names of your monitors)")
     try:
         ZoneInfo(place.timezone)
     except (ValueError, ZoneInfoNotFoundError) as e:
         raise ConfigError(f"{source}: place.timezone {place.timezone!r} is not a timezone name, like America/Chicago") from e
-    needs_t, limits_t, sources_t, home_t = (_table(raw, n, source) for n in ("needs", "limits", "sources", "home"))
-    needs = {k: _flag(needs_t.get(k, True), f"needs.{k}", source) for k in NEEDS}
+    table = "profiles" if "profiles" in raw or OLD_PROFILES_TABLE not in raw else OLD_PROFILES_TABLE
+    profiles_t, limits_t, sources_t, home_t = (_table(raw, n, source) for n in (table, "limits", "sources", "home"))
+    profiles = {k: _flag(profiles_t.get(k, True), f"{table}.{k}", source) for k in PROFILES}
     limits = {k: _num(limits_t.get(k, DEFAULT_LIMITS[k]), f"limits.{k}", source) for k in LIMITS}
     order = limit_order_problems(limits)
     if order:
         raise ConfigError(f"{source}: " + "; ".join(order))
     sources = {k: _flag(sources_t.get(k, True), f"sources.{k}", source) for k in SOURCES}
+    outdoor_from = _outdoor_from(sources_t, place, source)
     road = None
     if "road" in raw:
         r = _table(raw, "road", source)
@@ -234,7 +263,7 @@ def _parse(text: str, source: str, root: Path, demo: bool) -> Config:
     seasons = raw.get("pollen_seasons", [])
     if not isinstance(seasons, list):
         raise ConfigError(f"{source}: pollen_seasons must be a list of [[pollen_seasons]] blocks")
-    return Config(source, demo, place, road, needs, limits, tuple(seasons), sources, _appliances(home_t, source))
+    return Config(source, demo, place, road, profiles, limits, tuple(seasons), sources, _appliances(home_t, source), outdoor_from)
 
 
 def load_config(env: Mapping[str, str] = os.environ, root: Path = ROOT) -> Config | None:
@@ -309,11 +338,14 @@ def public_view(cfg: Config, root: Path = ROOT) -> dict:
         },
         "links": place_links(p),
         "road": None,
-        "needs": dict(cfg.needs),
+        "profiles": dict(cfg.profiles),
         "limits": dict(cfg.limits),
         "pollen_seasons": list(cfg.pollen_seasons),
         "sources": dict(cfg.sources),
     }
+    if cfg.outdoor_from is not None:
+        of = cfg.outdoor_from
+        view["outdoor_from"] = {"kind": of if isinstance(of, str) else "monitor", "id": None if isinstance(of, str) else of}
     if cfg.road:
         view["road"] = {"name": cfg.road.name, "kind": cfg.road.kind, "toward": list(cfg.road.toward), "rush": [list(r) for r in cfg.road.rush],
                         "distance_km": road_distance_km(p.lat, p.lon, cfg.road, root)}

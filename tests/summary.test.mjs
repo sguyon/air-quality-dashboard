@@ -34,34 +34,34 @@ test('clock to ten minutes', () => {
   assert.equal(shareOfLimit(1240, 800), 1.55);
 });
 
-const { needsHeadHtml, itemNeedHtml } = require('../static/summary.js');
-const NEEDS = [
+const { profilesHeadHtml, itemProfileHtml } = require('../static/summary.js');
+const PROFILES = [
   { id: 'toddler', name: 'Toddler', ok: false, state: 'Stale indoors', why: 'Stale air can make sleep lighter.' },
   { id: 'sinus', name: 'Sinus & allergy', ok: true, state: 'All fine', why: 'Humidity is fine.' },
   { id: 'runner', name: 'Runner', ok: null, state: 'No reading', why: 'No reading.' },
 ];
 
-test('header shows the three needs as icons, amber when not met', () => {
-  const h = needsHeadHtml(NEEDS);
+test('header shows the three profiles as icons, amber when not met', () => {
+  const h = profilesHeadHtml(PROFILES);
   assert.equal((h.match(/<summary/g) || []).length, 3);
   assert.match(h, /sx-nh-i warn/); assert.match(h, /sx-nh-i ok/); assert.match(h, /sx-nh-i muted/);
   assert.match(h, /<strong>Sinus &amp; allergy: All fine\.<\/strong> Humidity is fine\./);
   assert.doesNotMatch(h, /Stale indoors<\/summary>/);   // icons only up top
-  // each icon names its need and state for screen readers and on hover
+  // each icon names its profile and state for screen readers and on hover
   assert.match(h, /aria-label="Toddler: Stale indoors" title="Toddler: Stale indoors"/);
   assert.match(h, /aria-label="Sinus &amp; allergy: All fine"/);
 });
 
-test('an item names its need instead of the (i), and opens both sentences', () => {
-  const h = itemNeedHtml({ need: 'toddler', why: 'Above 800 the air feels stale.' }, NEEDS);
+test('an item names its profile instead of the (i), and opens both sentences', () => {
+  const h = itemProfileHtml({ profile: 'toddler', why: 'Above 800 the air feels stale.' }, PROFILES);
   assert.match(h, /sx-nchip warn/); assert.match(h, /Stale indoors/);
   assert.match(h, /Above 800 the air feels stale\.<span class="sx-nl"><strong>Toddler:<\/strong> Stale air/);
   assert.doesNotMatch(h, /r="6\.5"/);
 });
 
-test('an item without a need keeps the (i)', () => {
-  assert.match(itemNeedHtml({ why: 'Why.' }, NEEDS), /r="6\.5"/);
-  assert.equal(itemNeedHtml({ need: 'toddler' }, NEEDS), '');
+test('an item without a profile keeps the (i)', () => {
+  assert.match(itemProfileHtml({ why: 'Why.' }, PROFILES), /r="6\.5"/);
+  assert.equal(itemProfileHtml({ profile: 'toddler' }, PROFILES), '');
 });
 
 const { fitLabel, rhLabelY, peakAhead, rewire } = require('../static/summary.js');
@@ -94,8 +94,8 @@ test('each redraw drops the previous listeners', () => {
 
 const { kickHtml } = require('../static/summary.js');
 test('the card header can leave its label to the page', () => {
-  assert.match(kickHtml('Today', NEEDS), /<span>Today<\/span>/);
-  const h = kickHtml('Today', NEEDS, false);
+  assert.match(kickHtml('Today', PROFILES), /<span>Today<\/span>/);
+  const h = kickHtml('Today', PROFILES, false);
   assert.doesNotMatch(h, /Today/); assert.match(h, /sx-nh/);
 });
 

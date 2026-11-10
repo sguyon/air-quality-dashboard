@@ -5,7 +5,7 @@ updates these numbers and those tests in the same commit.
 Hours in `story` are hours from midnight of the moment's day (25 is 1 AM the next day). Each list replaces the usual
 day's curve over its span; readings end at the moment, the forecasts go on from it.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -49,6 +49,12 @@ class Moment:
     nearby_road: float        # how much more PM2.5 a monitor beside the BQE reads than one far from it
     rain: tuple | None = None  # (from, to) hours of rain
     story: dict = field(default_factory=dict)   # signal -> ((hour, value), ...)
+    # the home's monitors (the hidden one-monitor cases below): whether it has the indoor one, and without the outdoor
+    # one where its outdoor PM2.5 comes from (a public monitor's id or "model", as [sources] outdoor_from); None: the
+    # balcony monitor
+    indoor: bool = True
+    outdoor_from: int | str | None = None
+    data: str | None = None   # the moment whose made-up readings this one shows (None: its own)
 
 
 MOMENTS = {
@@ -103,9 +109,28 @@ MOMENTS = {
 
 SAMPLES = ("rush", "clear", "humid")   # ?sample=1, 2, 3: the banner's "Sample data 1 2 3"
 
+SOURCE_MONITOR_ID = 900001   # indoor-near's public monitor: made up, no real AirGradient monitor has this id
+
+# Homes with one monitor, reachable only by address (?moment=), not in the banner: the morning rush's readings, seen
+# from an indoor-only home that reads a public monitor 1.1 km away (indoor-near) or the model alone (indoor-model),
+# and from an outdoor-only home (outdoor-only). tests/test_demo.py pins what each says.
+HIDDEN = {
+    "indoor-near": replace(MOMENTS["rush"], key="indoor-near", label="Indoor monitor, public monitor nearby",
+                           outdoor_from=SOURCE_MONITOR_ID, data="rush"),
+    "indoor-model": replace(MOMENTS["rush"], key="indoor-model", label="Indoor monitor, the model outside",
+                            outdoor_from="model", data="rush"),
+    "outdoor-only": replace(MOMENTS["rush"], key="outdoor-only", label="Outdoor monitor only", indoor=False, data="rush"),
+}
+
 
 def moment_for(key, sample=None):
-    """The moment for ?sample= (1 to 3) or ?moment= (a key); the sample wins. Anything unknown (or none) is the default."""
+    """The moment for ?sample= (1 to 3) or ?moment= (a key, a hidden case's too); the sample wins. Anything unknown (or
+    none) is the default."""
     if sample in ("1", "2", "3"):
         key = SAMPLES[int(sample) - 1]
-    return MOMENTS.get(key or DEFAULT) or MOMENTS[DEFAULT]
+    return MOMENTS.get(key or DEFAULT) or HIDDEN.get(key) or MOMENTS[DEFAULT]
+
+
+def data_key(m):
+    """The key of the moment whose made-up readings `m` shows (demo/data.py's generators take it)."""
+    return m.data or m.key

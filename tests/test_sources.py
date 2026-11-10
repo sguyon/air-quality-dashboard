@@ -79,10 +79,10 @@ def test_summary_without_pollen_uses_humidity_only(monkeypatch, client, use_conf
     monkeypatch.setattr(server, "get_pollen_days", lambda *a, **k: {"today": high, "tomorrow": high})
     body = {"format": "read", **SAMPLE_PAYLOAD, "indoor_humidity": 45}
     out = client.post("/api/analyze", json=body).get_json()
-    needs = out["summary"]["needs"]
-    sinus = next(n for n in needs if n["id"] == "sinus")
+    profiles = out["summary"]["profiles"]
+    sinus = next(n for n in profiles if n["id"] == "sinus")
     assert sinus["facts"]["pollen_index"] is None
     assert all(i["id"] != "pollen" for i in out["summary"]["items"])
-    said = list(strings(out["summary"])) + list(strings(out["needs"]))
+    said = list(strings(out["summary"])) + list(strings(out["profiles"]))
     assert not any("{" in s or "  " in s for s in said)
     assert not any("pollen" in s.lower() for s in strings(sinus))

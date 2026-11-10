@@ -12,6 +12,8 @@ Railway is the method the maintainer uses, and the most tested one. Docker is be
 
 **Size:** measured on the maintainer's home (Nov 2026): about 100 MB of memory and almost no CPU, so one household fits easily in Railway's Hobby plan. Railway's free trial is enough to try it; its ongoing free allowance may not cover a service that runs all month. Railway's [plans page](https://docs.railway.com/reference/pricing/plans) has the current terms.
 
+**Storage:** none. The app has no database and writes nothing to disk, so it needs no volume or backup. It keeps what it fetches in memory only, and forgets it on restart.
+
 **Where the settings go:** `railway up` skips the files in `.gitignore`, so neither `config.toml` nor `.env` is uploaded. The settings go into Railway variables instead: `CONFIG_TOML` holds the whole `config.toml`, and each key is its own variable.
 
 1. **You:** install the [Railway CLI](https://docs.railway.com/guides/cli) and sign in with `railway login` (it opens a browser).

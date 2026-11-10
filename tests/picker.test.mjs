@@ -39,7 +39,7 @@ test("banner when the monitor can't be shown: Pick a monitor, and the sample the
 
 const ROWS = [
   { locationId: 5, name: 'Greenpoint <i>Roof</i>', street: 'Greenpoint Ave', contributor: 'Dana <script>x</script>', distance_km: 0.53, pm02: 22, offline: false },
-  { locationId: 7, name: 'Bedford', street: 'N 9th St', contributor: 'Priya', distance_km: 12.4, pm02: 8.26, offline: false },
+  { locationId: 7, name: 'Linden', street: 'Linden St', contributor: 'Priya', distance_km: 12.4, pm02: 8.26, offline: false },
   { locationId: 9, name: 'Gone', street: null, contributor: null, distance_km: 2, pm02: null, offline: true },
 ];
 
@@ -53,7 +53,7 @@ test('rows: name, street · distance, owner, PM2.5 with its band word; the curre
   assert.match(html, /Shared by Dana &lt;script&gt;x&lt;\/script&gt;/);
   assert.doesNotMatch(html, /<script>|<i>Roof/);
   assert.match(html, /Greenpoint Ave · 0\.5 km/);
-  assert.match(html, /N 9th St · 12 km/);
+  assert.match(html, /Linden St · 12 km/);
   assert.match(html, /<b>22<\/b><em>Moderate<\/em>/);
   assert.match(html, /<b>8\.3<\/b><em>Good<\/em>/);
   assert.match(html, /<b>—<\/b><em>Offline<\/em>/);

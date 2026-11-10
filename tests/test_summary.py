@@ -97,8 +97,8 @@ def test_missing_readings():
     assert candidates({"co2": None, "rh": None, "pm_now": None}, pm_outlook(None, [], NOW), None) == []
 
 
-# ── Task 3: timed actions and the needs row ──
-from summary import action, needs_row, fmt_range, last_night, candidates  # noqa: E402
+# ── Task 3: timed actions and the profiles row ──
+from summary import action, profiles_row, fmt_range, last_night, candidates  # noqa: E402
 
 
 def iso(t):
@@ -125,6 +125,21 @@ def test_fmt_range():
 def test_airing_before_dirty_stretch():
     a = action(CO2_ITEM, {"co2": 1240}, ol(over=[(at(16), at(20))]), RUSH, at(15, 40))
     assert a == {"text": "Open a window for 10 min", "when": "before 4 PM", "when_end": iso(at(16))}
+
+
+def test_airing_before_dirty_stretch_on_an_estimate_says_now():
+    """No PM2.5 reading now (an indoor-only home on the area or the model): next to "Windows shut · 4–8 PM" the airing
+    reads "now, before 4 PM", and names the rush only when the stretch starts in a rush with the wind toward home."""
+    rush_toward = action(CO2_ITEM, {"co2": 1240}, ol(over=[(at(16), at(20))]), RUSH, at(15, 40), estimate=True)
+    assert rush_toward == {"text": "Open a window for 10 min", "when": "now, before the 4 PM rush", "when_end": iso(at(16))}
+    rush_away = action(CO2_ITEM, {"co2": 1240}, ol(over=[(at(8), at(11))]), RUSH, at(7, 15), estimate=True)
+    assert rush_away["when"] == "now, before 8 AM"   # the 7–10 rush blows away from home: not the rush's fumes
+    no_rush = action(CO2_ITEM, {"co2": 1240}, ol(over=[(at(13), at(14))]), RUSH, at(12), estimate=True)
+    assert no_rush["when"] == "now, before 1 PM"
+    assert action(CO2_ITEM, {"co2": 1240}, ol(over=[(at(16), at(20))]), [], at(15, 40), estimate=True)["when"] == "now, before 4 PM"
+    # nothing else changes: "now" stays "now", and a home with a reading keeps "before 4 PM"
+    assert action(CO2_ITEM, {"co2": 1240}, ol(), RUSH, at(15, 40), estimate=True)["when"] == "now"
+    assert action(CO2_ITEM, {"co2": 1240}, ol(over=[(at(16), at(20))]), RUSH, at(15, 40))["when"] == "before 4 PM"
 
 
 def test_airing_now_when_clean():
@@ -183,38 +198,38 @@ def test_pollen_action():
 FINE = {"co2": 600, "rh": 45, "pm_now": 3}
 
 
-def need(row, nid):
-    return next(n for n in row if n["id"] == nid)
+def profile(row, pid):
+    return next(n for n in row if n["id"] == pid)
 
 
 def test_runner_says_clean_air_without_a_cutoff():
     # the rush and rain don't end "clean": only PM2.5 itself turns the Runner amber
-    n = need(needs_row(FINE, ol(), None, False, None, at(15)), "runner")
+    n = profile(profiles_row(FINE, ol(), None, False, None, at(15)), "runner")
     assert (n["ok"], n["state"], n["name"]) == (True, "Clean air", "Runner")
 
 
 def test_runner_amber_only_on_numbers():
-    assert need(needs_row(FINE, ol(over=[(at(16), at(20))]), None, False, None, at(15)), "runner")["state"] == "Avoid 4–8 PM"
-    assert need(needs_row(FINE, ol(over=[(at(15), at(20))], now_v=20), None, False, None, at(15)), "runner")["state"] == "Run after 8 PM"
-    n = need(needs_row(FINE, ol(over=[(at(15), at(20))], now_v=40, high=True), None, False, None, at(15)), "runner")
+    assert profile(profiles_row(FINE, ol(over=[(at(16), at(20))]), None, False, None, at(15)), "runner")["state"] == "Avoid 4–8 PM"
+    assert profile(profiles_row(FINE, ol(over=[(at(15), at(20))], now_v=20), None, False, None, at(15)), "runner")["state"] == "Run after 8 PM"
+    n = profile(profiles_row(FINE, ol(over=[(at(15), at(20))], now_v=40, high=True), None, False, None, at(15)), "runner")
     assert (n["ok"], n["state"]) == (False, "Skip today")
 
 
 def test_smoke_alone_stays_green():
-    n = need(needs_row(FINE, ol(), None, True, None, at(15)), "runner")
+    n = profile(profiles_row(FINE, ol(), None, True, None, at(15)), "runner")
     assert n["ok"] is True and n["facts"]["smoke"] is True
 
 
 def test_sinus_states():
-    s = lambda r, p=None: need(needs_row({**FINE, **r}, ol(), p, False, None, at(9)), "sinus")["state"]
+    s = lambda r, p=None: profile(profiles_row({**FINE, **r}, ol(), p, False, None, at(9)), "sinus")["state"]
     assert s({"rh": 64}) == "Too damp" and s({"rh": 24}) == "Too dry"
     assert s({}, {"index": 4, "name": "Tree"}) == "Pollen high" and s({"rh": 64}, {"index": 4, "name": "Tree"}) == "Damp + pollen"
     assert s({}, {"index": 1, "name": "Tree"}) == "Pollen low" and s({}) == "All fine"
-    assert need(needs_row(FINE, ol(), None, False, None, at(9)), "sinus")["name"] == "Sinus & allergy"
+    assert profile(profiles_row(FINE, ol(), None, False, None, at(9)), "sinus")["name"] == "Sinus & allergy"
 
 
 def test_toddler_states():
-    t = lambda r, o=None, night=None: need(needs_row({**FINE, **r}, o or ol(), None, False, night, at(9)), "toddler")["state"]
+    t = lambda r, o=None, night=None: profile(profiles_row({**FINE, **r}, o or ol(), None, False, night, at(9)), "toddler")["state"]
     assert t({"co2": 900}) == "Stale indoors" and t({}) == "Fresh indoors" and t({}, ol(now_v=40, high=True)) == "Dirty outside"
     stale = {"peak": 1150, "share": 1.0, "stale": True}
     assert t({}, night=stale) == "Stale last night" and t({"co2": 900}, night=stale) == "Stale indoors"
@@ -222,18 +237,18 @@ def test_toddler_states():
 
 
 def test_toddler_night_facts():
-    n = need(needs_row(FINE, ol(), None, False, {"peak": 1150, "share": 1.0, "stale": True}, at(9)), "toddler")
+    n = profile(profiles_row(FINE, ol(), None, False, {"peak": 1150, "share": 1.0, "stale": True}, at(9)), "toddler")
     assert n["ok"] is False and n["facts"]["night_peak"] == 1150
 
 
 def test_missing_pills():
-    row = needs_row({"co2": None, "rh": None, "pm_now": None}, pm_outlook(None, [], NOW), None, False, None, at(9))
+    row = profiles_row({"co2": None, "rh": None, "pm_now": None}, pm_outlook(None, [], NOW), None, False, None, at(9))
     assert [(n["ok"], n["state"]) for n in row] == [(None, "No reading")] * 3
 
 
 def test_pill_states_are_short():
     for r in (FINE, {"co2": 900, "rh": 64, "pm_now": 20}):
-        for n in needs_row(r, ol(over=[(at(16), at(20))]), {"index": 4, "name": "Tree"}, False, None, at(15)):
+        for n in profiles_row(r, ol(over=[(at(16), at(20))]), {"index": 4, "name": "Tree"}, False, None, at(15)):
             assert len(n["state"].replace(" PM", "").replace(" AM", "").split()) <= 3
 
 
@@ -334,23 +349,23 @@ def busy(**k):
 
 def test_build_summary_busy():
     s = busy()
-    assert set(s) == {"label", "clock", "items", "also", "needs", "all_clear", "timeline"}
+    assert set(s) == {"label", "clock", "items", "also", "profiles", "all_clear", "timeline"}
     assert s["label"] == "Today" and s["clock"] == "3:40 PM" and not s["all_clear"]
     assert [i["id"] for i in s["items"]] == ["pm", "co2", "rh"]
     pm, co2, rh = s["items"]
     assert pm["forecast"] and pm["ctx"] == "Peak 7 PM, BQE rush · now 4" and pm["action"]["when"].startswith("5")
     assert co2["action"] == {"text": "Open a window for 10 min", "when": "before 5 PM", "when_end": iso(at(17))}
     assert "before 5 PM" in co2["why"] and rh["action"]["text"] == "Run the dehumidifier" and "wetter" in rh["why"]
-    assert [n["state"] for n in s["needs"]] == ["Stale indoors", "Too damp", "Avoid 5–9 PM"]
-    assert [i["need"] for i in s["items"]] == ["runner", "toddler", "sinus"]
-    assert all(n["why"] for n in s["needs"]) and s["timeline"]["rh"] is not None
+    assert [n["state"] for n in s["profiles"]] == ["Stale indoors", "Too damp", "Avoid 5–9 PM"]
+    assert [i["profile"] for i in s["items"]] == ["runner", "toddler", "sinus"]
+    assert all(n["why"] for n in s["profiles"]) and s["timeline"]["rh"] is not None
 
 
 def test_build_summary_tonight_and_clear():
     s = busy(r={"co2": 600, "rh": 45, "pm_now": 3}, cams=[(at(h), 3) for h in range(21, 34)], now=at(21, 30),
              co2_pts=pts(at(18), at(21, 30), 600), rush=[(at(7, day=1), at(10, day=1), True)])
     assert s["label"] == "Tonight" and s["all_clear"] and s["items"] == []
-    assert [n["ok"] for n in s["needs"]] == [True, True, True] and s["needs"][2]["state"] == "Clean air"
+    assert [n["ok"] for n in s["profiles"]] == [True, True, True] and s["profiles"][2]["state"] == "Clean air"
 
 
 def test_tomorrow_pollen_goes_on_also():
@@ -416,13 +431,13 @@ def test_a_value_that_rounds_to_the_limit_is_not_over():
 
 def test_build_summary_after_a_stale_night():
     s = busy(r={"co2": 600, "rh": 45, "pm_now": 3}, now=at(9), co2_pts=night_pts(1000), cams=[(at(h), 3) for h in range(0, 24)])
-    tod = s["needs"][0]
+    tod = s["profiles"][0]
     assert s["all_clear"] and (tod["ok"], tod["state"]) == (False, "Stale last night") and "1,000" in tod["why"]
 
 
 def test_pm_item_belongs_to_the_toddler_when_high():
     s = busy(r={**BUSY_R, "pm_now": 40}, cams=[(at(h), 40) for h in range(6, 30)], pm_past=pts(at(12), at(15, 40), 40))
-    assert next(i for i in s["items"] if i["id"] == "pm")["need"] == "toddler"
+    assert next(i for i in s["items"] if i["id"] == "pm")["profile"] == "toddler"
 
 
 def test_since_names_yesterday():
@@ -442,11 +457,11 @@ def test_damp_why_never_suggests_airing_when_the_action_is_the_dehumidifier():
     assert rh["action"]["text"] == "Air the room for 10 min" and "airing helps" in rh["why"]
 
 
-def test_needs_still_apply_with_the_indoor_monitor_offline():
+def test_profiles_still_apply_with_the_indoor_monitor_offline():
     off = {"co2": None, "rh": None, "pm_now": 50}
-    row = needs_row(off, ol(now_v=50, high=True), {"index": 4, "name": "Tree"}, False, None, at(9))
+    row = profiles_row(off, ol(now_v=50, high=True), {"index": 4, "name": "Tree"}, False, None, at(9))
     assert [(n["ok"], n["state"]) for n in row][:2] == [(False, "Dirty outside"), (False, "Pollen high")]
-    row = needs_row({"co2": None, "rh": None, "pm_now": 3}, ol(), None, False, None, at(9))
+    row = profiles_row({"co2": None, "rh": None, "pm_now": 3}, ol(), None, False, None, at(9))
     assert [(n["ok"], n["state"]) for n in row][:2] == [(None, "No reading"), (None, "No reading")]
 
 
@@ -515,7 +530,7 @@ def test_damp_with_neither(monkeypatch):
 
 def damp_pollen_pill(monkeypatch, appliances):
     monkeypatch.setattr(summary_mod, "APPLIANCES", set(appliances))
-    sinus = next(n for n in busy(pollen_today={"index": 4, "name": "Tree"})["needs"] if n["id"] == "sinus")
+    sinus = next(n for n in busy(pollen_today={"index": 4, "name": "Tree"})["profiles"] if n["id"] == "sinus")
     assert sinus["state"] == "Damp + pollen"
     assert set(sinus["facts"]) == {"rh", "pollen_index", "pollen_type"}   # the appliances aren't kept as facts
     return sinus["why"]
@@ -568,3 +583,64 @@ def test_pm_timing_says_how_the_forecast_was_fitted():
     # no reading now and no history: the raw model, and no sentence about fitting it
     pm = busy(r={**BUSY_R, "pm_now": None}, pm_past=[])["items"][0]
     assert "The forecast is" not in pm["why"]
+
+
+# ── A home with one monitor ──
+
+def test_outdoor_only_has_no_indoor_items_and_no_toddler():
+    # whatever the page posted indoors, an outdoor-only home reads nothing there
+    s = busy(indoor=False, pollen_today={"index": 4, "name": "Tree"})
+    assert [i["id"] for i in s["items"]] == ["pm", "pollen"]
+    assert s["timeline"]["co2"] is None and s["timeline"]["rh"] is None
+    tod, sin, run = s["profiles"]
+    assert (tod["ok"], tod["state"]) == (None, "Needs an indoor monitor")
+    assert tod["why"] == "A toddler sleeps deeper when CO₂ indoors stays low, and only an indoor monitor measures it."
+    assert (sin["ok"], sin["state"]) == (False, "Pollen high")
+    assert sin["why"] == "Tree pollen is 4 of 5 today: keep the windows shut (pollen only: no indoor monitor for humidity)."
+    assert run["state"] == "Avoid 5–9 PM"
+
+
+def test_outdoor_only_dirty_air_goes_to_the_runner():
+    cams = [(at(h), 45) for h in range(15, 27)]
+    s = busy(indoor=False, cams=cams, r={**BUSY_R, "pm_now": 45})
+    assert s["profiles"][0]["state"] == "Needs an indoor monitor"   # not "Dirty outside": no actions for the toddler
+    assert [(i["id"], i["profile"]) for i in s["items"]] == [("pm", "runner")]
+
+
+def test_outdoor_only_sinus_low_pollen_and_none():
+    sin = lambda p: busy(indoor=False, pollen_today=p)["profiles"][1]
+    low = sin({"index": 1, "name": "Tree"})
+    assert (low["ok"], low["state"], low["why"]) == (True, "Pollen low", "Pollen is low today (pollen only: no indoor monitor for humidity).")
+    assert (sin(None)["ok"], sin(None)["state"]) == (None, "No reading")
+
+
+MODEL_PAST = [(at(h), 6) for h in range(12, 16)]   # the model's past hours, drawn when there's no monitor outside
+
+
+def estimate(kind, **k):
+    """An indoor-only home whose outdoor PM2.5 is an estimate: no reading now, the model's past on the chart."""
+    source = {"kind": kind, "name": None, "distance_km": None, "area_count": 4 if kind == "area" else 0, "fallback": False}
+    return busy(r={**BUSY_R, "pm_now": None}, pm_past=MODEL_PAST, pm_past_model=True, source=source, **k)
+
+
+def test_indoor_only_estimate_reads_as_a_forecast():
+    for s in (estimate("area", area_factor=1.0), estimate("model")):
+        pm = next(i for i in s["items"] if i["id"] == "pm")
+        assert pm["forecast"] is True and "pm_now" not in pm["facts"] and "now" not in pm["ctx"]
+        assert " now." not in pm["why"] and "your outdoor monitor" not in pm["why"]
+        runner = s["profiles"][2]
+        assert runner["facts"]["pm_now"] is None
+    assert estimate("area", area_factor=1.0)["items"][0]["why"].endswith(
+        "scaled to what 4 public monitors near you measured over the last day.")
+    assert estimate("model")["items"][0]["why"].endswith(": an estimate, with no monitor outside to check it against.")
+
+
+def test_indoor_only_nearby_monitor_names_it():
+    source = {"kind": "monitor", "name": "Cedar & 2nd Ave", "distance_km": 1.1, "area_count": 0, "fallback": False}
+    pm = busy(source=source)["items"][0]
+    assert pm["id"] == "pm" and pm["ctx"].endswith("now 4")   # a public monitor's reading is a measured now
+    assert pm["why"].endswith("started from what the public monitor at Cedar & 2nd Ave, 1.1 km away, reads now.")
+
+
+def test_two_monitor_summary_unchanged_by_the_new_arguments():
+    assert busy() == busy(source=None, indoor=True)

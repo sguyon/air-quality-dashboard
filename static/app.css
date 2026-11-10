@@ -75,7 +75,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .custom .view, .custom .sources { margin-top: 8px; }
 .sub .sources { margin-top: 0; }
 .custom .name svg.i { width: 16px; height: 16px; }
-.custom .view.needs .chip { background: var(--card); border-color: var(--line); color: var(--ink); font: 500 14px/1.2 Inter, sans-serif; padding: 6px 10px; }
+.custom .view.profiles .chip { background: var(--card); border-color: var(--line); color: var(--ink); font: 500 14px/1.2 Inter, sans-serif; padding: 6px 10px; }
 .card .legend { margin-top: 8px; }
 .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 12px; margin-top: 14px; }
@@ -96,11 +96,11 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .ranges .on { background: var(--ink); color: var(--card); border-color: var(--ink); }
 .icon-btn { width: 34px; height: 34px; border-radius: 99px; display: grid; place-items: center; padding: 0; }
 .view, .sources { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; }
-.view.needs { margin-top: 8px; gap: 2px; }
-.view.needs .name,
-.view.needs .chip { background: transparent; border-color: transparent; color: var(--faint); font: 500 13px/1.2 Inter, sans-serif; padding: 2px 6px; pointer-events: none; }
-.view.needs .name { color: var(--muted); }
-.view.needs svg.i { width: 16px; height: 16px; }
+.view.profiles { margin-top: 8px; gap: 2px; }
+.view.profiles .name,
+.view.profiles .chip { background: transparent; border-color: transparent; color: var(--faint); font: 500 13px/1.2 Inter, sans-serif; padding: 2px 6px; pointer-events: none; }
+.view.profiles .name { color: var(--muted); }
+.view.profiles svg.i { width: 16px; height: 16px; }
 .name { background: var(--ink); color: var(--card); border-color: var(--ink); border-radius: 99px; padding: 8px 12px; font: 600 14px/1 Inter, sans-serif; display: inline-flex; align-items: center; gap: 8px; }
 .chip { border-radius: 10px; padding: 6px 8px 6px 10px; display: inline-flex; align-items: center; gap: 7px; font: 500 14px/1.2 Inter, sans-serif; }
 .ico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; }
@@ -151,8 +151,8 @@ svg.ts text { fill: var(--soft); font: 11px Inter, sans-serif; }
 
 h2 { margin: 32px 0 12px; font: 600 14px/1 Inter, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--soft); display: flex; align-items: center; gap: 8px; }
 .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-/* Parts of the page the home's config turns off (app.js applyConfig): a home without a road, a need that's off */
-[data-app][hidden], [data-need][hidden] { display: none !important; }
+/* Parts of the page the home's config turns off (app.js applyConfig): a home without a road, a profile that's off */
+[data-app][hidden], [data-profile][hidden] { display: none !important; }
 @media (min-width: 901px) { .grid4:has(> .card[hidden]) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .card { padding: 18px 20px; }
@@ -267,7 +267,7 @@ h2 span { font: 400 13.5px/1.2 Inter, sans-serif !important; color: var(--muted)
   .home { display: none; }
   .sechead { flex-wrap: wrap; align-items: center; }
 }
-/* Header: the saved view sits top right like an account, its needs and sources under it; it opens as a dropdown. */
+/* Header: the saved view sits top right like an account, its profiles and sources under it; it opens as a dropdown. */
 .bar { align-items: flex-start; justify-content: flex-start; gap: 16px; }
 .bar details.custom { margin: 0; background: transparent; border: 0; box-shadow: none; padding: 0; position: relative; }
 .bar details.custom:hover { box-shadow: none; }
@@ -303,7 +303,7 @@ h2 span { font: 400 13.5px/1.2 Inter, sans-serif !important; color: var(--muted)
 
 /* Crossing label sits under the limit line, where the line is not */
 @media (min-width: 701px) {
-  /* Avatar row on top, next to v1 and theme; needs and sources hang under it */
+  /* Avatar row on top, next to v1 and theme; profiles and sources hang under it */
   .bar { padding-bottom: 66px; position: relative; }
   .bar details.custom { position: static; }
   .bar .rows, .bar .custom[open] .rows { position: absolute; right: 4px; top: 58px; }
@@ -452,7 +452,7 @@ svg.ts .ts-guide { stroke: var(--warn-fill); stroke-dasharray: 5 4; stroke-width
 /* Header: v1 and theme sit with the title on the left, quiet; the right side is only the saved view */
 .bar .site { order: -1; }
 .bar details.custom { order: 1; margin-left: auto; }
-/* Saved view, closed: one pill — needs and sources, then the place, avatar and chevron */
+/* Saved view, closed: one pill — profiles and sources, then the place, avatar and chevron */
 @media (min-width: 701px) {
   .bar .custom-top { display: flex; flex-direction: row; align-items: center; gap: 12px;
     background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 5px 6px 5px 14px; box-shadow: 0 1px 2px var(--shadow);
@@ -476,7 +476,7 @@ svg.ts .ts-guide { stroke: var(--warn-fill); stroke-dasharray: 5 4; stroke-width
 .pg h4 { margin: 0 0 6px; font: 600 11.5px/1 Inter, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .pg .view { margin-top: 4px !important; gap: 6px; }
 .pg .view .chip { padding: 5px 9px !important; font-size: 13.5px !important; }
-.pg .view.needs .chip svg.i { width: 20px; height: 20px; }
+.pg .view.profiles .chip svg.i { width: 20px; height: 20px; }
 /* Household settings in the Home panel: one compact row under the place (temperature unit) */
 /* temperature units: in the Weather & theme menu, under Theme, same look */
 .dsp-pop .temp-seg { display: grid !important; grid-template-columns: repeat(2, 1fr); width: 100%; margin-top: 2px; }
@@ -708,7 +708,7 @@ html.sky-on:not(.sky-dark) .sky-cap { color: #23384d; }
 @media (max-width: 700px) {
   .sky-quick { margin-left: 0; }
 }
-/* Pill: your monitors, a divider, then the avatar. The needs are in the summary and the Home menu, not here. */
+/* Pill: your monitors, a divider, then the avatar. The profiles are in the summary and the Home menu, not here. */
 .bar .vsum { flex-direction: row; align-items: center; gap: 12px; }
 .vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (max-width: 700px) {
@@ -757,7 +757,7 @@ html.sky-on:not(.sky-dark) .cap-tag { background: rgba(15, 34, 51, .08); }
 @media (prefers-reduced-motion: reduce) {
   .sky-flash, .sky-front { display: none; }
 }
-/* Need tooltips */
+/* Profile tooltips */
 [data-tip] { position: relative; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after {
   content: attr(data-tip); position: absolute; z-index: 60; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
@@ -963,7 +963,7 @@ svg.ts .ts-hd.out { fill: var(--series-out); }
 /* the Weather dropdown opens over the summary card */
 .now-bar .dsp-pop { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
 
-/* Links into the Home panel: the need name and the source icons */
+/* Links into the Home panel: the profile name and the source icons */
 .s-src { cursor: pointer; }
 .s-src-card::after { content: "Click to change sources"; display: block; margin-top: 2px; opacity: .6; font-size: 11.5px; }
 .blocks section.pg { border-radius: 10px; }
@@ -1205,14 +1205,11 @@ html.sky-dark .devbar button { color: #b9ccff; }
 .nb-card tr.nb-extra { display: none; }
 .nb-card.nb-all tr.nb-extra { display: table-row; }
 .nb-card .nbt tr.hl td { background: var(--accent-soft) !important; }
-.nb-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px 16px; font-size: 13px; color: var(--soft); border-top: 1px solid var(--line); }
-.nb-foot b.warn { color: var(--warn); font-weight: 600; }
 .nb-more { font: 500 13px/1 Inter, sans-serif; color: var(--ink); background: var(--card); border: 1px solid var(--line-strong); border-radius: 99px; padding: 7px 12px; cursor: pointer; }
 .nb-more:hover { border-color: var(--accent-line); color: var(--accent-ink); }
 @media (max-width: 700px) {
   .nb-map { aspect-ratio: 4 / 3; }
   .nb-card .nb { padding: 4px 12px 0; }
-  .nb-foot { padding: 10px 12px 14px; flex-wrap: wrap; }
 }
 /* Smaller map; the table's expand control is a full-width row under the last monitor */
 .nb-map { aspect-ratio: 32 / 9 !important; max-height: 330px !important; }
@@ -1224,7 +1221,6 @@ html.sky-dark .devbar button { color: #b9ccff; }
 .nb-more[hidden] { display: none; }
 .nb-more svg.i { width: 15px; height: 15px; }
 .nb-more:hover { border-style: solid; border-color: var(--accent-line); color: var(--accent-ink); background: var(--accent-soft); }
-.nb-foot { border-top: 0; padding-top: 14px; }
 @media (max-width: 700px) {
   .nb-more { width: calc(100% - 24px); margin: 4px 12px 0; }
 }
@@ -1245,8 +1241,6 @@ html.sky-dark .devbar button { color: #b9ccff; }
 .lg-dot { width: 9px; height: 9px; border-radius: 50%; background: #22a55a; }
 .lg-bqe { width: 16px; height: 4px; border-radius: 2px; background: #71717a; }
 .lg-plume { width: 14px; height: 10px; border-radius: 3px; background: color-mix(in srgb, #f59e0b 35%, transparent); }
-.nb-foot { line-height: 1.5; }
-.nb-foot .nb-why { display: block; color: var(--muted); font-size: 12.5px; }
 @media (max-width: 700px) {
   .nb-legend { position: static; max-width: none; justify-content: flex-start; border-radius: 0; box-shadow: none; padding: 8px 12px; }
 }
@@ -1255,9 +1249,25 @@ html.sky-dark .devbar button { color: #b9ccff; }
   background: none !important; padding: 9px 24px !important; gap: 4px 18px !important; border-bottom: 1px solid var(--line); color: var(--muted) !important; font-size: 12px !important; }
 .nb-map { border-bottom: 0 !important; }
 /* Neighborhood lead: a quiet note under the section title, not a headline */
-#nb-lead { margin: -2px 0 12px; font: 400 13.5px/1.5 Inter, sans-serif; color: var(--soft); }
-#nb-lead b { font-weight: 500; }
-#nb-lead b.warn { color: var(--warn); }
+/* The findings: inside the card, between the map and the table (the neighbors line, then the wind and road line) */
+.nb-find { padding: 16px 24px 4px; font: 400 15px/1.5 Inter, sans-serif; color: var(--ink); }
+.nb-find p { margin: 0; }
+.nb-find p + p:not([hidden]) { margin-top: 8px; }
+.nb-find b { font-weight: 600; }
+.nb-find b.warn { color: var(--warn); }
+.nb-find[hidden], .nb-find p[hidden] { display: none; }
+@media (max-width: 700px) { .nb-find { padding: 14px 12px 2px; } }
+.nb-unit { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; }
+.nbt th.r { vertical-align: bottom; }
+/* the ⓘ after "BQE exhaust": the road's distance, in the page's tooltip */
+.nb-legend .lg-info { pointer-events: auto; cursor: help; outline: none; font-size: 13px; line-height: 1; opacity: .8; }
+.nb-legend .lg-info:hover, .nb-legend .lg-info:focus { opacity: 1; }
+.nb-legend .lg-info:focus-visible { box-shadow: 0 0 0 2px var(--accent); border-radius: 50%; }
+.lg-info[data-tip]:hover::after, .lg-info[data-tip]:focus::after {
+  content: attr(data-tip); position: absolute; z-index: 60; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  width: 240px; padding: 9px 11px; border-radius: 10px; background: var(--bubble-bg, #0f2233); color: var(--bubble-ink, #fff);
+  font: 400 12.5px/1.45 Inter, sans-serif; white-space: normal; text-align: left; box-shadow: 0 10px 28px rgba(0, 0, 0, .22); pointer-events: none; }
+@media (max-width: 700px) { .lg-info[data-tip]:hover::after, .lg-info[data-tip]:focus::after { left: auto; right: -12px; transform: none; width: min(240px, 70vw); } }
 /* PM2.5 scale header: one line, on the same baseline as the other column titles, numbers over the bar positions */
 .nbt th.nbbar { vertical-align: bottom; }
 .scale-h > span:first-child { margin: 0; }
@@ -1445,7 +1455,7 @@ html.outside-dark:not(.outside-night) { --win-lit: #fde7b0; }
   .mc-head { min-height: 0; }
   .mc-head .mc-status { display: none; }
 }
-/* Need cards: the need chip and its answer on one line */
+/* Profile cards: the profile chip and its answer on one line */
 
 .mc-head > .mc-scene { position: absolute !important; z-index: 0 !important; }
 /* status under the name; the text keeps clear of the scene on the right */
@@ -1455,7 +1465,7 @@ html.outside-dark:not(.outside-night) { --win-lit: #fde7b0; }
   .mc-head .mc-id { padding-right: 92px; }
   .mc-head .mc-status { display: inline-flex !important; }
 }
-/* the answer starts at the card's edge; the need chip sits on the right */
+/* the answer starts at the card's edge; the profile chip sits on the right */
 
 .mc-scene { height: 88px; bottom: 0; }
 @media (max-width: 560px) {
@@ -2117,6 +2127,10 @@ html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5
 /* the Open Air's body fills less of its 48-unit drawing than the ONE's (30.6 vs 36 units tall, its top lower):
    scaled from y 39.6 it lands on the ONE's box, 5.5 to 41.5, so the two devices read the same size */
 .mc-out .mc-hw svg { transform: scale(1.176); transform-origin: 50% 82.5%; }
+/* an estimate's card shows Open-Meteo's mark, not a device: a smaller tile, centred in the device's box */
+.mc-hw .mc-est { display: grid; place-items: center; width: 100%; height: 100%; }
+.mc-hw .mc-est svg { width: 52px !important; height: 52px !important; transform: none; filter: none; }
+.pr-ic .mc-est svg, .vhw .mc-est svg { width: 100%; height: 100%; }
 /* the scene is the header's backdrop: the full height, against the right edge, trimmed at its sides
    (preserveAspectRatio slice, set in monitorCard) rather than shrunk */
 .mc-head > .mc-scene { top: 0 !important; bottom: auto !important; right: 0 !important; width: 124px !important; height: 100% !important; }
@@ -2181,7 +2195,7 @@ html { touch-action: manipulation; }
 .sum-card > .s-bar { border-radius: 21px 21px 0 0; }
 
 /* A source that is off or not set up: the page's muted tone, no warning color, no dot */
-.nb-card[hidden], #nb-sub[hidden] { display: none !important; }
+.nb-card[hidden] { display: none !important; }
 .pst.neutral { color: var(--muted); }
 .pst.neutral i { background: var(--line-strong); }
 .s-src-row em.neutral { color: var(--muted); opacity: .85; }
@@ -2196,13 +2210,13 @@ body.no-token .page > :not(.bar):not(.no-token-card) { display: none; }
 .nb-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 640px) { .nb-credit { padding: 0 12px 12px; } }
 
-/* Summary header strip: the need icons sit at its right end (the summary card has no row of its own for them).
+/* Summary header strip: the profile icons sit at its right end (the summary card has no row of its own for them).
    Their sentences open under the strip, right-aligned to the card. */
 :root .sum-card > .s-bar { position: relative; z-index: 3; flex-wrap: nowrap !important; }
 .s-meta { display: contents; }
-.s-needs { flex: none; margin-left: auto; padding-left: 16px; display: flex; align-items: center; }
-.s-needs:empty { display: none; }
-.s-needs .sx-nh .sx-why p { top: calc(100% + 6px); right: 18px; left: auto; width: min(380px, calc(100% - 36px)); }
+.s-profiles { flex: none; margin-left: auto; padding-left: 16px; display: flex; align-items: center; }
+.s-profiles:empty { display: none; }
+.s-profiles .sx-nh .sx-why p { top: calc(100% + 6px); right: 18px; left: auto; width: min(380px, calc(100% - 36px)); }
 :root .sum-card > .s-bar + .sx { padding-top: 0; }   /* the row the icons had is gone; the first line comes up under the strip */
 /* phones: "Updated just now ↻" goes under SUMMARY, so the three icons keep their size */
 @media (max-width: 480px) {
@@ -2210,7 +2224,7 @@ body.no-token .page > :not(.bar):not(.no-token-card) { display: none; }
   :root .sum-card > .s-bar .s-tools { flex-basis: 100%; margin-left: 28px !important; }
   :root .sum-card > .s-bar #s-ago:not(:empty)::before { content: none; }
   :root .sum-card > .s-bar #read-refresh { margin: -10px 0 -10px -6px; }
-  .s-needs { padding-left: 10px; }
+  .s-profiles { padding-left: 10px; }
 }
 
 /* Home menu title: "Home · Greenpoint" on one line, the place still a link; a long name wraps after the dot */
@@ -2220,7 +2234,7 @@ body.no-token .page > :not(.bar):not(.no-token-card) { display: none; }
 .blocks .pop-head > div > span::before { content: "·"; margin: 0 7px 0 6px; }
 
 /* Home menu rows: one compact block beside the icon (name, what it is, its status), the icon centred on it.
-   A source row explains itself on hover, keyboard focus or a tap, like the need chips; monitor rows have nothing to add. */
+   A source row explains itself on hover, keyboard focus or a tap, like the profile chips; monitor rows have nothing to add. */
 .pr { grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; row-gap: 2px; padding: 7px 8px; position: relative; }
 .pr .pr-ic { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
 .pr .pr-t { grid-column: 2; grid-row: 1; }
@@ -2247,6 +2261,7 @@ body.no-token .page > :not(.bar):not(.no-token-card) { display: none; }
 .mc-ph p { margin: 4px 0 10px; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
 .mc-ph a { font: 600 14px/1.3 Inter, sans-serif; color: var(--accent-ink); text-decoration: none; }
 .mc-ph a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
 /* The monitor card's last line: its owner and AirGradient's map */
 .mc-credit { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.45; color: var(--muted); }
 .mc-credit b { font-weight: 600; color: var(--soft); }
@@ -2268,3 +2283,30 @@ body.no-token .page > :not(.bar):not(.no-token-card) { display: none; }
 .vhw i.off { background: var(--line-strong); }
 .pr.off .pr-t b { color: var(--muted); }
 .pst.off { color: var(--muted); }
+
+/* Disabled states (Sacha, 2026-11-09): a source that's off and History with nothing to show look like the working card,
+   on its usual solid background, with its contents greyed and lightened, so they read as not working. */
+.card.off, .card.hist-off { filter: grayscale(1); }   /* solid card: only its contents fade, so no sky shows through */
+.card.off > *, .card.hist-off > * { opacity: .5; }
+
+/* Desktop: the summary sits as close under the Today bar as cards under a section heading (16 px; Sacha, 2026-11-09).
+   The hidden setup card between them kept ".now-bar + .sum-card" from ever applying. */
+@media (min-width: 701px) { .now-bar ~ .sum-card { margin-top: 16px; } }
+
+/* A monitor this view doesn't have (the indoor one on a public monitor's page): the same card, values empty,
+   greyed and lightened so it reads as not working (Sacha, 2026-11-09). */
+.card.mc.mc-ghost { filter: grayscale(1); }
+.card.mc.mc-ghost > * { opacity: .5; }
+.card.mc.mc-ghost .mc-status .live { background: var(--faint); box-shadow: none; animation: none; }
+
+/* A home with one monitor (2026-11-09). An indoor-only home's outdoor card shows an estimate: what only a monitor of its
+   own measures is greyed in place (rule 11), and its status dot is grey, not live. An outdoor-only home greys Toddler. */
+.card.mc .mc-dim { filter: grayscale(1); opacity: .5; }
+.live.neutral { background: var(--line-strong); }
+.mc-status.neutral, html.outside-dark .mc-out .mc-status.neutral { color: var(--muted); }
+html.outside-dark .mc-out .mc-status.warn { color: var(--warn); }
+.custom .view.profiles .chip.off { color: var(--muted); }
+.custom .view.profiles .chip.off svg.i { filter: grayscale(1); opacity: .45; }
+.nbt td.loc .nb-used { color: var(--muted); font-weight: 400; }
+.hist-est { margin: -4px 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.hist-est[hidden] { display: none; }

@@ -5,8 +5,18 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
 import check_config  # noqa: E402
+import pytest  # noqa: E402
 
 EXAMPLE = (REPO / "config.example.toml").read_text(encoding="utf-8")
+
+
+@pytest.fixture(autouse=True)
+def offline(monkeypatch):
+    """No test reaches AirGradient: an indoor-only config's source check sees no network (tests/test_outdoor_source.py
+    gives it a made-up world list)."""
+    def down():
+        raise check_config.publicmap.requests.ConnectionError("offline in tests")
+    monkeypatch.setattr(check_config.publicmap, "fetch_world", down)
 
 
 def run(tmp_path, text=EXAMPLE, env=None, dotenv=None, argv=None, capsys=None):
@@ -74,9 +84,31 @@ def test_route_missing(tmp_path, capsys):
     assert code == 1 and "static/nope.json" in out and "not found" in out
 
 
-def test_unknown_need(tmp_path, capsys):
+def test_unknown_profile(tmp_path, capsys):
     code, out = run(tmp_path, EXAMPLE.replace("toddler = true", "toddler = true\ndog = true"), capsys=capsys)
-    assert code == 1 and "needs.dog" in out and "toddler, sinus, runner" in out
+    assert code == 1 and "profiles.dog is not a profile the page knows" in out and "toddler, sinus, runner" in out
+
+
+def test_old_needs_table_is_a_note_not_a_problem(tmp_path, capsys):
+    code, out = run(tmp_path, EXAMPLE.replace("[profiles]", "[needs]"), capsys=capsys)
+    assert code == 0 and "Config OK" in out
+    assert "Note: [needs] is the old name of [profiles]. It still works; rename it to [profiles]." in out
+
+
+def test_old_needs_table_unknown_key(tmp_path, capsys):
+    old = EXAMPLE.replace("[profiles]", "[needs]").replace("toddler = true", "toddler = true\ndog = true")
+    code, out = run(tmp_path, old, capsys=capsys)
+    assert code == 1 and "needs.dog is not a profile the page knows" in out
+
+
+def test_both_tables_profiles_wins(tmp_path, capsys):
+    code, out = run(tmp_path, EXAMPLE + "\n[needs]\ntoddler = false\n", capsys=capsys)
+    assert code == 0 and "Config OK" in out
+    assert "Both are here, so [needs] is ignored" in out
+
+
+def test_example_has_no_note(tmp_path, capsys):
+    assert "Note:" not in run(tmp_path, capsys=capsys)[1]
 
 
 def test_limits_order(tmp_path, capsys):
@@ -119,3 +151,51 @@ def test_checks_the_file_config_file_points_at(tmp_path, capsys):
     mounted.write_text(EXAMPLE)
     code, out = run(tmp_path, text="not toml [", env={"CONFIG_FILE": str(mounted)}, capsys=capsys)
     assert code == 0 and "Checked config.toml" in out and "Config OK" in out
+
+
+def _without(*keys):
+    return "\n".join(l for l in EXAMPLE.splitlines() if not any(l.startswith(k + " =") for k in keys)) + "\n"
+
+
+def test_says_which_monitors(tmp_path, capsys):
+    assert "Monitors: indoor and outdoor" in run(tmp_path, capsys=capsys)[1]
+    assert "Monitors: outdoor only" in run(tmp_path, _without("indoor"), capsys=capsys)[1]
+    text = _without("outdoor").replace("[sources]\n", "[sources]\noutdoor_from = 900002\n", 1)
+    code, out = run(tmp_path, text, capsys=capsys)
+    assert code == 0 and "Monitors: indoor only; outdoor PM2.5 from public monitor 900002" in out
+    text = _without("outdoor").replace("[sources]\n", '[sources]\noutdoor_from = "area"\n', 1)
+    assert "outdoor PM2.5 from the area estimate" in run(tmp_path, text, capsys=capsys)[1]
+
+
+def test_indoor_only_without_outdoor_from_is_a_problem(tmp_path, capsys):
+    code, out = run(tmp_path, _without("outdoor"), capsys=capsys)
+    assert code == 1 and "sources.outdoor_from" in out
+
+
+def test_outdoor_from_next_to_an_outdoor_monitor_is_ignored(tmp_path, capsys):
+    code, out = run(tmp_path, EXAMPLE.replace("[sources]\n", "[sources]\noutdoor_from = 900002\n", 1), capsys=capsys)
+    assert code == 0 and "outdoor_from is ignored" in out
+
+
+def test_a_blank_outdoor_name_reads_as_indoor_only(tmp_path, capsys):
+    """Blanking the line is deleting it: check_config and the server agree, and never print 'the None estimate'."""
+    code, out = run(tmp_path, EXAMPLE.replace('outdoor = "porch"', 'outdoor = ""'), capsys=capsys)
+    assert code == 1 and "sources.outdoor_from" in out and "None" not in out and "Config OK" not in out
+    text = EXAMPLE.replace('outdoor = "porch"', 'outdoor = "  "').replace("[sources]\n", '[sources]\noutdoor_from = "model"\n', 1)
+    code, out = run(tmp_path, text, capsys=capsys)
+    assert code == 0 and "Monitors: indoor only; outdoor PM2.5 from the model estimate" in out
+    assert "outdoor_from is ignored" not in out
+
+
+def test_a_blank_indoor_name_reads_as_outdoor_only(tmp_path, capsys):
+    code, out = run(tmp_path, EXAMPLE.replace('indoor = "living room"', 'indoor = ""'), capsys=capsys)
+    assert code == 0 and "Monitors: outdoor only" in out
+
+
+def test_outdoor_source_line_tests_for_none():
+    from types import SimpleNamespace as NS
+    line = check_config.outdoor_source_line
+    assert line(NS(place=NS(indoor="living room", outdoor="porch"), outdoor_from=None)) == "Monitors: indoor and outdoor"
+    assert line(NS(place=NS(indoor=None, outdoor="porch"), outdoor_from=None)) == "Monitors: outdoor only"
+    assert line(NS(place=NS(indoor="living room", outdoor=None), outdoor_from="area")) == \
+        "Monitors: indoor only; outdoor PM2.5 from the area estimate"

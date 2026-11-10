@@ -43,15 +43,16 @@ def pick(m, *keys):
 
 
 def payload(current):
-    """What the page posts to /api/analyze, built from /api/current the way app.js's readPayload does."""
-    i = next(m for m in current if m["locationType"] == "indoor")
-    o = next(m for m in current if m["locationType"] == "outdoor")
+    """What the page posts to /api/analyze, built from /api/current the way app.js's readPayload does (a home without
+    one of the monitors posts nothing for it)."""
+    i = next((m for m in current if m["locationType"] == "indoor"), {})
+    o = next((m for m in current if m["locationType"] == "outdoor"), {})
     return {"format": "read",
             "indoor_pm25": pick(i, "pm02_corrected", "pm02"), "indoor_co2": pick(i, "rco2_corrected", "rco2"),
             "indoor_humidity": pick(i, "rhum", "rhum_corrected"), "indoor_temp_c": pick(i, "atmp", "atmp_corrected"),
             "outdoor_pm25": pick(o, "pm02_corrected", "pm02"), "outdoor_humidity": pick(o, "rhum_corrected", "rhum"),
             "outdoor_temp_c": pick(o, "atmp_corrected", "atmp"),
-            "indoor_location_id": i["locationId"], "outdoor_location_id": o["locationId"]}
+            "indoor_location_id": i.get("locationId"), "outdoor_location_id": o.get("locationId")}
 
 
 def read(c, moment):
@@ -61,14 +62,14 @@ def read(c, moment):
 
 def week_url(moment, location_id):
     """The page's 7-day history request, ending at the moment's time."""
-    from demo.moments import MOMENTS as M
-    to = M[moment].at.astimezone(timezone.utc)
+    from demo.moments import moment_for
+    to = moment_for(moment).at.astimezone(timezone.utc)
     iso = lambda t: t.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     return f"/api/history/{location_id}?from={iso(to - timedelta(hours=168))}&to={iso(to)}&moment={moment}"
 
 
-def needs_of(summary):
-    return {n["id"]: n for n in summary["needs"]}
+def profiles_of(summary):
+    return {n["id"]: n for n in summary["profiles"]}
 
 
 def test_no_outside_calls(demo, c, monkeypatch):
@@ -109,13 +110,13 @@ def test_rush_story(c):
     assert 30 <= int(pm["num"]) <= 35
     assert pm["action"]["when"] == "until 11 AM"
     assert items["pollen"]["num"] == "4" and items["pollen"]["facts"]["pollen_type"] == "tree"
-    needs = needs_of(s)
+    profiles = profiles_of(s)
     # the runner: run after the dirty stretch ends, at the same 11 AM the windows wait for
-    assert needs["runner"]["ok"] is False and needs["runner"]["state"] == "Run after 11 AM"
+    assert profiles["runner"]["ok"] is False and profiles["runner"]["state"] == "Run after 11 AM"
     # the toddler: stale now, after a stale night that peaked about 1,400
-    assert needs["toddler"]["ok"] is False and needs["toddler"]["state"] == "Stale indoors"
-    assert 1350 <= needs["toddler"]["facts"]["night_peak"] <= 1450 and "last night" in needs["toddler"]["why"].lower()
-    assert needs["sinus"]["state"] == "Damp + pollen"
+    assert profiles["toddler"]["ok"] is False and profiles["toddler"]["state"] == "Stale indoors"
+    assert 1350 <= profiles["toddler"]["facts"]["night_peak"] <= 1450 and "last night" in profiles["toddler"]["why"].lower()
+    assert profiles["sinus"]["state"] == "Damp + pollen"
     ctx = c.get("/api/context?moment=rush").get_json()
     assert ctx["road"] == {"name": "BQE", "toward": True}
     assert ctx["status"] == {"pollen": "ok", "smoke": "ok", "road": "ok", "nearby": "ok"}
@@ -137,8 +138,8 @@ def test_clear_story(c):
     r = read(c, "clear")
     s = r["summary"]
     assert s["items"] == [] and s["all_clear"] is True
-    assert all(n["ok"] is True for n in s["needs"]), s["needs"]
-    assert all(n["tone"] == "good" for n in r["needs"]), r["needs"]
+    assert all(n["ok"] is True for n in s["profiles"]), s["profiles"]
+    assert all(n["tone"] == "good" for n in r["profiles"]), r["profiles"]
     assert c.get("/api/context?moment=clear").get_json()["road"]["toward"] is False
 
 
@@ -150,9 +151,9 @@ def test_humid_story(c):
     assert rh["num"] == "66"
     assert rh["action"]["text"] == "Run the dehumidifier"   # the rules' action; its explanation names the AC's dry mode
     assert "AC’s dry mode" in rh["why"] and "Outside is wetter (92%)" in rh["why"]
-    needs = needs_of(s)
-    assert needs["sinus"]["ok"] is False and needs["sinus"]["state"] == "Too damp"
-    assert needs["toddler"]["ok"] is True and needs["runner"]["ok"] is True
+    profiles = profiles_of(s)
+    assert profiles["sinus"]["ok"] is False and profiles["sinus"]["state"] == "Too damp"
+    assert profiles["toddler"]["ok"] is True and profiles["runner"]["ok"] is True
     ctx = c.get("/api/context?moment=humid").get_json()
     assert ctx["weather"]["weather_code"] >= 61   # rain
 
@@ -224,3 +225,126 @@ def test_fresh_copy_opens_as_the_demo(demo, tmp_path):
     assert demo.startup_config({"AIRGRADIENT_TOKEN": "x"}, tmp_path) is None
     (tmp_path / "config.toml").write_text((ROOT / "config.example.toml").read_text())
     assert demo.startup_config({}, tmp_path).demo is False
+
+
+# ── the hidden one-monitor cases (?moment=indoor-near, indoor-model, outdoor-only): not samples, not in the banner ──
+
+HIDDEN = ("indoor-near", "indoor-model", "outdoor-only")
+SOURCE_ID = 900001   # the made-up public monitor indoor-near reads
+
+
+def app_of(c, moment):
+    html = c.get(f"/?moment={moment}").get_data(as_text=True)
+    return json.loads(html.split("window.APP = ", 1)[1].split(";</script>", 1)[0])
+
+
+def test_hidden_moments_load_without_outside_calls(c, monkeypatch):
+    """Each hidden case's page, its window.APP and every request the page makes answer, with no network."""
+    def refuse(*a, **k):
+        raise AssertionError("the demo called the network")
+    monkeypatch.setattr(requests, "get", refuse)
+    monkeypatch.setattr(requests, "post", refuse)
+    for m in HIDDEN:
+        app = app_of(c, m)
+        assert app["now"]["moment"] == m and app["now"]["at"].startswith("2026-04-21T07:45:00")   # the rush's morning
+        assert [x["key"] for x in app["now"]["moments"]] == ["rush", "clear", "humid"]   # the banner keeps the three
+        current = c.get(f"/api/current?moment={m}")
+        assert current.status_code == 200
+        assert c.get(f"/api/context?moment={m}").status_code == 200
+        assert c.get(f"/api/neighborhood?moment={m}").status_code == 200
+        for mon in current.get_json():
+            if "locationId" in mon:   # an estimate has no history to ask for
+                hist = c.get(week_url(m, mon["locationId"]))
+                assert hist.status_code == 200 and len(hist.get_json()) > 1000
+        r = c.post(f"/api/analyze?moment={m}", json=payload(current.get_json()))
+        assert r.status_code == 200 and r.get_json()["summary"] is not None
+
+
+def test_hidden_moments_stay_hidden(c):
+    from demo.moments import SAMPLES, moment_for
+    assert SAMPLES == ("rush", "clear", "humid")
+    for m in HIDDEN:
+        assert moment_for(m).key == m
+    assert all(m not in SAMPLES for m in HIDDEN)
+    assert c.get("/?moment=indoor-near").get_data() != c.get("/?moment=rush").get_data()
+
+
+def test_indoor_near_story(c):
+    """An indoor-only home that reads a public monitor 1.1 km away: the rush story, told from that monitor."""
+    app = app_of(c, "indoor-near")
+    assert app["place"]["indoor"] == "bedroom" and app["place"]["outdoor"] is None
+    assert app["outdoor_from"] == {"kind": "monitor", "id": SOURCE_ID}
+    current = c.get("/api/current?moment=indoor-near").get_json()
+    assert sorted(m["locationType"] for m in current) == ["indoor", "outdoor"]
+    out = next(m for m in current if m["locationType"] == "outdoor")
+    assert out["locationId"] == SOURCE_ID and out["pm02_corrected"] == 22   # the rush's 22, read by the public monitor
+    src = out["source"]
+    assert src["kind"] == "monitor" and src["id"] == SOURCE_ID and src["distance_km"] == 1.1
+    assert src["name"] == "Larkspur Yard" and src["contributor"] == "Demo Neighbor" and src["fallback"] is False
+    nb = {n["locationId"] for n in c.get("/api/neighborhood?moment=indoor-near").get_json()}
+    assert SOURCE_ID in nb and 4202 not in nb   # the public monitor among its neighbors; no balcony monitor
+
+    r = read(c, "indoor-near")
+    assert r["outdoor_source"] == {"kind": "monitor", "name": "Larkspur Yard", "distance_km": 1.1, "area_count": 0,
+                                   "fallback": False}
+    s = r["summary"]
+    items = {i["id"]: i for i in s["items"]}
+    assert set(items) == {"pm", "co2", "pollen"}
+    pm = items["pm"]
+    assert ("scaled to what the public monitor at Larkspur Yard, 1.1 km away, measured over the last day."
+            in pm["why"]), pm["why"]
+    # the actions as in the rush story
+    assert pm["forecast"] is True and pm["facts"]["cause"] == "BQE rush" and pm["facts"]["pm_now"] == 22
+    assert pm["action"]["when"] == "until 11 AM"
+    assert items["co2"]["action"]["text"] == "Open a window for 10 min" and items["co2"]["action"]["when"] == "after 11 AM"
+    profiles = profiles_of(s)
+    assert profiles["runner"]["state"] == "Run after 11 AM"
+    assert profiles["toddler"]["state"] == "Stale indoors" and profiles["sinus"]["state"] == "Damp + pollen"
+
+
+def test_indoor_model_story(c):
+    """An indoor-only home on the model alone: PM2.5 is a forecast estimate, with nothing outside to check it against."""
+    app = app_of(c, "indoor-model")
+    assert app["place"]["indoor"] == "bedroom" and app["place"]["outdoor"] is None
+    assert app["outdoor_from"] == {"kind": "model", "id": None}
+    current = c.get("/api/current?moment=indoor-model").get_json()
+    out = next(m for m in current if m["locationType"] == "outdoor")
+    assert "locationId" not in out and "pm02" not in out and out["source"]["kind"] == "model"
+    assert 4202 not in {n["locationId"] for n in c.get("/api/neighborhood?moment=indoor-model").get_json()}
+
+    r = read(c, "indoor-model")
+    assert r["outdoor_source"]["kind"] == "model"
+    s = r["summary"]
+    items = {i["id"]: i for i in s["items"]}
+    pm = items["pm"]
+    assert pm["forecast"] is True and pm["facts"].get("pm_now") is None   # no reading now: the forecast alone
+    assert ("The forecast is Open-Meteo’s prediction for the wider area: an estimate, with no monitor outside to check "
+            "it against.") in pm["why"], pm["why"]
+    # without a reading now, the dirty stretch is the forecast's, from 8 (in the BQE's morning rush, wind toward home):
+    # air now, before it, so the airing doesn't read as a clash with "Windows shut · 8–11 AM"; the runner avoids it
+    assert pm["action"]["when"] == "8–11 AM"
+    co2 = items["co2"]
+    assert co2["action"]["text"] == "Open a window for 10 min" and co2["action"]["when"] == "now, before the 8 AM rush"
+    assert "Do it before 8 AM, when the rush fumes arrive." in co2["why"], co2["why"]
+    assert profiles_of(s)["runner"]["state"] == "Avoid 8–11 AM"
+
+
+def test_outdoor_only_story(c):
+    """An outdoor-only home: no indoor monitor, so no CO₂, the toddler waits for one, the sinus profile on pollen only."""
+    app = app_of(c, "outdoor-only")
+    assert app["place"]["indoor"] is None and app["place"]["outdoor"] == "balcony"
+    assert "outdoor_from" not in app
+    current = c.get("/api/current?moment=outdoor-only").get_json()
+    assert [m["locationType"] for m in current] == ["outdoor"] and current[0]["locationId"] == 4202
+
+    r = read(c, "outdoor-only")
+    assert "outdoor_source" not in r
+    s = r["summary"]
+    items = {i["id"]: i for i in s["items"]}
+    assert "co2" not in items and "rh" not in items
+    assert set(items) == {"pm", "pollen"}
+    assert "Humidity inside" not in (s["also"] or "")
+    profiles = profiles_of(s)
+    assert profiles["toddler"]["state"] == "Needs an indoor monitor"
+    assert profiles["sinus"]["state"] == "Pollen high" and "pollen only" in profiles["sinus"]["why"]
+    assert profiles["runner"]["state"] == "Run after 11 AM"

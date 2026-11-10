@@ -82,22 +82,22 @@ def test_a_real_home_has_no_demo_clock(client):
     assert client.get("/api/context").headers["Cache-Control"] == "no-cache"
 
 
-def test_closed_home_pill_has_no_need_icons(client):
-    """The closed Home pill shows the monitors and the avatar; the needs are in the summary and the Home menu.
+def test_closed_home_pill_has_no_profile_icons(client):
+    """The closed Home pill shows the monitors and the avatar; the profiles are in the summary and the Home menu.
     The pill still names them for screen readers."""
     html = client.get("/").get_data(as_text=True)
     pill = re.search(r'<summary class="custom-top">(.*?)</summary>', html, re.S).group(1)
-    assert "data-need=" not in pill
+    assert "data-profile=" not in pill
     assert 'id="vsum-hw"' in pill
-    assert '<span class="vh" data-app="needs-label"></span>' in pill
-    menu = re.search(r'<div class="view needs">(.*?)</div>', html, re.S).group(1)
-    assert re.findall(r'class="chip" data-need="(\w+)"', menu) == ["toddler", "sinus", "runner"]
+    assert '<span class="vh" data-app="profiles-label"></span>' in pill
+    menu = re.search(r'<div class="view profiles">(.*?)</div>', html, re.S).group(1)
+    assert re.findall(r'class="chip" data-profile="(\w+)"', menu) == ["toddler", "sinus", "runner"]
 
 
-def test_need_icons_live_in_the_summary_header_strip(client):
-    """The summary card's need icons render into #s-needs at the right end of the header strip, not a row of their own."""
+def test_profile_icons_live_in_the_summary_header_strip(client):
+    """The summary card's profile icons render into #s-profiles at the right end of the header strip, not a row of their own."""
     html = client.get("/").get_data(as_text=True)
     strip = re.search(r'<div class="s-bar">(.*?)</section>', html, re.S).group(1)
-    assert strip.index('id="read-refresh"') < strip.index('<div class="s-needs" id="s-needs"></div>') < strip.index('<div class="sx" id="summary">')
+    assert strip.index('id="read-refresh"') < strip.index('<div class="s-profiles" id="s-profiles"></div>') < strip.index('<div class="sx" id="summary">')
     js = (Path(__file__).resolve().parent.parent / "static" / "app.js").read_text(encoding="utf-8")
-    assert "needsEl: $('s-needs')" in js
+    assert "profilesEl: $('s-profiles')" in js

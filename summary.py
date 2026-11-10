@@ -1,4 +1,4 @@
-"""The summary card's rules: which readings lead, what to do and when, the needs row and the day chart's data.
+"""The summary card's rules: which readings lead, what to do and when, the profiles row and the day chart's data.
 Also AirGradient's PM2.5 correction (corrected_pm), which the neighbors and the demo's public monitors share.
 
 Pure functions, no network or Flask: server.py and tools/replay.py gather the inputs and call build_summary.
@@ -234,8 +234,11 @@ def _first_over(outlook, now):
 AC_DRY = "Run the AC’s dry mode"   # the damp-room action when the AC is the only appliance
 
 
-def action(item, r, outlook, rush, now):
-    """What to do for one item, with its time: text, when, and when_end (ISO, the moment `when` goes stale)."""
+def action(item, r, outlook, rush, now, estimate=False):
+    """What to do for one item, with its time: text, when, and when_end (ISO, the moment `when` goes stale).
+    `estimate`: the outdoor PM2.5 has no reading now (an indoor-only home on the area or the model). Airing before the
+    dirty stretch then reads "now, before 8 AM" ("now, before the 8 AM rush" when it starts in a rush with the wind
+    toward home), so it doesn't read as a clash with "Windows shut · 8–11 AM"."""
     act = lambda text, when=None, end=None: {"text": text, "when": when, "when_end": end.isoformat() if end else None}
     stretch = _first_over(outlook, now)
     kind = item["id"]
@@ -245,7 +248,11 @@ def action(item, r, outlook, rush, now):
         if stretch and stretch[0] <= now:
             return act("Open a window for 10 min", f"after {clock(stretch[1])}", stretch[1])
         if stretch and stretch[0] - now <= timedelta(hours=2):
-            return act("Open a window for 10 min", f"before {clock(stretch[0])}", stretch[0])
+            if not estimate:
+                return act("Open a window for 10 min", f"before {clock(stretch[0])}", stretch[0])
+            in_rush = any(a <= stretch[0] < b and toward for a, b, toward in rush)
+            at = f"the {clock(stretch[0])} rush" if in_rush else clock(stretch[0])
+            return act("Open a window for 10 min", f"now, before {at}", stretch[0])
         return act("Open a window for 10 min", "now")
     if kind == "rh":
         rh = r.get("rh")
@@ -272,14 +279,17 @@ def action(item, r, outlook, rush, now):
     return act(None)
 
 
-def needs_row(r, outlook, pollen_today, smoke, night, now):
+def profiles_row(r, outlook, pollen_today, smoke, night, now, indoor=True):
     """Toddler, Sinus & allergy, Runner: ok True (green), False (amber) or None (no reading), a short state, and the facts
-    phrases.pill_why turns into the (i) text."""
+    phrases.pill_why turns into the (i) text. Without an indoor monitor (indoor False) the toddler can't be judged
+    (CO₂ is the toddler's reading) and the sinus profile runs on pollen alone."""
     co2, rh = r.get("co2"), r.get("rh")
     pol = (pollen_today or {}).get("index")
     stretch = _first_over(outlook, now)
 
-    if outlook.get("high"):   # outside first: it applies even with the indoor monitor offline
+    if not indoor:   # nothing to say about the toddler until an indoor monitor is added, outside air included
+        tod = (None, "Needs an indoor monitor")
+    elif outlook.get("high"):   # outside first: it applies even with the indoor monitor offline
         tod = (False, "Dirty outside")
     elif co2 is None:
         tod = (None, "No reading")
@@ -294,7 +304,12 @@ def needs_row(r, outlook, pollen_today, smoke, night, now):
     dry = rh is not None and rh < LIMITS["rh_dry"]
     pollen_high = pol is not None and pol >= LIMITS["pollen"]
     if rh is None:
-        sin = (False, "Pollen high") if pollen_high else (None, "No reading")
+        if pollen_high:
+            sin = (False, "Pollen high")
+        elif not indoor and pol is not None:   # no indoor monitor at all: pollen alone decides
+            sin = (True, "Pollen low")
+        else:
+            sin = (None, "No reading")
     elif damp and pollen_high:
         sin = (False, "Damp + pollen")
     elif damp:
@@ -318,12 +333,12 @@ def needs_row(r, outlook, pollen_today, smoke, night, now):
         # no "till 4 PM" from the rush wind or rain: in a week of replay the rush didn't raise PM2.5 at the monitor
         run = (True, "Clean air")
 
-    def need(nid, name, v, facts):
-        return {"id": nid, "name": name, "ok": v[0], "state": v[1], "facts": facts}
+    def profile(pid, name, v, facts):
+        return {"id": pid, "name": name, "ok": v[0], "state": v[1], "facts": facts}
     return [
-        need("toddler", "Toddler", tod, {"co2": co2, **({"night_peak": night["peak"]} if night and night["stale"] else {})}),
-        need("sinus", "Sinus & allergy", sin, {"rh": rh, "pollen_index": pol, "pollen_type": (pollen_today or {}).get("name")}),
-        need("runner", "Runner", run, {"pm_now": outlook.get("now"), "smoke": bool(smoke)}),
+        profile("toddler", "Toddler", tod, {"co2": co2, **({"night_peak": night["peak"]} if night and night["stale"] else {})}),
+        profile("sinus", "Sinus & allergy", sin, {"rh": rh, "pollen_index": pol, "pollen_type": (pollen_today or {}).get("name")}),
+        profile("runner", "Runner", run, {"pm_now": outlook.get("now"), "smoke": bool(smoke)}),
     ]
 
 
@@ -417,15 +432,28 @@ def _since(pts, limit, now):
 
 
 def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today, pollen_tomorrow, rush, sun, now, road=None,
-                  pm_past_model=False, monitor_label=None):
-    """The whole card from the rules: items with actions and explanations, the Also line, the needs row, the chart.
+                  pm_past_model=False, monitor_label=None, area_factor=None, source=None, indoor=True):
+    """The whole card from the rules: items with actions and explanations, the Also line, the profiles row, the chart.
     `road` is the road's name (None without one); `rush` its rush windows from rush_windows(). With pm_past_model,
     pm_past is the model's past hours: the chart draws it, but it can't calibrate the model against itself.
     `monitor_label` names the outdoor monitor in the PM2.5 item's sentences ("your yard monitor", "this monitor");
-    None leaves phrases' default, the home's outdoor monitor."""
+    None leaves phrases' default, the home's outdoor monitor. `area_factor`: the public monitors' median ratio to the
+    model around a home without an outdoor monitor (server.outdoor_source, "area"); without a monitor's own history to
+    calibrate with, it scales the model like calibrate_forecast's factor (fit "area"), the model's past hours too.
+    `source`: where a home without an outdoor monitor gets its outdoor PM2.5 ({kind, name, distance_km, area_count,
+    fallback: "monitor", "list" or False}, server.outdoor_source's facts), for the PM2.5 item's sentences; None for a home with one.
+    `indoor` False: an outdoor-only home. No indoor readings, whatever was passed, and the toddler profile waits for an
+    indoor monitor."""
+    if not indoor:
+        r, co2_pts, rh_pts = {**r, "co2": None, "rh": None, "t_in": None}, [], []
     cams_now = next((v for t, v in cams if _floor_hour(t) == _floor_hour(now) and v is not None), None)
     adjusted, k = calibrate_forecast(cams, [] if pm_past_model else pm_past, now)
     fit = "calibrated" if k is not None else None
+    if adjusted is None and area_factor is not None:
+        k = min(max(area_factor, CALIBRATION_RANGE[0]), CALIBRATION_RANGE[1])
+        adjusted, fit = [(t, round(v * k, 1)) for t, v in cams if v is not None and t > now], "area"
+        if pm_past_model:   # the chart's past is the model's: the same scale, so the line doesn't jump at now
+            pm_past = [(t, round(v * k, 1)) for t, v in pm_past if v is not None]
     if adjusted is None:   # not enough history to calibrate: anchor to the reading now, fading over 6 hours
         adjusted, anchored = anchor_forecast([(t, v) for t, v in cams if t >= _floor_hour(now)], r.get("pm_now"), cams_now)
         fit = "anchored" if anchored else None
@@ -445,16 +473,23 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
         extra.append(f"pollen high tomorrow ({(pollen_tomorrow.get('name') or 'pollen').lower()}), keep windows shut overnight")
     items, also = select(cands, extra)
 
+    estimate = source is not None and r.get("pm_now") is None   # no outdoor PM2.5 reading now: the area or the model
+    # where the outdoor PM2.5 comes from, for its item's sentences (phrases.py words them)
+    source_facts = {"source_kind": source["kind"], "source_name": source.get("name"), "source_km": source.get("distance_km"),
+                    "area_count": source.get("area_count"), "source_fallback": source.get("fallback") or False} if source else {}
     wind_at = lambda t: next((h.get("wind_dir") for h in hourly if t is not None and _floor_hour(h["t"]) == _floor_hour(t)), None)
     for it in items:
-        # whose need the item is: its chip on the card names that need and opens its sentence after the item's
-        it["need"] = {"co2": "toddler", "rh": "sinus", "pollen": "sinus"}.get(it["id"], "toddler" if outlook.get("high") else "runner")
-        it["action"] = action(it, r, outlook, rush, now)
+        # whose profile the item is: its chip on the card names that profile and opens its sentence after the item's
+        it["profile"] = {"co2": "toddler", "rh": "sinus", "pollen": "sinus"}.get(it["id"], "toddler" if outlook.get("high") and indoor else "runner")
+        it["action"] = action(it, r, outlook, rush, now, estimate=estimate)
         f = dict(it["facts"])
         when = it["action"]["when"] or ""
         if it["id"] == "co2":
             f["since"] = _since(co2_pts, LIMITS["co2"], now)
-            if when.startswith("before "):   # the PM2.5 stretch ahead: with a road and rush hours, its rush fumes
+            if when.startswith("now, before "):   # an estimate's stretch ahead: rush fumes only when the action says so
+                at = when[len("now, before "):]
+                f["rush_start" if at.startswith("the ") else "dirty_at"] = at.removeprefix("the ").removesuffix(" rush")
+            elif when.startswith("before "):   # the PM2.5 stretch ahead: with a road and rush hours, its rush fumes
                 f["rush_start" if road and rush else "dirty_at"] = when[7:]
             elif when.startswith("after "):
                 f["clean_at"] = when[6:]
@@ -472,18 +507,22 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
         if it["id"] == "pm":
             f.update(wind_dir=wind_at(outlook["max_at"] or now), smoke=bool(smoke))
             # how the forecast was fitted, and to which monitor: its timing sentence says so
-            home = {"forecast_fit": fit, **({"monitor_label": monitor_label} if monitor_label else {})}
+            home = {"forecast_fit": fit, **({"monitor_label": monitor_label} if monitor_label else {}), **source_facts}
         it["why"] = phrases.why(it["id"], {**f, **home})
         it["facts"] = f
 
-    needs = needs_row(r, outlook, pollen_today, smoke, night, now)
-    for n in needs:   # the appliances pick the damp-room words; like `home` above, not kept as facts
-        n["why"] = phrases.pill_why(n["id"], {**n["facts"], **{a: True for a in APPLIANCES}}, n["ok"], n["state"])
+    profiles = profiles_row(r, outlook, pollen_today, smoke, night, now, indoor)
+    # the appliances pick the damp-room words, and the home's monitors the words for a missing one; like `home` above,
+    # not kept as facts
+    words = {**{a: True for a in APPLIANCES}, **({"source_kind": source["kind"]} if source else {}),
+             **({} if indoor else {"no_indoor": True})}
+    for n in profiles:
+        n["why"] = phrases.pill_why(n["id"], {**n["facts"], **words}, n["ok"], n["state"])
     show_rh = any(i["id"] == "rh" and not i["facts"].get("dry") for i in items)
     tl = timeline(now, co2_pts, rh_pts, pm_past, adjusted, hourly, sun, show_rh, pm_past_model)
     t0 = datetime.fromisoformat(tl["t0"])
     return {"label": "Tonight" if t0.hour >= TONIGHT_FROM else "Today", "clock": clock(now), "items": items, "also": also,
-            "needs": needs, "all_clear": not items, "timeline": tl}
+            "profiles": profiles, "all_clear": not items, "timeline": tl}
 
 
 

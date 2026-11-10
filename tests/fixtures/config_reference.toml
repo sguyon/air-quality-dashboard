@@ -8,7 +8,7 @@ outdoor = "backyard"
 pollen_zip = "11222"
 region = "New York"
 
-[needs]
+[profiles]
 toddler = true
 sinus = true
 runner = true

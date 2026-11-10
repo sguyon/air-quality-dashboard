@@ -9,6 +9,7 @@ lat = 39.95
 lon = -75.16
 # Your timezone, as an IANA name (for example America/Chicago, Europe/Paris).
 timezone = "America/New_York"
+# Either monitor may be left out (delete its line), not both. Without an outdoor one, set outdoor_from under [sources].
 # What to call your indoor monitor in sentences (the room it's in). The page finds the monitor itself, from your token.
 indoor = "living room"
 # What to call your outdoor monitor in sentences.
@@ -18,8 +19,8 @@ pollen_zip = "19103"
 # Your city or region, used in a few sentences, e.g. "the usual New York season". Leave out for neutral wording.
 # region = "Philadelphia"
 
-[needs]
-# Which questions the page answers for your household. Each is true or false.
+[profiles]
+# Which of the three profiles fit this home. Each is true or false.
 # A toddler at home: CO2 and the air at sleep time, and whether outdoor air is fine for them.
 toddler = true
 # Sinus trouble or allergies: humidity and pollen.
@@ -53,6 +54,10 @@ rh_stop = 55
 pollen = 3
 
 [sources]
+# Only without an outdoor monitor (ignored with one): where outdoor PM2.5 comes from. A nearby public AirGradient
+# monitor's id (a number), "area" (an estimate from the public monitors around you) or "model" (Open-Meteo's forecast
+# alone). Chosen once at setup: scripts/check_config.py --suggest says which and why (SETUP.md).
+# outdoor_from = 900002   # an example id, not a real monitor: use the one --suggest gives
 # NOAA wildfire smoke data. US only.
 smoke = true
 # Pollen levels from Google. Also needs GOOGLE_POLLEN_API_KEY in .env.

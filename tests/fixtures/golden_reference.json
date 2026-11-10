@@ -246,7 +246,7 @@
    ],
    "clock": "4:30 PM",
    "generated_at": "2026-04-21T16:30:00-04:00",
-   "needs": [
+   "profiles": [
     {
      "action": "Air the room",
      "id": "toddler",
@@ -314,8 +314,8 @@
       "id": "pm",
       "key": "out",
       "label": "PM2.5 outside",
-      "need": "runner",
       "num": "25",
+      "profile": "runner",
       "score": 1.6666666666666667,
       "unit": "µg/m³",
       "why": "Fine particles reach deep into the lungs. The line is 15, WHO’s guideline for a 24-hour average, used here for any hour. The southeast wind carries BQE rush-hour fumes onto the block. The forecast is Open-Meteo’s prediction for the wider area, scaled to what your backyard monitor measured over the last day."
@@ -336,8 +336,8 @@
       "id": "co2",
       "key": "in",
       "label": "CO₂ inside",
-      "need": "toddler",
       "num": "1,240",
+      "profile": "toddler",
       "score": 1.55,
       "unit": "ppm",
       "why": "Above 800 the air feels stale, and focus and sleep can suffer. It’s been over 800 since 3 PM. Do it before 5 PM, when the rush fumes arrive."
@@ -357,15 +357,15 @@
       "id": "pollen",
       "key": null,
       "label": "Pollen today",
-      "need": "sinus",
       "num": "4",
+      "profile": "sinus",
       "score": 1.3333333333333333,
       "unit": "of 5",
       "why": "Tree pollen sets off sneezing and a stuffy nose for allergic sinuses. Today it’s 4 of 5. Keep the windows shut and shower after time outside."
      }
     ],
     "label": "Today",
-    "needs": [
+    "profiles": [
      {
       "facts": {
        "co2": 1240.0,
@@ -938,7 +938,7 @@
    ],
    "clock": "7:45 AM",
    "generated_at": "2026-04-21T07:45:00-04:00",
-   "needs": [
+   "profiles": [
     {
      "action": "Air the room",
      "id": "toddler",
@@ -1002,8 +1002,8 @@
       "id": "co2",
       "key": "in",
       "label": "CO₂ inside",
-      "need": "toddler",
       "num": "1,240",
+      "profile": "toddler",
       "score": 1.55,
       "unit": "ppm",
       "why": "Above 800 the air feels stale, and focus and sleep can suffer. It’s been over 800 since yesterday 10 PM."
@@ -1023,8 +1023,8 @@
       "id": "pollen",
       "key": null,
       "label": "Pollen today",
-      "need": "sinus",
       "num": "4",
+      "profile": "sinus",
       "score": 1.3333333333333333,
       "unit": "of 5",
       "why": "Tree pollen sets off sneezing and a stuffy nose for allergic sinuses. Today it’s 4 of 5. Keep the windows shut and shower after time outside."
@@ -1046,15 +1046,15 @@
       "id": "rh",
       "key": null,
       "label": "Humidity inside",
-      "need": "sinus",
       "num": "64",
+      "profile": "sinus",
       "score": 1.0666666666666667,
       "unit": "%",
       "why": "Above 60%, mold and dust mites grow, which is hard on sinuses. Outside is wetter (85%), so a window won’t dry the room. The AC’s dry mode works too. Stop at 55%."
      }
     ],
     "label": "Today",
-    "needs": [
+    "profiles": [
      {
       "facts": {
        "co2": 1240.0,

@@ -144,3 +144,31 @@ def test_smoke_polygons_fetched_once_for_every_place(monkeypatch):
         assert len(calls) == 1 and "nesdis.noaa.gov" in calls[0]
     finally:
         server._cache.pop("smoke", None)
+
+
+def test_logged_and_returned_errors_carry_no_keys(monkeypatch, caplog):
+    """A failed pollen call's error text holds its URL (?key=...): the log line must not carry the key."""
+    monkeypatch.setenv("GOOGLE_POLLEN_API_KEY", "FAKEPOLLENKEY12345")
+    monkeypatch.setattr(server, "TOKEN", "FAKETOKEN6789")
+    def boom():
+        raise RuntimeError("400 Client Error for url: https://pollen.googleapis.com/v1/forecast:lookup?key=FAKEPOLLENKEY12345&x=FAKETOKEN6789")
+    import logging
+    with caplog.at_level(logging.WARNING, logger="aq.cache"):
+        try:
+            server._cache_run("test:redact", boom)
+        except RuntimeError:
+            pass
+    text = caplog.text
+    assert "upstream test:redact failed" in text
+    assert "FAKEPOLLENKEY12345" not in text and "FAKETOKEN6789" not in text
+    assert server._redact("a FAKEPOLLENKEY12345 b") == "a *** b"
+
+
+def test_neighborhood_error_carries_no_keys(monkeypatch):
+    monkeypatch.setenv("GOOGLE_POLLEN_API_KEY", "FAKEPOLLENKEY12345")
+    def boom(*a, **k):
+        raise RuntimeError("failed url ...?key=FAKEPOLLENKEY12345")
+    monkeypatch.setattr(server, "cached", boom)
+    monkeypatch.setattr(server, "source_on", lambda name: True)
+    r = server.app.test_client().get("/api/neighborhood")
+    assert r.status_code == 502 and b"FAKEPOLLENKEY12345" not in r.data

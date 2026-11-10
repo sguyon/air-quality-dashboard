@@ -99,3 +99,94 @@ def test_damp_wording_follows_the_dew_point():
 
 def test_outdoor_co2_number_is_a_fact():
     assert "420" in why("co2", {"co2": 1240}) and 420 in LIMIT_FACTS.values()
+
+
+# ── A home with one monitor: where its outdoor PM2.5 comes from, and the profiles it can't judge ──
+
+FORECAST = "The forecast is Open-Meteo’s prediction for the wider area"
+NEAR = {"source_kind": "monitor", "source_name": "Cedar & 2nd Ave", "source_km": 1.1, "source_fallback": False}
+
+
+def timing(facts):
+    """The PM2.5 item's last sentence(s): what follows the effect sentence and any now sentence."""
+    return why("pm", {"pm": 25, **facts}).split(FORECAST, 1)[1]
+
+
+def test_own_outdoor_monitor_sentences_unchanged():
+    assert why("pm", {"pm": 25, "forecast_fit": "calibrated"}).endswith(
+        f"{FORECAST}, scaled to what your {LIMIT_FACTS['outdoor']} monitor measured over the last day.")
+    assert why("pm", {"pm": 25, "forecast_fit": "anchored", "monitor_label": "this monitor"}).endswith(
+        f"{FORECAST}, started from this monitor’s reading now.")
+
+
+def test_nearby_public_monitor_sentence():
+    assert why("pm", {"pm": 25, "forecast_fit": "calibrated", **NEAR}).endswith(
+        f"{FORECAST}, scaled to what the public monitor at Cedar & 2nd Ave, 1.1 km away, measured over the last day.")
+    assert why("pm", {"pm": 25, "forecast_fit": "anchored", **NEAR}).endswith(
+        f"{FORECAST}, started from what the public monitor at Cedar & 2nd Ave, 1.1 km away, reads now.")
+    assert "2 km away" in timing({"forecast_fit": "calibrated", **NEAR, "source_km": 2.0})
+    # its name unknown (gone from AirGradient's list since the server started): never "None"
+    unnamed = {"forecast_fit": "calibrated", "source_kind": "monitor", "source_name": None, "source_km": None}
+    assert timing(unnamed) == ", scaled to what the public monitor you chose measured over the last day."
+
+
+def test_area_sentence():
+    facts = {"forecast_fit": "area", "source_kind": "area", "area_count": 4, "source_fallback": False}
+    assert why("pm", {"pm": 25, **facts}).endswith(
+        f" {FORECAST}, scaled to what 4 public monitors near you measured over the last day.")
+
+
+def test_model_sentence():
+    facts = {"forecast_fit": None, "source_kind": "model", "source_fallback": False}
+    assert why("pm", {"pm": 25, **facts}).endswith(
+        f" {FORECAST}: an estimate, with no monitor outside to check it against.")
+
+
+def test_fallback_says_the_chosen_monitor_isnt_reporting():
+    area = {"forecast_fit": "area", "source_kind": "area", "area_count": 3, "source_name": "Cedar & 2nd Ave",
+            "source_km": 1.1, "source_fallback": True}
+    assert why("pm", {"pm": 25, **area}).endswith(
+        f" Cedar & 2nd Ave isn’t reporting, so this is an estimate for your area. {FORECAST}, scaled to what 3 public"
+        " monitors near you measured over the last day.")
+    model = {"source_kind": "model", "source_name": None, "source_fallback": True}
+    assert why("pm", {"pm": 25, **model}).endswith(
+        f" The public monitor you chose isn’t reporting, so this is an estimate for your area. {FORECAST}: an estimate,"
+        " with no monitor outside to check it against.")
+
+
+def test_fallback_when_airgradient_didnt_answer_doesnt_blame_the_monitor():
+    """AirGradient's list of public monitors didn't answer: the chosen monitor may well be reporting."""
+    model = {"source_kind": "model", "source_name": "Cedar & 2nd Ave", "source_km": 1.1, "source_fallback": "list"}
+    text = why("pm", {"pm": 25, **model})
+    assert text.endswith(f" AirGradient didn’t answer, so this is an estimate for your area. {FORECAST}: an estimate,"
+                         " with no monitor outside to check it against.")
+    assert "reporting" not in text
+    monitor = {**model, "source_fallback": "monitor"}
+    assert "Cedar & 2nd Ave isn’t reporting, so this is an estimate for your area." in why("pm", {"pm": 25, **monitor})
+
+
+def test_a_source_never_names_an_outdoor_monitor_the_home_lacks():
+    for facts in ({"forecast_fit": "calibrated", **NEAR}, {"forecast_fit": "area", "source_kind": "area", "area_count": 2},
+                  {"source_kind": "model"}):
+        assert "your outdoor monitor" not in why("pm", {"pm": 25, **facts})
+    assert pill_why("runner", {"source_kind": "model"}, ok=None) == "Outdoor PM2.5 isn’t available right now."
+    assert pill_why("runner", {}, ok=None) == "The outdoor monitor hasn’t reported."
+
+
+def test_toddler_needs_an_indoor_monitor():
+    s = pill_why("toddler", {"no_indoor": True}, ok=None, state="Needs an indoor monitor")
+    assert s == "A toddler sleeps deeper when CO₂ indoors stays low, and only an indoor monitor measures it."
+
+
+def test_sinus_on_pollen_only():
+    no_in = {"no_indoor": True}
+    assert pill_why("sinus", {**no_in, "pollen_index": 4, "pollen_type": "tree"}, ok=False, state="Pollen high") == \
+        "Tree pollen is 4 of 5 today: keep the windows shut (pollen only: no indoor monitor for humidity)."
+    assert pill_why("sinus", {**no_in, "pollen_index": 1}, ok=True, state="Pollen low") == \
+        "Pollen is low today (pollen only: no indoor monitor for humidity)."
+    assert "pollen only: no indoor monitor for humidity" in pill_why("sinus", no_in, ok=None, state="No reading")
+    # a home with an indoor monitor keeps its sentences
+    assert pill_why("sinus", {"pollen_index": 4, "pollen_type": "tree"}, ok=False, state="Pollen high") == \
+        "Tree pollen is 4 of 5 today: keep the windows shut."
+    assert pill_why("sinus", {}, ok=None) == "The indoor monitor hasn’t reported."
+    assert pill_why("sinus", {"pollen_index": 1}, ok=True, state="Pollen low").startswith("Humidity is between")

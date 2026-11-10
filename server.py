@@ -18,6 +18,7 @@ from flask import Flask, Response, g, jsonify, request, send_file
 import requests
 
 import phrases
+import publicmap
 import summary as summary_rules
 from config import (APPLIANCES, DEFAULT_LIMITS, ConfigError, Here, airgradient_map, bearing_in, env_key, load_config, public_view,
                     real_value, route_path)
@@ -63,7 +64,7 @@ def _cache_run(key, fetch):
     try:
         value = fetch()
     except Exception as e:
-        log.warning("upstream %s failed after %.2fs: %s", key, time.time() - t0, str(e)[:160])
+        log.warning("upstream %s failed after %.2fs: %s", key, time.time() - t0, _redact(e)[:160])
         raise
     finally:
         with _cache_lock:
@@ -172,9 +173,10 @@ def use_config(cfg):
     summary_rules.LIMITS.update(LIMITS)
     summary_rules.APPLIANCES.clear()
     summary_rules.APPLIANCES.update(cfg.appliances if cfg else APPLIANCES)
+    phrases.LIMIT_FACTS.update(phrases.PLACE_DEFAULTS)   # a config without a monitor doesn't keep the last one's name
     phrases.LIMIT_FACTS.update(co2_limit=LIMITS["co2"], rh_damp=LIMITS["rh_damp"], rh_dry=LIMITS["rh_dry"],
                                rh_stop=LIMITS["rh_stop"], pm_limit=LIMITS["pm"], pm_high=LIMITS["pm_high"],
-                               **({"indoor": place.indoor, "outdoor": place.outdoor} if place else {}))
+                               **({k: v for k, v in (("indoor", place.indoor), ("outdoor", place.outdoor)) if v} if place else {}))
 
 
 def startup_config(env=os.environ, root=None):
@@ -255,9 +257,17 @@ def get_build_info():
     return f"v2 · {commit} · {local_now().strftime('%H:%M:%S %Z')}"
 
 
+SECRET_ENV = ("AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY")   # keys that ride in request URLs, so in error text
+
+
 def _redact(text):
-    """The token never leaves the server: AirGradient error text can carry the request URL (?token=...) or echo it."""
-    return str(text).replace(TOKEN, "***") if TOKEN else str(text)
+    """Keys never leave the server: error text can carry the request URL (?token=..., ?key=...) or echo it.
+    Used for every error the server logs or returns."""
+    text = str(text)
+    for k in [TOKEN] + [env_key(name) for name in SECRET_ENV]:
+        if k:
+            text = text.replace(k, "***")
+    return text
 
 
 def api_get(path, params=None):
@@ -689,12 +699,27 @@ def current():
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 502
     _note_cache(info)
+    value = place_rows(value)
+    src = outdoor_source(with_history=False) if isinstance(value, list) else None
+    if src is not None:   # an indoor-only home: its outdoor source stands as the outdoor monitor (a copy: the cache keeps its list)
+        value = value + [source_monitor(src)]
     return jsonify(value)
+
+
+def place_rows(rows):
+    """A home with one monitor gets only that monitor's rows: the token may see others (a second monitor, an old one),
+    and an indoor-only home's outdoor PM2.5 is its source. A two-monitor home, the demo and no config: as they came.
+    A copy: the cache keeps its list."""
+    if not isinstance(rows, list) or CFG is None or CFG.demo or CFG.place is None:
+        return rows
+    drop = {kind for kind, name in (("indoor", CFG.place.indoor), ("outdoor", CFG.place.outdoor)) if name is None}
+    return [r for r in rows if not (isinstance(r, dict) and r.get("locationType") in drop)] if drop else rows
 
 
 HIST_KEEP = ("timestamp", "pm02", "pm02_corrected", "rco2", "rco2_corrected", "rhum", "rhum_corrected")   # history fields the charts and rules read
 # the History ranges (hours) and how long each is cached: (fresh, then served stale while refreshing), in seconds
 HIST_TTL = {1: (60, 240), 6: (60, 240), 24: (60, 240), 168: (300, 1800)}
+HIST_SLACK = timedelta(minutes=2)   # how far a History range's start may sit before its hours and still read as that range
 
 
 def _iso(ts):
@@ -721,6 +746,16 @@ def history(location_id):
         standard = hours in HIST_TTL and abs((datetime.now(timezone.utc) - to).total_seconds()) < 120
     except (KeyError, ValueError):
         standard = False
+    of = outdoor_from()
+    if isinstance(of, int) and location_id == of:   # an indoor-only home's public monitor: its history from the map
+        utc = lambda t: t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+        try:
+            frm = utc(_iso(request.args["from"])) if request.args.get("from") else datetime.now(timezone.utc) - timedelta(days=1)
+            to = utc(_iso(request.args["to"])) if request.args.get("to") else datetime.now(timezone.utc)
+        except ValueError:
+            return jsonify({"error": "from and to must be ISO times"}), 400
+        rows = source_history_rows(location_id, frm, to)
+        return jsonify([{k: r.get(k) for k in chart_keep if r.get(k) is not None} for r in rows])
     try:
         if standard:   # the page's ranges ending now: served from the cache, cut to the asked start
             rows, info = history_rows(location_id, hours, force=_force())
@@ -738,9 +773,7 @@ def history(location_id):
 def _fetch_world():
     """Every public AirGradient monitor in the world, as the API lists them. Cached by the caller, in the request
     thread: a fetch that cached() runs in the pool must never call cached() itself (it would wait on its own pool)."""
-    r = requests.get(f"{API_BASE}/world/locations/measures/current", timeout=15)
-    r.raise_for_status()
-    return r.json()
+    return publicmap.fetch_world()
 
 
 def _fetch_nearby(world, here=None):
@@ -776,9 +809,221 @@ def neighborhood():
         world, info = cached("ag:world", _fetch_world, force=_force(), **WORLD_CACHE)
         value = _fetch_nearby(world)
     except Exception as e:
-        return jsonify({"error": f"Neighborhood data unavailable: {e}"}), 502
+        return jsonify({"error": _redact(f"Neighborhood data unavailable: {e}")}), 502
     _note_cache(info)
     return jsonify(value)
+
+
+# ── An indoor-only home's outdoor PM2.5 ([sources] outdoor_from) ────────
+# A public monitor's id (its reading and its history on AirGradient's map, like an own outdoor monitor), "area" (the
+# public monitors around tune the model) or "model" (Open-Meteo's alone). Chosen once at setup; when the chosen monitor
+# isn't reporting, the area stands in (fallback), and the model when the area can't. publicmap.py has the radii.
+AREA_MAX_MONITORS = 5   # the nearest area monitors read: a median over 5 shrugs off one bad sensor, in few map requests
+SOURCE_HOURS = 24   # h: the history a source is read over, the day calibrate_forecast compares the model with
+# s: the most one request waits on the map in all for its source. Every monitor's map id is asked at once, then every
+# history at once; past the budget, what isn't cached yet goes on in the background for the next request
+SOURCE_BUDGET = 10
+# a monitor's map id in the cache (s): it doesn't change, so a stale one is served while it refreshes, for a day more
+MAP_ID_CACHE = {"ttl": publicmap.MAP_ID_TTL, "swr": publicmap.MAP_ID_TTL, "keep": publicmap.MAP_ID_TTL}
+# a source's day of history for the summary and the area (s): fresh as publicmap.HISTORY_TTL, then served at once
+# while it refreshes for up to 3 h (a day's ratio barely moves in that time), so a warm-ish cache never makes a
+# request wait on the map; kept 3 h when the map fails
+SOURCE_HIST_CACHE = {"ttl": publicmap.HISTORY_TTL, "swr": 3 * 3600, "keep": 3 * 3600}
+# the History card's ranges of a public monitor (s): served stale for 30 min at most, as the chart shows the latest hour
+CHART_HIST_CACHE = {"ttl": publicmap.HISTORY_TTL, "swr": 1800, "keep": 3 * 3600}
+# what "AirGradient didn't answer" means: the request failed (network, HTTP status, bad JSON) or ran out of time
+SOURCE_ERRORS = (requests.RequestException, RuntimeError, TimeoutError)
+# the facts the page and the summary get about a source; the row and the history stay on the server
+SOURCE_FACTS = ("kind", "id", "name", "street", "contributor", "url", "distance_km", "area_count", "fallback")
+# the ones the read's outdoor_source and the summary's PM2.5 sentences use
+SUMMARY_SOURCE_FACTS = ("kind", "name", "distance_km", "area_count", "fallback")
+_SOURCE_SEEN = {}   # public monitor id → its last row in the world list, to name it once it drops out of the list
+
+
+def outdoor_from():
+    """The configured outdoor source of an indoor-only home (a public monitor's id, "area" or "model"), or None: a home
+    with an outdoor monitor, no config, or the demo (its own seams)."""
+    if CFG is None or CFG.demo or CFG.place is None or CFG.place.outdoor is not None:
+        return None
+    return CFG.outdoor_from
+
+
+def _world_list():
+    """The world list ("ag:world", fetched in the request thread), or None when AirGradient doesn't answer."""
+    try:
+        world, _ = cached("ag:world", _fetch_world, force=_force(), **WORLD_CACHE)
+        return world
+    except SOURCE_ERRORS:
+        return None
+
+
+def _map_start(key, fetch, **kw):
+    """Starts a map fetch through the cache without waiting on it (a value already cached is left as it is)."""
+    try:
+        cached(key, fetch, wait=0, **kw)
+    except SOURCE_ERRORS:   # still running (TimeoutError), or already failed: the wait below answers either way
+        pass
+
+
+def _map_wait(key, fetch, deadline, **kw):
+    """The value a _map_start began, waiting no longer than what's left before `deadline` (time.monotonic()), or None
+    when the map didn't answer in time (the fetch goes on in the background for the next request)."""
+    try:
+        value, _ = cached(key, fetch, wait=max(0.0, min(publicmap.MAP_WAIT, deadline - time.monotonic())), **kw)
+        return value
+    except SOURCE_ERRORS:
+        return None
+
+
+def source_histories(mons, hours, deadline, measures=publicmap.MAP_MEASURES, cache=SOURCE_HIST_CACHE):
+    """Each public monitor's last `hours` on AirGradient's map as /api/history rows, oldest first; [] for one the map
+    has no entry for or that didn't answer in time. Through the cache, in the request thread, under keys that carry
+    each monitor's id (and the measures, when not all of them): every map id is asked at once, then every history at
+    once, and the waits share one deadline, so five monitors take about as long as one."""
+    tag = "" if measures is publicmap.MAP_MEASURES else ":" + ",".join(measures)
+    id_jobs = [(f"src:mapid:{m['locationId']}", lambda m=m: publicmap.map_id(m)) for m in mons]
+    for key, fetch in id_jobs:
+        _map_start(key, fetch, **MAP_ID_CACHE)
+    hist_jobs = []
+    for m, (key, fetch) in zip(mons, id_jobs):
+        mid = _map_wait(key, fetch, deadline, **MAP_ID_CACHE)
+        hist_jobs.append(None if mid is None else (f"src:maphist:{m['locationId']}:{hours}h{tag}",
+                                                   lambda mid=mid: publicmap.history(mid, hours, measures=measures)))
+    for job in filter(None, hist_jobs):
+        _map_start(*job, **cache)
+    return [[dict(r) for r in (_map_wait(*job, deadline, **cache) or [])] if job else [] for job in hist_jobs]
+
+
+def source_history(mon, hours, deadline, measures=publicmap.MAP_MEASURES, cache=SOURCE_HIST_CACHE):
+    """One public monitor's source_histories."""
+    return source_histories([mon], hours, deadline, measures, cache)[0]
+
+
+def _row_points(rows, now):
+    """/api/history rows as (local time, row), oldest first, like history_points."""
+    points = []
+    for row in rows:
+        try:
+            ts = datetime.fromisoformat(str(row["timestamp"]).replace("Z", "+00:00")).astimezone(now.tzinfo)
+        except (KeyError, ValueError, TypeError):
+            continue
+        points.append((ts, row))
+    return sorted(points, key=lambda p: p[0])
+
+
+def model_hours(now):
+    """The air-quality model's outdoor PM2.5 as (local time, value), oldest first."""
+    return sorted((_local(t, now.tzinfo), v) for t, v in (get_air_forecast() or {}).items())
+
+
+def _source(kind, **facts):
+    return {"kind": kind, "id": None, "name": None, "street": None, "contributor": None, "url": None,
+            "distance_km": None, "row": None, "history": [], "area_count": 0, "area_factor": None, "fallback": False,
+            **facts}
+
+
+def _monitor_facts(mon):
+    """A public monitor's facts for the page: who and where (its owner's credit), and how far from home."""
+    return {"id": mon.get("locationId"), "name": publicmap.name_of(mon), "street": mon.get("publicPlaceName"),
+            "contributor": mon.get("publicContributorName"), "url": mon.get("publicPlaceUrl"),
+            "distance_km": round(publicmap.km_between(HOME_LAT, HOME_LON, mon["latitude"], mon["longitude"]), 1)}
+
+
+def _area_source(world, now, deadline):
+    """The area estimate: the nearest AREA_MAX_MONITORS reporting outdoor monitors within AREA_KM, each one's hourly
+    PM2.5 over the last day, their median per hour, and its median ratio to the model (calibrate_forecast's factor:
+    the median of a per-hour median ratio is the ratio of the per-hour median, as the ratio is linear in the value).
+    The model instead with fewer than AREA_MIN_MONITORS with history, or too few hours to compare."""
+    near = [m for _, m in publicmap.within(world, HOME_LAT, HOME_LON, publicmap.AREA_KM, now)][:AREA_MAX_MONITORS]
+    series = []
+    for rows in source_histories(near, SOURCE_HOURS, deadline, measures=publicmap.PM_ONLY):
+        hourly = {}
+        for t, row in _row_points(rows, now):
+            v = fnum(row.get("pm02_corrected"))
+            if v is not None and now - timedelta(hours=SOURCE_HOURS) <= t <= now:
+                hourly.setdefault(t.replace(minute=0, second=0, microsecond=0), []).append(v)
+        if hourly:
+            series.append({h: sum(vs) / len(vs) for h, vs in hourly.items()})
+    if len(series) < publicmap.AREA_MIN_MONITORS:
+        return _source("model")
+    area = []
+    for h in sorted({h for s in series for h in s}):
+        vals = sorted(s[h] for s in series if h in s)
+        mid = len(vals) // 2
+        area.append((h, round(vals[mid] if len(vals) % 2 else (vals[mid - 1] + vals[mid]) / 2, 1)))
+    _, k = summary_rules.calibrate_forecast(model_hours(now), area, now)
+    if k is None:
+        return _source("model")
+    return _source("area", area_count=len(series), area_factor=k,
+                   history=[{"timestamp": h.isoformat(), "pm02_corrected": v} for h, v in area])
+
+
+def outdoor_source(now=None, with_history=True):
+    """Where an indoor-only home's outdoor PM2.5 comes from now, or None for a home with an outdoor monitor:
+    {"kind": "monitor"|"area"|"model", "id", "name", "street", "contributor", "url", "distance_km" (the chosen public
+    monitor's, kept when it falls back), "row" (its reading, with pm02_corrected; kind monitor only), "history" (its
+    /api/history rows over SOURCE_HOURS, or the area's hourly medians), "area_count" (area monitors used),
+    "area_factor" (the area's ratio to the model), "fallback" (why the chosen monitor's reading isn't used: "monitor",
+    it isn't reporting; "list", AirGradient's world list didn't answer, so whether it reports is unknown; else False)}.
+    with_history=False skips a public monitor's own history (/api/current shows only its reading); the area still reads
+    its monitors', as they decide whether it is "area" or "model".
+    Facts only: the page and phrases.py word them. Never raises for an upstream: monitor → area → model."""
+    of = outdoor_from()
+    if of is None:
+        return None
+    if of == "model":
+        return _source("model")
+    now = now or local_now()
+    world = _world_list()
+    deadline = time.monotonic() + SOURCE_BUDGET
+    about, fallback = {}, False
+    if isinstance(of, int):
+        mon = publicmap.find(world, of)
+        if mon is not None:
+            _SOURCE_SEEN[of] = mon
+        known = mon or _SOURCE_SEEN.get(of)
+        about = _monitor_facts(known) if known else {"id": of}
+        if mon is not None and outdoor_current(mon, now):
+            return _source("monitor", **about, row=publicmap.reading_row(mon),
+                           history=source_history(mon, SOURCE_HOURS, deadline) if with_history else [])
+        fallback = "list" if world is None else "monitor"
+    src = _area_source(world, now, deadline) if world is not None else _source("model")
+    return {**src, **about, "fallback": fallback}
+
+
+def source_facts(src):
+    """What the page and the read get about a source: SOURCE_FACTS, without its row and history."""
+    return {k: src[k] for k in SOURCE_FACTS}
+
+
+def source_monitor(src):
+    """The source as /api/current's outdoor monitor: a public monitor's reading row, or (area, model) an outdoor entry
+    without readings, so the page knows what to draw. Each says where it comes from ("source")."""
+    if src["kind"] == "monitor":
+        return {**src["row"], "source": source_facts(src)}
+    return {"locationType": "outdoor", "source": source_facts(src)}
+
+
+def source_history_rows(location_id, frm, to):
+    """The chosen public monitor's rows between frm and to (UTC datetimes) from AirGradient's map, for /api/history:
+    from the shortest History range (HIST_TTL's hours) that reaches back to frm, the longest at most. [] when it isn't
+    in the world list (nor seen since start) or the map doesn't answer."""
+    mon = publicmap.find(_world_list(), location_id) or _SOURCE_SEEN.get(location_id)
+    if mon is None:
+        return []
+    ranges = sorted(HIST_TTL)
+    back = (datetime.now(timezone.utc) - frm - HIST_SLACK).total_seconds() / 3600
+    hours = next((h for h in ranges if h >= back), ranges[-1])
+    rows = source_history(mon, hours, time.monotonic() + SOURCE_BUDGET, cache=CHART_HIST_CACHE)
+    out = []
+    for r in rows:
+        try:
+            t = _iso(str(r["timestamp"]))
+        except (KeyError, ValueError):
+            continue
+        if frm <= t <= to:
+            out.append(r)
+    return out
 
 
 def get_wind_cardinal(degrees):
@@ -1002,7 +1247,6 @@ CO2_VERY_HIGH = 1500   # ppm: over it, airing the room is urgent ("bad" tone), n
 RUN_NIGHT = (21, 5)    # hours [from, to): the run verdict speaks of tonight and the early morning
 SLEEP_HOURS = (17, 7)  # hours [from, to): the toddler's line is about the air before sleep
 MOISTURE_MARGIN_C = 1  # °C: outside air adds moisture when its dew point is this much above the room's
-STALE_OUTDOOR = timedelta(hours=2)   # an outdoor reading older than this counts as no reading now (a monitor gone quiet)
 
 
 def fnum(value):
@@ -1126,9 +1370,9 @@ def pm_of(r):
     return fnum(r.get("pm02_corrected", r.get("pm02")))
 
 
-def build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run_item, co2_run, now):
-    """One line per need, in the header pill's order: Toddler, Sinus & allergy, Runner.
-    Each need is paired with the card that holds its evidence (metric)."""
+def build_profiles(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run_item, co2_run, now):
+    """One line per profile, in the header pill's order: Toddler, Sinus & allergy, Runner.
+    Each profile is paired with the card that holds its evidence (metric)."""
     keyed = {a["key"]: a for a in actions}
     evening = now.hour >= SLEEP_HOURS[0] or now.hour < SLEEP_HOURS[1]
 
@@ -1160,9 +1404,9 @@ def build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run
     run = keyed.get("run") or run_item
     rn = (run["tone"], run["text"], run["why"]) if run else ("muted", "No outdoor reading", "The outdoor monitor has not reported.")
 
-    def need(nid, name, metric, v):
-        return {"id": nid, "name": name, "metric": metric, "tone": v[0], "action": v[1], "why": v[2]}
-    out = [need("toddler", "Toddler", "co2", tod), need("sinus", "Sinus & allergy", "humidity", sin), need("runner", "Runner", "pm", rn)]
+    def profile(pid, name, metric, v):
+        return {"id": pid, "name": name, "metric": metric, "tone": v[0], "action": v[1], "why": v[2]}
+    out = [profile("toddler", "Toddler", "co2", tod), profile("sinus", "Sinus & allergy", "humidity", sin), profile("runner", "Runner", "pm", rn)]
     out[1]["pollen"] = [{"name": q.get("name"), "index": q.get("index") or 0, "in_season": bool(q.get("in_season"))} for q in (pollen or [])]
     return out
 
@@ -1172,9 +1416,10 @@ def _local(ts, tz):
     return datetime.fromisoformat(ts).replace(tzinfo=tz)
 
 
-def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now):
-    """Gather what summary.build_summary needs from the caches the page already fills. For a public monitor without
-    history (AirGradient's public map has none for it, or didn't answer), the chart's past PM2.5 is the model's."""
+def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now, source=None):
+    """Gather what summary.build_summary needs from the caches the page already fills. Without an own outdoor
+    monitor's history (a public monitor's page, or an indoor-only home: `source`, outdoor_source's), the chart's past
+    PM2.5 is the model's; an area source's ratio to the model scales it (area_factor)."""
     tz = now.tzinfo
     weather = get_open_meteo_data()
     hw, daily = weather.get("hourly") or {}, weather.get("daily") or {}
@@ -1182,11 +1427,13 @@ def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_ou
     hourly = [{"t": _local(t, tz), "temp": col("temperature_2m", k), "pop": col("precipitation_probability", k),
                "mm": col("precipitation", k), "uv": col("uv_index", k), "wind_dir": col("wind_direction_10m", k)}
               for k, t in enumerate(hw.get("time") or [])]
-    cams = sorted((_local(t, tz), v) for t, v in (get_air_forecast() or {}).items())
+    cams = model_hours(now)
     pm_past = [(t, pm_of(x)) for t, x in pts_out]
     model_past = [(t, v) for t, v in cams if t <= now and v is not None]
-    # a public monitor only (outdoor_row): a home without history (AirGradient failed) keeps an empty past
-    pm_past_model = outdoor_row() is not None and not pm_past and bool(model_past)
+    # no own outdoor history: a public monitor (outdoor_row) or an indoor-only home (source). A home whose own outdoor
+    # monitor's history is missing (AirGradient failed) keeps an empty past
+    no_own_outdoor = outdoor_row() is not None or source is not None
+    pm_past_model = no_own_outdoor and not pm_past and bool(model_past)
     if pm_past_model:
         pm_past = model_past
     road = active_road()
@@ -1200,9 +1447,13 @@ def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_ou
             "pm_past": pm_past, "smoke": get_smoke_data() if source_on("smoke") else False,
             "pollen_today": top(days.get("today")), "pollen_tomorrow": top(days.get("tomorrow")),
             "rush": rush_windows(hourly, now), "road": road.name if road else None, "sun": sun, "now": now,
-            # whose reading the PM2.5 forecast is fitted to, in its sentence: a public monitor is "this monitor"
-            "monitor_label": "this monitor" if outdoor_row() is not None else f"your {phrases.LIMIT_FACTS['outdoor']} monitor",
-            **({"pm_past_model": True} if pm_past_model else {})}
+            # whose reading the PM2.5 forecast is fitted to, in its sentence: a public monitor's page says "this monitor";
+            # a home's own outdoor monitor is phrases.py's default, and a home without one names its source
+            **({"monitor_label": "this monitor"} if outdoor_row() is not None else {}),
+            **({"source": {k: source[k] for k in SUMMARY_SOURCE_FACTS}} if source else {}),
+            **({} if indoor_monitor() else {"indoor": False}),
+            **({"pm_past_model": True} if pm_past_model else {}),
+            **({"area_factor": source["area_factor"]} if source and source.get("area_factor") is not None else {})}
 
 
 def rush_windows(hourly, now):
@@ -1211,10 +1462,16 @@ def rush_windows(hourly, now):
     return summary_rules.rush_windows(hourly, now, rush_hours(), road.toward) if road else []
 
 
-def needs_on(needs):
-    """Only the needs the page's view turns on: the home's config, or a public monitor's (runner only, demo/data.py)."""
-    on = page_view().get("needs") or {}
-    return [n for n in needs if on.get(n["id"], True)]
+def profiles_on(profiles):
+    """Only the profiles the page's view turns on: the home's config, or a public monitor's (runner only, demo/public.py)."""
+    on = page_view().get("profiles") or {}
+    return [n for n in profiles if on.get(n["id"], True)]
+
+
+def indoor_monitor():
+    """Whether the home has an indoor monitor: an outdoor-only home's summary reads nothing indoors and its toddler
+    profile waits for one. A seam demo/data.py can replace."""
+    return CFG is None or CFG.place is None or CFG.place.indoor is not None
 
 
 def outdoor_row():
@@ -1224,23 +1481,16 @@ def outdoor_row():
 
 
 def outdoor_current(row, now):
-    """Whether the outdoor reading counts as a reading now: no row to judge by, or online and under STALE_OUTDOOR old."""
-    if row is None:
-        return True
-    if row.get("offline"):
-        return False
-    try:
-        ts = datetime.fromisoformat(str(row.get("timestamp")).replace("Z", "+00:00"))
-        return ts.tzinfo is not None and now - ts <= STALE_OUTDOOR
-    except ValueError:
-        return False
+    """Whether the outdoor reading counts as a reading now: no row to judge by, or online and under
+    publicmap.STALE_READING old."""
+    return row is None or publicmap.reporting(row, now)   # the same rule as check_config.py's
 
 
 def safe_summary(inputs):
     """The new card, or None (logged) if the rules fail on odd data: the page then keeps its previous card."""
     try:
         s = summary_rules.build_summary(**inputs)
-        s["needs"] = needs_on(s["needs"])
+        s["profiles"] = profiles_on(s["profiles"])
         return s
     except Exception as e:  # never let the card take the whole read down
         app.logger.warning("summary failed: %s: %s", type(e).__name__, e)
@@ -1249,6 +1499,9 @@ def safe_summary(inputs):
 
 def build_air_read(payload):
     now = local_now()
+    if not indoor_monitor():   # an outdoor-only home: nothing the page posts for an indoor monitor counts
+        payload = {**payload, "indoor_co2": None, "indoor_humidity": None, "indoor_temp_c": None, "indoor_pm25": None,
+                   "indoor_location_id": None}
     co2 = fnum(payload.get("indoor_co2"))
     rh = fnum(payload.get("indoor_humidity"))
     t_in = fnum(payload.get("indoor_temp_c"))
@@ -1259,6 +1512,14 @@ def build_air_read(payload):
         pm_out = rh_out = t_out = None
 
     weather = get_open_meteo_data().get("current", {})
+    source = outdoor_source(now)   # None with an own outdoor monitor
+    if source is not None:   # indoor-only: the server's source, not what the page posted for its outdoor entry
+        row = source["row"] or {}
+        pm_out = pm_of(row) if row else None   # a public monitor's reading; an estimate has no "now" of its own
+        # a public monitor's own temperature and humidity; else Open-Meteo's (the damp and dry rules keep working)
+        rh_out = fnum(row.get("rhum")) if row else fnum(weather.get("relative_humidity_2m"))
+        # the world list gives atmp as measured, with no compensated temperature (checked 2026-11-09): kept as it is
+        t_out = fnum(row.get("atmp")) if row else fnum(weather.get("temperature_2m"))
     wind_direction = weather.get("wind_direction_10m")
     wind_toward = road_traffic(now.hour, wind_direction)["toward"]
     smoke = get_smoke_data() if source_on("smoke") else False
@@ -1270,7 +1531,10 @@ def build_air_read(payload):
         out_dp = fnum(weather.get("dew_point_2m"))
     adds_moisture = in_dp is not None and out_dp is not None and out_dp - in_dp > MOISTURE_MARGIN_C
     pts_in = history_points(payload.get("indoor_location_id"), now)
-    pts_out = history_points(payload.get("outdoor_location_id"), now)
+    if source is None:
+        pts_out = history_points(payload.get("outdoor_location_id"), now)
+    else:   # a public monitor's history calibrates the forecast exactly as an own monitor's; an estimate has none
+        pts_out = _row_points(source["history"], now) if source["kind"] == "monitor" else []
 
     co2_run = stretch(pts_in, co2_of, lambda v: v > CO2_OPEN, now)
 
@@ -1314,7 +1578,7 @@ def build_air_read(payload):
     top_pollen = max(pollen, key=lambda q: q.get("index") or 0) if pollen else None
     if top_pollen and (top_pollen.get("index") or 0) >= LIMITS["pollen"]:
         actions.append({"key": "pollen", "tone": "warn", "text": "Limit time outside", "why": f"{top_pollen['name']} pollen is {top_pollen['index']} of 5."})
-    needs = needs_on(build_needs(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run_item, co2_run, now))
+    profiles = profiles_on(build_profiles(co2, rh, pm_out, adds_moisture, pollen, top_pollen, actions, run_item, co2_run, now))
     order = {"window": 0, "humidity": 1, "run": 2, "pollen": 3}
     actions.sort(key=lambda a: ({"bad": 0, "warn": 1}.get(a["tone"], 2), order[a["key"]]))
 
@@ -1333,11 +1597,13 @@ def build_air_read(payload):
     result = {
         "generated_at": now.isoformat(), "clock": now.strftime("%-I:%M %p"), "status": tone, "why": why,
         "also": [{"text": a["text"], "why": a["why"], "tone": a["tone"]} for a in also],
-        "needs": needs,
+        "profiles": profiles,
     }
-    # the new card: items, needs and the day chart, all from the rules (summary.py)
-    summary_in = summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now)
+    # the new card: items, profiles and the day chart, all from the rules (summary.py)
+    summary_in = summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_out, now, source)
     result["summary"] = safe_summary(summary_in)
+    if source is not None:   # the facts the explanations name the source with (phrases.py and the page word them)
+        result["outdoor_source"] = {k: source[k] for k in SUMMARY_SOURCE_FACTS}
 
     return result
 
@@ -1386,6 +1652,7 @@ def monitors():
     1 km), or nearest New York without them. Demo only."""
     if MODE != "demo":
         return jsonify({"error": "not found"}), 404
+    import publicmap
     from demo import public
     lat, lon = request.args.get("lat"), request.args.get("lon")
     if lat is None and lon is None:
@@ -1402,7 +1669,7 @@ def monitors():
         world = demo_data.world_list()
     except demo_data.WORLD_ERRORS:
         return jsonify({"error": public.WORLD_DOWN}), 502
-    return jsonify({"near": near, "monitors": public.nearest(world, lat, lon)})
+    return jsonify({"near": near, "monitors": publicmap.nearest(world, lat, lon)})
 
 
 if MODE == "demo":   # every outside source becomes made-up data, generated per request (demo/data.py)

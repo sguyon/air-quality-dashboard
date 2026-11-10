@@ -94,10 +94,10 @@ test('a road without a known distance or rush still reads', () => {
   assert.equal(home.roadClockText(r), 'Traffic is only the clock: no rush hours are set, so it reads low all day.');
 });
 
-test('the summary is "For:" the needs that are on, in the same words', () => {
-  assert.equal(home.needsFor({ toddler: true, sinus: true, runner: true }), 'toddler, sinus & allergy, running');
-  assert.equal(home.needsFor({ toddler: true, sinus: true, runner: false }), 'toddler, sinus & allergy');
-  assert.equal(home.needsFor({ toddler: false, sinus: false, runner: false }), '');
+test('the summary is "For:" the profiles that are on, in the same words', () => {
+  assert.equal(home.profilesFor({ toddler: true, sinus: true, runner: true }), 'toddler, sinus & allergy, running');
+  assert.equal(home.profilesFor({ toddler: true, sinus: true, runner: false }), 'toddler, sinus & allergy');
+  assert.equal(home.profilesFor({ toddler: false, sinus: false, runner: false }), '');
 });
 
 test('a region names the place in the smoke and pollen sentences; without one they read neutrally', () => {
@@ -221,7 +221,7 @@ test('PM2.5 words compare the rounded reading, like the server', () => {
   assert.match(map, /\['round', \['get', 'pm'\]\]/);
 });
 
-// The Home menu's rows: no (i) buttons; a source row explains itself on hover, focus or a tap, like the need chips.
+// The Home menu's rows: no (i) buttons; a source row explains itself on hover, focus or a tap, like the profile chips.
 test('home menu rows carry their explanation as a row tooltip, not an (i) button', () => {
   const html = readFileSync(new URL('index.html', root), 'utf8');
   const css = readFileSync(new URL('static/app.css', root), 'utf8');
@@ -301,7 +301,7 @@ test('the page never mentions the config', () => {
 });
 
 test('a public monitor has no road: its card reads Off with a plain line', () => {
-  assert.deepEqual(home.sourceOff('road', 'off', true), { word: 'Off', line: 'No road set for this place. A home can add the busy road next to it.' });
+  assert.deepEqual(home.sourceOff('road', 'off', true), { word: 'Off', line: 'Not available for public monitors yet.' });
 });
 
 test("a public monitor's card credits its owner, linked when there's a link, escaped", () => {
@@ -312,12 +312,10 @@ test("a public monitor's card credits its owner, linked when there's a link, esc
   assert.match(home.monitorCredit({ contributor: null, url: null }, escHtml), /^Shared on <a /);
 });
 
-test('the indoor slot: three lines, the setup link, no device picture', () => {
-  const html = home.indoorSlotHTML();
-  assert.match(html, /<b>Your indoor readings go here<\/b>/);
-  assert.match(html, /<p>CO₂, humidity and particles inside, next to the outdoor ones\.<\/p>/);
-  assert.match(html, /<a href="https:\/\/github\.com\/sguyon\/home-air-quality#installation"[^>]*>Set it up for your home →<\/a>/);
-  assert.doesNotMatch(html, /airgradient|AirGradient ONE/i);
+test('the indoor card on a public monitor is the same card, empty and marked as missing', () => {
+  const src = readFileSync(new URL('../static/app.js', import.meta.url), 'utf8');
+  assert.match(src, /monitorCard\(state\.outdoor, false\) \+ monitorCard\(null, true, true\)/);
+  assert.match(src, /mc-ghost/);
 });
 
 test("a public monitor with no history: one line, not three empty charts", () => {
@@ -367,13 +365,13 @@ test("the open menu's indoor row on a public monitor's page: greyed (off), Not s
 test('the neighborhood row for the shown monitor reads This on a public page, You at home', () => {
   const f = { esc: escHtml, pm: v => String(v), num: v => v.toFixed(1), temp: v => `${v}°C` };
   const scale = { limit: 15, barMax: 55, limPct: '27.3' };
-  const n = { locationId: 5, locationName: 'Eckford <b>st</b>', pm02: 22, distance_km: 0, atmp: 15, rhum: 92.6 };
+  const n = { locationId: 5, locationName: 'Oak <b>st</b>', pm02: 22, distance_km: 0, atmp: 15, rhum: 92.6 };
   const row = home.nbRowHTML(n, true, home.selfWords(true), 'Roof & co', scale, f);
   assert.match(row, /^<tr class="you" data-id="5">/);
   // the id is AirGradient's number: anything else in it can't reach the markup (as in the open band's id)
   assert.match(home.nbRowHTML({ ...n, locationId: '5"><b>x' }, false, home.selfWords(false), 'x', scale, f), /^<tr class="" data-id="NaN">/);
   assert.match(row, /<td class="dist">This<\/td>/);
-  assert.match(row, /<td class="loc" title="Eckford &lt;b&gt;st&lt;\/b&gt;">Roof &amp; co<\/td>/);
+  assert.match(row, /<td class="loc" title="Oak &lt;b&gt;st&lt;\/b&gt;">Roof &amp; co<\/td>/);
   assert.match(row, /<td class="r pm warn">22<\/td><td class="r">15°C<\/td><td class="r">93%<\/td>/);
   assert.match(home.nbRowHTML(n, true, home.selfWords(false), 'Home', scale, f), /<td class="dist">You<\/td>/);
   assert.match(home.nbRowHTML({ ...n, atmp: null }, false, home.selfWords(true), 'x', scale, f), /<td class="dist">0\.0 km<\/td>.*<td class="r">—<\/td>/);
@@ -442,13 +440,13 @@ test("the neighborhood header has no map button; the map reads the corrected PM2
 // ── A neighbor row opens in place (Task 6d) ──
 const OPEN_SCALE = { limit: 15, high: 35, barMax: 55, limPct: '27.3' };
 const OPEN_F = { ...NB_F, when: ts => home.lastReadingText(ts, new Date('2026-11-09T12:45:00Z'), 'America/New_York') };
-const REAL = { locationId: 5107, locationName: 'Eckford <b>&</b> Meserole', publicContributorName: ' Rosa <i>D</i> ', pm02: 30, pm02_corrected: 25,
+const REAL = { locationId: 5107, locationName: 'Oak <b>&</b> Elm', publicContributorName: ' Rosa <i>D</i> ', pm02: 30, pm02_corrected: 25,
   rhum: 90.6, atmp: 15.2, distance_km: 1.9, timestamp: '2026-11-09T12:38:00Z', map_url: 'https://www.airgradient.com/map?zoom=15&long=-73.9&lat=40.7&meas=ug_m3' };
 
 test('a real neighbor row has a chevron toggle with aria-expanded; open, the band follows the row', () => {
   const closed = home.nbRowHTML(REAL, false, home.selfWords(false), 'Home', OPEN_SCALE, OPEN_F);
   assert.match(closed, /^<tr class="nb-can" data-id="5107">/);
-  assert.match(closed, /<td class="nb-tg"><button type="button" class="nb-tgb" aria-expanded="false" aria-controls="nbd-5107" aria-label="Details: Eckford &lt;b&gt;&amp;&lt;\/b&gt; Meserole">/);
+  assert.match(closed, /<td class="nb-tg"><button type="button" class="nb-tgb" aria-expanded="false" aria-controls="nbd-5107" aria-label="Details: Oak &lt;b&gt;&amp;&lt;\/b&gt; Elm">/);
   assert.doesNotMatch(closed, /nb-detail/);
   const open = home.nbRowHTML(REAL, false, home.selfWords(false), 'Home', OPEN_SCALE, OPEN_F, true);
   assert.match(open, /^<tr class="nb-can nb-open" data-id="5107">/);
@@ -524,13 +522,30 @@ test("at home, the You row reads the outdoor card's PM2.5 (the row, the lead and
   assert.equal(home.nbYou(you, null, null), you);
   assert.equal(home.nbYou(undefined, { locationId: 7 }, 3), undefined);
   const app = readFileSync(new URL('static/app.js', root), 'utf8');
-  assert.match(app, /const you = nbYou\(live\.find\(n => own\.has\(n\.locationId\)\), state\.outdoor, pick\(state\.outdoor, 'pm02_corrected', 'pm02'\)\)/);
+  assert.match(app, /const you = nbYou\(split\.you \|\| undefined, state\.outdoor, pick\(state\.outdoor, 'pm02_corrected', 'pm02'\)\)/);
 });
 
-test('nearby turned off: the page does not throw without the section subtitle', () => {
+test('neighborhood: the header says only Neighborhood, the findings sit in the card, the count is in Show more', () => {
   const app = readFileSync(new URL('static/app.js', root), 'utf8');
-  assert.doesNotMatch(app, /^\s*\$\('nb-sub'\)\.hidden = true/m);
-  assert.match(app, /if \(\$\('nb-sub'\)\) \$\('nb-sub'\)\.hidden = true/);
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  assert.match(html, /<h2>Neighborhood<\/h2>/);
+  assert.doesNotMatch(html + app, /nb-sub|nb-foot|nb-why/);
+  // map and legend, then the findings (neighbors line, wind line), then the table
+  assert.ok(html.indexOf('id="nb-map"') < html.indexOf('id="nb-find"') && html.indexOf('id="nb-find"') < html.indexOf('class="nbt"'));
+  assert.ok(html.indexOf('id="nb-lead"') < html.indexOf('id="nb-wind"') && html.indexOf('id="nb-wind"') < html.indexOf('class="nbt"'));
+  assert.match(html, /PM2\.5<span class="nb-unit">µg\/m³<\/span>/);   // the unit moved from the header to the column
+  // the road's distance is the legend's ⓘ (the page's data-tip), only with a road
+  assert.match(html, /class="lg-info"[^>]*data-app="road-why"[^>]*tabindex="0"/);
+  assert.match(app, /'road-why': el => \{ if \(!road\) return;/);
+  // nearby off: the one-line note sits outside the hidden card
+  assert.match(app, /\$?.*getElementById\('nb-off'\)/);
+  assert.match(app, /\$\('nb-find'\)\.hidden = lead\.hidden && wind\.hidden/);
+  assert.match(app, /nbMoreText\(extra, state\.nbCount\)/);
+});
+
+test('nbMoreText: the collapsed button says how many more and how many monitors in all', () => {
+  assert.equal(home.nbMoreText(5, 12), 'Show 5 more of 12 within 15 km');
+  assert.equal(home.nbMoreText(1, 9), 'Show 1 more of 9 within 15 km');
 });
 
 
@@ -588,7 +603,10 @@ test("the map opens with the six nearest neighbors in view, centered on the bloc
 test("a public monitor's empty week isn't kept, so a slow first answer from the map doesn't hide History", () => {
   const app = readFileSync(new URL('static/app.js', root), 'utf8');
   const week = app.slice(app.indexOf('function loadWeek'), app.indexOf('function chartsLoading'));
-  assert.match(week, /if \(!ih \|\| !oh \|\| \(PUB && !oh\.length\)\) throw new Error\('history'\);\s*hist\.week = \{ ih, oh, to \}/);
+  assert.match(week, /if \(!ih \|\| !oh \|\| \(mapWeek\(\) && !oh\.length\)\) throw new Error\('history'\);\s*hist\.week = \{ ih, oh, to \}/);
+  // the map's week: a public monitor's page, and the nearby public monitor an indoor-only home chose (not an estimate,
+  // which has no locationId and so no week of its own)
+  assert.match(app, /const mapWeek = \(\) => PUB \|\| \(NO_OUTDOOR && !noOutLine\(\)\);/);
 });
 
 
@@ -601,4 +619,157 @@ test('on a phone the "Today" heading is for screen readers only; on a desktop it
   assert.doesNotMatch(phone, /\.now-h \{[^}]*display: none/);   // not display:none, which would hide it from screen readers too
   const outside = css.replace(phone, '');   // desktop: unchanged (html.wx-full's own rule aside, as before)
   assert.doesNotMatch(outside.replace('html.wx-full .now-bar .now-h { display: none !important; }', ''), /\.now-h[^{]*\{[^}]*(?:clip: rect|display: none)/);
+});
+
+
+// ── A home with one monitor: where an indoor-only home's outdoor PM2.5 comes from (/api/current's "source") ──
+const PINNED = { kind: 'monitor', id: 900002, name: 'Cedar & 2nd Ave', distance_km: 1.1, area_count: 0, fallback: false };
+
+test("an indoor-only home's outdoor source in words: the card's name line and the Home menu's", () => {
+  assert.deepEqual(home.sourceLine(PINNED), { name: 'Nearby public monitor', sub: 'Cedar & 2nd Ave, 1.1 km', menu: 'Nearby public monitor, 1.1 km', estimate: false, down: null });
+  assert.deepEqual(home.sourceLine({ kind: 'area', area_count: 4 }), { name: 'Estimate for your area', sub: 'from 4 public monitors', menu: 'Estimate for your area', estimate: true, down: null });
+  assert.equal(home.sourceLine({ kind: 'area', area_count: 1 }).sub, 'from 1 public monitor');
+  assert.equal(home.sourceLine({ kind: 'area', area_count: 0 }).sub, '');
+  assert.deepEqual(home.sourceLine({ kind: 'model' }), { name: 'Estimate for your area (Open‑Meteo)', sub: '', menu: 'Estimate for your area', estimate: true, down: null });
+  assert.equal(home.sourceLine(null), null);
+  assert.equal(home.sourceLine({}), null);
+});
+
+test('a source distance has at most one decimal and no trailing .0, like the summary', () => {
+  assert.equal(home.sourceLine({ ...PINNED, distance_km: 2 }).sub, 'Cedar & 2nd Ave, 2 km');
+  assert.equal(home.sourceLine({ ...PINNED, distance_km: 2.0 }).menu, 'Nearby public monitor, 2 km');
+  assert.equal(home.sourceLine({ ...PINNED, distance_km: 1.04 }).sub, 'Cedar & 2nd Ave, 1 km');
+  assert.equal(home.sourceLine({ ...PINNED, distance_km: 0.46 }).sub, 'Cedar & 2nd Ave, 0.5 km');
+});
+
+test('a public monitor without a name or a distance still reads', () => {
+  assert.equal(home.sourceLine({ ...PINNED, name: null }).sub, '1.1 km');
+  assert.equal(home.sourceLine({ ...PINNED, name: '  ' }).sub, '1.1 km');
+  assert.deepEqual(home.sourceLine({ kind: 'monitor', name: null, distance_km: null }), { name: 'Nearby public monitor', sub: '', menu: 'Nearby public monitor', estimate: false, down: null });
+});
+
+test("the chosen monitor isn't reporting: the card shows the estimate and says why; the menu keeps the chosen monitor", () => {
+  const s = home.sourceLine({ kind: 'area', name: 'Cedar & 2nd Ave', distance_km: 1.1, area_count: 3, fallback: true });
+  assert.deepEqual(s, { name: 'Estimate for your area', sub: 'from 3 public monitors', menu: 'Nearby public monitor, 1.1 km', estimate: true,
+    down: "Cedar & 2nd Ave isn't reporting · showing an estimate for your area" });
+  assert.equal(home.sourceLine({ kind: 'model', name: null, distance_km: null, fallback: true }).down,
+    "The nearby public monitor isn't reporting · showing an estimate for your area");
+});
+
+test("AirGradient's list didn't answer: the card shows the estimate without blaming the chosen monitor", () => {
+  const s = home.sourceLine({ kind: 'model', name: 'Cedar & 2nd Ave', distance_km: 1.1, area_count: 0, fallback: 'list' });
+  assert.deepEqual(s, { name: 'Estimate for your area (Open‑Meteo)', sub: '', menu: 'Nearby public monitor, 1.1 km', estimate: true,
+    down: "AirGradient didn't answer · showing an estimate for your area" });
+  const st = home.sourceStatus({ kind: 'model', name: 'Cedar & 2nd Ave', distance_km: 1.1, fallback: 'list' }, { locationType: 'outdoor' }, NOW, 'UTC');
+  assert.deepEqual(st.card, { tone: 'warn', label: "AirGradient didn't answer · showing an estimate for your area" });
+  assert.deepEqual(st.row, { tone: 'warn', text: 'No answer', title: "AirGradient didn't answer · showing an estimate for your area", off: false });
+  assert.doesNotMatch(JSON.stringify(st), /reporting/);
+  assert.equal(home.sourceLine({ kind: 'area', name: 'X', area_count: 2, fallback: 'monitor' }).down, "X isn't reporting · showing an estimate for your area");
+});
+
+test('the source words never say "your outdoor monitor" nor a config word', () => {
+  for (const s of [PINNED, { kind: 'area', area_count: 2 }, { kind: 'model' }, { kind: 'area', name: 'X', distance_km: 1, area_count: 2, fallback: true }]) {
+    const w = home.sourceLine(s), all = [w.name, w.sub, w.menu, w.down].join(' ');
+    assert.doesNotMatch(all, /your outdoor monitor|outdoor_from|\bmodel\b|config/i, JSON.stringify(s));
+  }
+});
+
+test("the source's status: a public monitor's freshness, an estimate in grey, a monitor that isn't reporting in amber, never red", () => {
+  const live = home.sourceStatus(PINNED, { ...FRESH, source: PINNED }, NOW, 'UTC');
+  assert.deepEqual(live.card, { tone: 'good', label: 'Online' });
+  assert.deepEqual(live.row, home.monitorRow(FRESH, NOW, false, 'UTC'));
+  const est = home.sourceStatus({ kind: 'model' }, { locationType: 'outdoor' }, NOW, 'UTC');
+  assert.deepEqual(est.card, { tone: 'neutral', label: 'Estimate' });
+  assert.deepEqual(est.row, { tone: 'neutral', text: 'Estimate', title: 'Estimate for your area (Open‑Meteo)', off: false });
+  const down = home.sourceStatus({ kind: 'area', name: 'Cedar & 2nd Ave', distance_km: 1.1, area_count: 3, fallback: true }, { locationType: 'outdoor' }, NOW, 'UTC');
+  assert.deepEqual(down.card, { tone: 'warn', label: "Cedar & 2nd Ave isn't reporting · showing an estimate for your area" });
+  assert.deepEqual(down.row, { tone: 'warn', text: 'Not reporting', title: "Cedar & 2nd Ave isn't reporting · showing an estimate for your area", off: false });
+});
+
+test('no history request for an outdoor entry without a locationId (an estimate)', () => {
+  const from = new Date('2026-11-09T11:00:00Z'), to = new Date('2026-11-09T12:00:00Z');
+  assert.equal(home.histUrl({ locationType: 'outdoor', source: { kind: 'area' } }, from, to), null);
+  assert.equal(home.histUrl(null, from, to), null);
+  assert.equal(home.histUrl({ locationId: 900002 }, from, to), '/api/history/900002?from=2026-11-09T11:00:00.000Z&to=2026-11-09T12:00:00.000Z');
+  assert.equal(home.histUrl({ locationId: 0 }, from, to), '/api/history/0?from=2026-11-09T11:00:00.000Z&to=2026-11-09T12:00:00.000Z');
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  const fetchHist = app.slice(app.indexOf('const fetchHist'), app.indexOf('function loadWeek'));
+  assert.match(fetchHist, /histUrl\(m, from, to\)/);
+  assert.doesNotMatch(app, /\/api\/history\/\$\{m\.locationId\}/);
+});
+
+test("an estimate's PM2.5 now is the summary's model hour, only when it is this hour's", () => {
+  const tl = { pm: { source: 'model', past: [['2026-11-09T10:00:00+00:00', 8.2], ['2026-11-09T11:00:00+00:00', 9.4]] } };
+  assert.deepEqual(home.estimateNow(tl, NOW), { pm: 9.4, at: '2026-11-09T11:00:00+00:00' });   // the hour, for the ring's title
+  assert.equal(home.estimateNow(tl, new Date('2026-11-09T14:00:00Z')), null);   // an old summary: no number
+  assert.equal(home.estimateNow({ pm: { past: tl.pm.past } }, NOW), null);         // a measured past isn't an estimate
+  assert.equal(home.estimateNow({ pm: { source: 'model', past: [] } }, NOW), null);
+  assert.equal(home.estimateNow(null, NOW), null);
+});
+
+test("an indoor-only home's Home pill greys the outdoor picture and names the source", () => {
+  const pill = home.monitorPill({ indoor: 'Bedroom', outdoor: null }, FRESH, { locationType: 'outdoor' }, NOW, {}, 'Estimate for your area');
+  assert.match(pill, /class="vhw" data-tip="Indoor · AirGradient ONE: Online"/);
+  assert.match(pill, /class="vhw off" data-tip="Outdoor PM2.5: Estimate for your area"><i class="off">/);
+  assert.doesNotMatch(pill, /Offline|class="bad"/);
+});
+
+test('the Sources label counts the monitors the home has', () => {
+  assert.equal(home.sourcesLabel({ smoke: false, pollen: false }, false, true, false), 'Sources: your monitor and weather. Open to see them.');
+  assert.equal(home.sourcesLabel({ smoke: false, pollen: false }, false, false, true, false), 'Sources: your monitor and weather. Open to see them.');
+  assert.equal(home.sourcesLabel({ smoke: false, pollen: false }, false, false), 'Sources: this monitor and weather. Open to see them.');   // a public monitor's page
+});
+
+test("an outdoor-only home: Toddler stays, greyed, with its reason; the indoor card says it isn't set up", () => {
+  assert.equal(home.profileOff('toddler', false), 'Needs an indoor monitor');
+  assert.equal(home.profileOff('toddler', true), null);
+  assert.equal(home.profileOff('sinus', false), null);
+  assert.equal(home.profileOff('runner', false), null);
+  assert.deepEqual(home.ghostWords(false), { status: 'Not set up', aria: 'Indoor: no indoor monitor' });
+  assert.deepEqual(home.ghostWords(true), { status: 'Public monitors are outdoor only', aria: 'Indoor: none, this is a public outdoor monitor' });
+});
+
+test("an estimate's card: one plain line on what it covers", () => {
+  assert.equal(home.estimateNote(true), 'The estimate covers PM2.5 only. Temperature and humidity are Open‑Meteo’s weather.');
+  assert.equal(home.estimateNote(false), 'The estimate covers PM2.5 only.');
+});
+
+test("a home with one monitor reads its own entries, whatever else the token sees", () => {
+  const IN = { locationId: 1, locationType: 'indoor' }, OUT = { locationId: 2, locationType: 'outdoor' };
+  const SRC = { locationType: 'outdoor', source: { kind: 'model' } };
+  assert.deepEqual(home.pickEntries([IN, OUT], false, false), { indoor: IN, outdoor: OUT });   // two monitors: as before
+  assert.deepEqual(home.pickEntries([IN, OUT, SRC], false, true), { indoor: IN, outdoor: SRC });   // indoor-only: the source
+  assert.deepEqual(home.pickEntries([IN], false, true), { indoor: IN, outdoor: null });           // no source entry yet
+  assert.deepEqual(home.pickEntries([IN, OUT], true, false), { indoor: null, outdoor: OUT });     // outdoor-only
+  assert.deepEqual(home.pickEntries(null, false, false), { indoor: null, outdoor: null });
+});
+
+test('a greyed menu row stays greyed: tone off, or Off / Not set up in grey', () => {
+  assert.equal(home.rowOff('off', 'Not set up'), true);
+  assert.equal(home.rowOff('neutral', 'Off'), true);
+  assert.equal(home.rowOff('neutral', 'Not set up'), true);
+  assert.equal(home.rowOff('neutral', 'Estimate'), false);
+  assert.equal(home.rowOff('good', 'Live · just now'), false);
+  assert.equal(home.rowOff('bad', 'Offline'), false);
+});
+
+test("an indoor-only home without its source entry: the outdoor card is greyed with one line, the menu row grey, never red", () => {
+  const st = home.sourceStatus(null, null, NOW, 'UTC');
+  assert.deepEqual(st.card, { tone: 'off', label: 'No outdoor reading yet' });
+  assert.deepEqual(st.row, { tone: 'neutral', text: 'No reading yet', title: 'No outdoor reading yet', off: false });
+});
+
+test("the neighborhood on an indoor-only home: no You row; the pinned monitor stays with the others, tagged", () => {
+  const A = { locationId: 10, locationName: 'A' }, B = { locationId: 11, locationName: 'B' }, OWN = { locationId: 2, locationName: 'Yard' };
+  // a two-monitor home: its outdoor monitor is You, as before
+  assert.deepEqual(home.nbSplit([OWN, A, B], [1, 2], null), { you: OWN, others: [A, B] });
+  // an indoor-only home pinned to A: no You, A stays among the others with its tag
+  const s = home.nbSplit([A, B], [1], 10);
+  assert.equal(s.you, null);
+  assert.deepEqual(s.others, [{ ...A, used: true }, B]);
+  const f = { esc: escHtml, pm: v => v.toFixed(1), num: v => v.toFixed(1), temp: v => v + '°' };
+  const row = home.nbRowHTML({ ...s.others[0], pm02_corrected: 4, distance_km: 1.1 }, false, home.selfWords(false), '', { limit: 15, barMax: 55, limPct: 27 }, f);
+  assert.match(row, /<td class="loc" title="A">A<span class="nb-used"> · used for your outdoor PM2\.5<\/span><\/td>/);
+  assert.doesNotMatch(home.nbRowHTML({ ...B, pm02_corrected: 4, distance_km: 2 }, false, home.selfWords(false), '', { limit: 15, barMax: 55, limPct: 27 }, f), /nb-used/);
+  assert.equal(home.NB_USED, 'used for your outdoor PM2.5');
 });

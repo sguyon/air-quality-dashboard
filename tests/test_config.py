@@ -19,9 +19,21 @@ def root_with(tmp_path, text=EXAMPLE, name="config.toml"):
 def test_example_loads(tmp_path):
     cfg = load_config({}, root_with(tmp_path))
     assert isinstance(cfg, Config)
-    assert cfg.needs == {"toddler": True, "sinus": True, "runner": True}
+    assert cfg.profiles == {"toddler": True, "sinus": True, "runner": True}
     assert cfg.road is None
     assert cfg.demo is False
+
+
+def test_old_needs_table_still_reads(tmp_path):
+    """[needs] is [profiles]' old name (v0.1): a config that still says it keeps working."""
+    old = EXAMPLE.replace("[profiles]", "[needs]").replace("runner = true", "runner = false")
+    assert "[profiles]" not in old
+    assert load_config({}, root_with(tmp_path, old)).profiles == {"toddler": True, "sinus": True, "runner": False}
+
+
+def test_profiles_win_over_the_old_needs_table(tmp_path):
+    both = EXAMPLE + "\n[needs]\ntoddler = false\nsinus = false\nrunner = false\n"
+    assert load_config({}, root_with(tmp_path, both)).profiles == {"toddler": True, "sinus": True, "runner": True}
 
 
 def test_env_wins_over_file(tmp_path):
@@ -227,3 +239,98 @@ def test_limits_out_of_order_are_a_config_error(change, keys):
 
 def test_limits_in_order_load():
     assert load_config({"CONFIG_TOML": EXAMPLE.replace("rh_good = 50", "rh_good = 60")}).limits["rh_good"] == 60
+
+
+def test_place_is_rounded_to_about_a_kilometer(tmp_path):
+    """The home's position leaves the server (weather, pollen): it's rounded whatever the file says."""
+    import config as cfgmod
+    text = (cfgmod.ROOT / "config.example.toml").read_text()
+    import re as _re
+    text = _re.sub(r"(?m)^lat\s*=.*$", "lat = 40.712345", text)
+    text = _re.sub(r"(?m)^lon\s*=.*$", "lon = -73.956789", text)
+    c = cfgmod.load_config({"CONFIG_TOML": text})
+    assert (c.place.lat, c.place.lon) == (40.71, -73.96)
+
+
+def _place_only(tmp_path, drop, sources="", name="Maplewood"):
+    """The example with some [place] lines dropped and an optional [sources] line added."""
+    text = "\n".join(l for l in EXAMPLE.splitlines() if not any(l.startswith(d + " =") for d in drop))
+    if sources:
+        text = text.replace("[sources]\n", "[sources]\n" + sources + "\n", 1)
+    return root_with(tmp_path, text)
+
+
+@pytest.mark.parametrize("value, expected", [("900002", 900002), ('"area"', "area"), ('"model"', "model")])
+def test_indoor_only_with_outdoor_from(tmp_path, value, expected):
+    cfg = load_config({}, _place_only(tmp_path, ["outdoor"], f"outdoor_from = {value}"))
+    assert cfg.place.outdoor is None and cfg.place.indoor == "living room"
+    assert cfg.outdoor_from == expected
+
+
+def test_outdoor_only_needs_no_outdoor_from(tmp_path):
+    cfg = load_config({}, _place_only(tmp_path, ["indoor"]))
+    assert cfg.place.indoor is None and cfg.place.outdoor == "porch" and cfg.outdoor_from is None
+
+
+def test_neither_monitor_is_refused(tmp_path):
+    with pytest.raises(ConfigError, match=r"\[place\] needs indoor, outdoor or both \(the names of your monitors\)"):
+        load_config({}, _place_only(tmp_path, ["indoor", "outdoor"]))
+
+
+def test_indoor_only_without_outdoor_from_is_refused(tmp_path):
+    with pytest.raises(ConfigError, match="sources.outdoor_from"):
+        load_config({}, _place_only(tmp_path, ["outdoor"]))
+
+
+@pytest.mark.parametrize("value", ['"nearby"', "0", "-3", "true", "1.5"])
+def test_bad_outdoor_from_is_refused(tmp_path, value):
+    with pytest.raises(ConfigError, match='sources.outdoor_from must be a public monitor\'s id, "area" or "model"'):
+        load_config({}, _place_only(tmp_path, ["outdoor"], f"outdoor_from = {value}"))
+
+
+def test_both_monitors_ignore_outdoor_from(tmp_path):
+    cfg = load_config({}, _place_only(tmp_path, [], "outdoor_from = 900002"))
+    assert cfg.outdoor_from is None
+    assert "outdoor_from" not in public_view(cfg)
+
+
+def test_public_view_without_an_outdoor_monitor(tmp_path):
+    v = public_view(load_config({}, _place_only(tmp_path, ["outdoor"], "outdoor_from = 900002")))
+    assert v["place"]["outdoor"] is None and v["place"]["indoor"] == "living room"
+    assert v["outdoor_from"] == {"kind": "monitor", "id": 900002}
+    v = public_view(load_config({}, _place_only(tmp_path, ["outdoor"], 'outdoor_from = "area"')))
+    assert v["outdoor_from"] == {"kind": "area", "id": None}
+    v = public_view(load_config({}, _place_only(tmp_path, ["outdoor"], 'outdoor_from = "model"')))
+    assert v["outdoor_from"] == {"kind": "model", "id": None}
+
+
+def test_public_view_without_an_indoor_monitor(tmp_path):
+    v = public_view(load_config({}, _place_only(tmp_path, ["indoor"])))
+    assert v["place"]["indoor"] is None and v["place"]["outdoor"] == "porch"
+    assert "outdoor_from" not in v
+
+
+@pytest.mark.parametrize("blank", ['""', '"   "'])
+def test_a_blank_outdoor_name_is_no_outdoor_monitor(tmp_path, blank):
+    """An agent that blanks the line instead of deleting it gets the same home as deleting it."""
+    text = EXAMPLE.replace('outdoor = "porch"', f"outdoor = {blank}").replace("[sources]\n", '[sources]\noutdoor_from = "area"\n', 1)
+    cfg = load_config({}, root_with(tmp_path, text))
+    assert cfg.place.outdoor is None and cfg.outdoor_from == "area"
+    assert public_view(cfg)["place"]["outdoor"] is None
+
+
+def test_a_blank_outdoor_name_still_needs_outdoor_from(tmp_path):
+    with pytest.raises(ConfigError, match="sources.outdoor_from"):
+        load_config({}, root_with(tmp_path, EXAMPLE.replace('outdoor = "porch"', 'outdoor = ""')))
+
+
+@pytest.mark.parametrize("blank", ['""', '" "'])
+def test_a_blank_indoor_name_is_no_indoor_monitor(tmp_path, blank):
+    cfg = load_config({}, root_with(tmp_path, EXAMPLE.replace('indoor = "living room"', f"indoor = {blank}")))
+    assert cfg.place.indoor is None and cfg.place.outdoor == "porch"
+
+
+def test_two_blank_names_are_no_monitors(tmp_path):
+    text = EXAMPLE.replace('indoor = "living room"', 'indoor = ""').replace('outdoor = "porch"', 'outdoor = " "')
+    with pytest.raises(ConfigError, match=r"\[place\] needs indoor, outdoor or both"):
+        load_config({}, root_with(tmp_path, text))

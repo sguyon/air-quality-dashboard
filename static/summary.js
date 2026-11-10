@@ -1,6 +1,6 @@
-// Home Air Quality: the summary card (items, needs, day chart, hover readout), drawn from /api/analyze's
+// Home Air Quality: the summary card (items, profiles, day chart, hover readout), drawn from /api/analyze's
 // `summary` object. The rules in summary.py decide everything; this file only draws it.
-// Spec: internal/specs/summary-redesign-spec.md · visual reference: internal/design-archive/49-summary-needs-row.html, needs as in 52 (B9 without the underline)
+// Spec: internal/specs/summary-redesign-spec.md · visual reference: internal/design-archive/49-summary-needs-row.html, profiles as in 52 (B9 without the underline)
 (function (root) {
   'use strict';
 
@@ -37,26 +37,26 @@
   const readingsNow = () => { const n = root.APP && root.APP.now; return n ? new Date(Date.parse(n.at)) : new Date(); };
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const NEED_ICON = {
+  const PROFILE_ICON = {
     toddler: '<svg viewBox="0 0 24 24"><path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M15 12h.01"/><path d="M19.38 6.813A9 9 0 0 1 20.8 10.2a2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/><path d="M9 12h.01"/></svg>',
     sinus: '<svg viewBox="0 0 24 24"><path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/></svg>',
     runner: '<svg viewBox="0 0 24 24"><circle cx="13" cy="4" r="1"/><path d="M4 17l5 1l.75-1.5"/><path d="M15 21v-4l-4-3l1-6"/><path d="M7 12V9l5-1l3 3l3 1"/></svg>',
   };
   const INFO = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg>';
   // a tap target that opens a sentence over what's below; body is HTML
-  // label: what the tap target names for screen readers and shows on hover (a need icon: "Toddler: Stale indoors")
+  // label: what the tap target names for screen readers and shows on hover (a profile icon: "Toddler: Stale indoors")
   const popHtml = (summary, body, cls = '', label = '') => `<details class="sx-why"><summary${cls ? ` class="${cls}"` : ''} aria-label="${label ? esc(label) : 'Why'}"${label ? ` title="${esc(label)}"` : ''}>${summary}</summary><p>${body}</p></details>`;
   const tone = n => n.ok === true ? 'ok' : n.ok === false ? 'warn' : 'muted';
-  // the needs, always there but quiet: three icons in the header line, a dot for the state; a tap opens the sentence
-  const needsHeadHtml = needs => `<span class="sx-nh">${(needs || []).map(n => popHtml(
-    `<i>${NEED_ICON[n.id] || ''}<b></b></i>`, `<strong>${esc(n.name)}: ${esc(n.state)}.</strong> ${esc(n.why)}`, `sx-nh-i ${tone(n)}`,
+  // the profiles, always there but quiet: three icons in the header line, a dot for the state; a tap opens the sentence
+  const profilesHeadHtml = profiles => `<span class="sx-nh">${(profiles || []).map(n => popHtml(
+    `<i>${PROFILE_ICON[n.id] || ''}<b></b></i>`, `<strong>${esc(n.name)}: ${esc(n.state)}.</strong> ${esc(n.why)}`, `sx-nh-i ${tone(n)}`,
     `${n.name}: ${n.state}`)).join('')}</span>`;
-  // on an item, its need's icon and state take the (i)'s place and open the item's why, then the need's sentence
-  const itemNeedHtml = (it, needs) => {
+  // on an item, its profile's icon and state take the (i)'s place and open the item's why, then the profile's sentence
+  const itemProfileHtml = (it, profiles) => {
     if (!it.why) return '';
-    const n = (needs || []).find(x => x.id === it.need);
+    const n = (profiles || []).find(x => x.id === it.profile);
     if (!n) return popHtml(INFO, esc(it.why));
-    return popHtml(`${NEED_ICON[n.id] || ''}${esc(n.state)}`,
+    return popHtml(`${PROFILE_ICON[n.id] || ''}${esc(n.state)}`,
       `${esc(it.why)}<span class="sx-nl"><strong>${esc(n.name)}:</strong> ${esc(n.why)}</span>`, `sx-nchip ${tone(n)}`);
   };
 
@@ -81,11 +81,11 @@
   // each redraw replaces the chart's listeners (including the one on document) instead of adding more
   const rewire = o => { if (o.__ac) o.__ac.abort(); o.__ac = new AbortController(); return o.__ac.signal; };
 
-  // the card's header: TODAY/TONIGHT on the left (unless the page shows it above the card), the needs on the right
-  const kickHtml = (label, needs, showLabel = true) =>
-    `<div class="sx-kick">${showLabel ? `<span>${esc(label)}</span>` : '<span></span>'}${needsHeadHtml(needs)}</div>`;
+  // the card's header: TODAY/TONIGHT on the left (unless the page shows it above the card), the profiles on the right
+  const kickHtml = (label, profiles, showLabel = true) =>
+    `<div class="sx-kick">${showLabel ? `<span>${esc(label)}</span>` : '<span></span>'}${profilesHeadHtml(profiles)}</div>`;
 
-  const api = { appNow, readingsNow, pmPastSvg, kickHtml, hoursOf, lerp, shareOfLimit, fmtClock, staleWhen, tipSide, hourLabel, needsHeadHtml, itemNeedHtml, fitLabel, rhLabelY, peakAhead, rewire };
+  const api = { appNow, readingsNow, pmPastSvg, kickHtml, hoursOf, lerp, shareOfLimit, fmtClock, staleWhen, tipSide, hourLabel, profilesHeadHtml, itemProfileHtml, fitLabel, rhLabelY, peakAhead, rewire };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   // ── drawing ──
@@ -258,10 +258,10 @@
     el.__hoverAt = frac => { const r = svg.getBoundingClientRect(); show({ clientX: r.left + frac * geo.R }); };
   }
 
-  function itemHtml(it, now, needs) {
+  function itemHtml(it, now, profiles) {
     const when = staleWhen(it.action, now);
     return `<div class="sx-row">
-      <div class="sx-lab"><span>${it.key ? `<i class="sx-key ${it.key}"></i>` : ''}${esc(it.label)}${it.forecast ? ' · <span class="sx-fct">forecast</span>' : ''}</span>${itemNeedHtml(it, needs)}</div>
+      <div class="sx-lab"><span>${it.key ? `<i class="sx-key ${it.key}"></i>` : ''}${esc(it.label)}${it.forecast ? ' · <span class="sx-fct">forecast</span>' : ''}</span>${itemProfileHtml(it, profiles)}</div>
       <div class="sx-num">${it.forecast ? `<span class="sx-fcn">${esc(it.num)}</span>` : esc(it.num)}<small>${esc(it.unit)}</small></div>
       <div class="sx-ctx">${esc(it.ctx)}</div>
       ${it.action && it.action.text ? `<div class="sx-do">${esc(it.action.text)}${when ? ` <span class="sx-when">· ${esc(when)}</span>` : ''}</div>` : ''}
@@ -270,14 +270,14 @@
 
   function renderSummary(el, s, now = appNow(), opts = {}) {
     if (!el) return false;
-    // opts.needsEl: the page shows the need icons in the card's header strip instead of a row of their own
-    const needsEl = opts.needsEl || null;
-    if (!s || !s.timeline) { el.innerHTML = '<p class="sx-none">The summary isn’t available right now.</p>'; if (needsEl) needsEl.innerHTML = ''; return false; }
-    if (needsEl) needsEl.innerHTML = needsHeadHtml(s.needs);
+    // opts.profilesEl: the page shows the profile icons in the card's header strip instead of a row of their own
+    const profilesEl = opts.profilesEl || null;
+    if (!s || !s.timeline) { el.innerHTML = '<p class="sx-none">The summary isn’t available right now.</p>'; if (profilesEl) profilesEl.innerHTML = ''; return false; }
+    if (profilesEl) profilesEl.innerHTML = profilesHeadHtml(s.profiles);
     const showLabel = opts.label !== false;
-    let html = !needsEl ? kickHtml(s.label, s.needs, showLabel) : showLabel ? kickHtml(s.label, null) : '';
+    let html = !profilesEl ? kickHtml(s.label, s.profiles, showLabel) : showLabel ? kickHtml(s.label, null) : '';
     if (s.items && s.items.length) {
-      html += `<div class="sx-items n${s.items.length}">${s.items.map(it => itemHtml(it, now, s.needs)).join('')}</div>`;
+      html += `<div class="sx-items n${s.items.length}">${s.items.map(it => itemHtml(it, now, s.profiles)).join('')}</div>`;
       if (s.also) html += `<div class="sx-also">${esc(s.also)}</div>`;
     } else {
       html += '<div class="sx-clear"><div class="sx-big">All clear.</div><div class="sx-sub">Nothing to do inside or out.</div></div>';
@@ -293,7 +293,7 @@
     draw();
     el.__redraw = draw;   // the page redraws on resize and theme change
     // one popover open at a time; a tap elsewhere closes it
-    const pops = sel => [el, needsEl].filter(Boolean).flatMap(x => [...x.querySelectorAll(sel)]);
+    const pops = sel => [el, profilesEl].filter(Boolean).flatMap(x => [...x.querySelectorAll(sel)]);
     pops('details.sx-why').forEach(d => d.addEventListener('toggle', () => {
       if (d.open) pops('details.sx-why[open]').forEach(o => { if (o !== d) o.open = false; });
     }));

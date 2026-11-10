@@ -31,7 +31,7 @@ Ask the user for their address (a street corner or a neighborhood is enough). Th
 - `name`: what the page calls the home, usually the neighborhood ("Maplewood").
 - `lat`, `lon`: the address's coordinates, **rounded to 2 decimals** (about 1 km). The page shows them, and weather, pollen and smoke don't need more. `scripts/check_config.py` flags more decimals.
 - `timezone`: the IANA name for the address ("America/Chicago").
-- `indoor`, `outdoor`: what to call each monitor in sentences ("bedroom", "balcony"). The page finds the monitors through the token on its own: the first one AirGradient lists as indoor and the first as outdoor.
+- `indoor`, `outdoor`: ask the user which monitors they have: an indoor one, an outdoor one, or both. Each line says what to call that monitor in sentences ("bedroom", "balcony"). Delete the line of a monitor they don't have; one must stay. The page finds the monitors through the token on its own: the first one AirGradient lists as indoor and the first as outdoor.
 - `pollen_zip`: the US ZIP code, for the pollen.com link. Delete the line outside the US.
 - `region` (optional): the city or region, used in a few sentences ("the usual Chicago season"). Leave it out for neutral wording.
 
@@ -39,15 +39,44 @@ The `[[pollen_seasons]]` dates in the example are for the northeastern US. Adjus
 
 Keep a copy of `config.toml` somewhere private (a password manager note, a private repo): it isn't in git, so it has no history and no backup.
 
-## 3. The needs
+### Indoor monitor only: where outdoor PM2.5 comes from
 
-Ask which of the three needs apply to the household, and set each in `[needs]` to `true` or `false`:
+Without an outdoor monitor, the page reads outdoor PM2.5 from a source chosen now and kept: a nearby public AirGradient monitor, an estimate for the area, or Open-Meteo's model alone. Once `lat` and `lon` are filled, run:
+
+```bash
+uv run --with-requirements requirements.txt scripts/check_config.py --suggest
+```
+
+(Without uv, with Python 3.11 or newer: create the virtualenv first, with step 8's first three commands (`python3 -m venv .venv`, `. .venv/bin/activate`, `pip install -r requirements.txt`), then run `python scripts/check_config.py --suggest`.) It asks AirGradient's public list of monitors (one request, no token). It lists up to 5 public outdoor monitors reporting now within 15 km, nearest first, each with its distance, its last corrected PM2.5 and its id:
+
+```
+Public outdoor monitors reporting now within 15 km, nearest first:
+  <name>, <distance> km, corrected PM2.5 <value> µg/m³, id <id>
+```
+
+(No list when none reports within 15 km; "(the 5 nearest of <n>)" after "nearest first" when more do.) Then one line with the source to choose and why, one of:
+
+- `Suggested outdoor_from = <id>: <name>, <distance> km away, the nearest public outdoor monitor reporting now (within 3 km, its readings stand for your street).`
+- `Suggested outdoor_from = "area": no public outdoor monitor within 3 km; <n> public outdoor monitors within 15 km tune the forecast to your area.`
+- `Suggested outdoor_from = "model": <n> public outdoor monitors within 15 km, fewer than 2 for an area estimate, so Open-Meteo's model alone.`
+
+Until `outdoor_from` is written, the same run also prints `Problem: … no outdoor monitor, so sources.outdoor_from is needed …`: expected at this point.
+
+Show the user the listed monitors (name, distance, last reading) and the suggestion with its reason in plain words (the monitor's name and distance, or why it's an estimate). Then write their choice under `[sources]`: `outdoor_from = <id>` for a monitor (a number, no quotes; another listed monitor's id if they prefer it), or `outdoor_from = "area"` or `"model"`. The page labels both "Estimate for your area" (the model with "Open-Meteo" after it). If the chosen monitor stops reporting, the page shows an estimate for the area until it's back, and step 7's check says when it has been silent for 7 days, with the next best.
+
+### Outdoor monitor only
+
+Delete the `indoor` line; `outdoor_from` isn't needed. The toddler profile can still be picked: it shows greyed, "Needs an indoor monitor", and gives no actions until an indoor monitor is added and named in `indoor`.
+
+## 3. The profiles
+
+Ask the user: "Which profiles fit your home: a toddler, sinus allergies, a runner? You can pick several." Then set each one in `[profiles]` to `true` (picked) or `false`:
 
 - `toddler`: a small child at home. CO₂ and the air at sleep time, and whether outdoor air is fine for them.
 - `sinus`: sinus trouble or allergies. Humidity and pollen.
 - `runner`: someone who runs outdoors. When outdoor PM2.5, smoke and a road's rush hours make a run worth it.
 
-These are the only needs the page knows. A new one is a code change (see "Adding a need" below).
+These are the only profiles the page knows. A new one is a code change (see "Adding a profile" below). A config from before this name may say `[needs]` instead: it still works, and `scripts/check_config.py` notes the old name.
 
 Then ask what they have to dry a damp room, and set `[home] appliances` to `["dehumidifier", "ac_dry"]` (both, the default), one of them, or `[]`: the humidity action uses these.
 
@@ -82,7 +111,7 @@ Don't copy `.env.example` to `.env`: the first line for a key wins, so a placeho
 
 ## 6. Pollen: now or later
 
-Ask the user: set up pollen now, or later? Skipping is fine. Without a key the pollen card says "Off" ("Needs a Google Pollen key") and keeps its season calendar, and the sinus need uses humidity only. To turn pollen off entirely, set `pollen = false` under `[sources]`.
+Ask the user: set up pollen now, or later? Skipping is fine. Without a key the pollen card says "Off" ("Needs a Google Pollen key") and keeps its season calendar, and the sinus & allergy profile goes on humidity only. To turn pollen off entirely, set `pollen = false` under `[sources]`.
 
 The key comes from Google's Pollen API. It needs a Google Cloud project with billing turned on. The API has a free monthly allowance, and the app makes about one call a day, since it keeps each day's pollen.
 
@@ -119,7 +148,7 @@ The key comes from Google's Pollen API. It needs a Google Cloud project with bil
 uv run --with-requirements requirements.txt scripts/check_config.py
 ```
 
-Without uv, in the virtualenv from step 8 (Python 3.11 or newer; macOS's own `python3` may be older): `python scripts/check_config.py`. It prints `AIRGRADIENT_TOKEN set` or `missing` (and the same for the pollen key), never their values, then any problems in plain words, then `Config OK`. Fix every problem it lists and run it again.
+Without uv, in the virtualenv from step 8 (Python 3.11 or newer; macOS's own `python3` may be older): `python scripts/check_config.py`. It prints `AIRGRADIENT_TOKEN set` or `missing` (and the same for the pollen key), never their values, then which monitors the home has (`Monitors: indoor and outdoor`, `Monitors: outdoor only`, or `Monitors: indoor only; outdoor PM2.5 from …`), then any problems in plain words, then `Config OK`. For a home with an indoor monitor only, it also checks the chosen source is reporting (one request to AirGradient's public list). Fix every problem it lists and run it again.
 
 ## 8. Run it
 
@@ -143,11 +172,13 @@ Then open http://localhost:5555. Set `PORT` to use another port (`PORT=5600 uv r
 **What the user should see:**
 
 - No token yet: the page with their home's name and a card that says "Config loaded. Add AIRGRADIENT_TOKEN to .env".
-- With the token: their two monitors' readings, the actions, the needs they picked, and the local conditions for their place.
+- With the token: their monitors' readings, the actions, the profiles they picked and whether the air suits each of them, and the local conditions for their place.
+- Indoor monitor only: the outdoor card named after the source: "Nearby public monitor" with that monitor's name and distance, or "Estimate for your area".
+- Outdoor monitor only: a greyed indoor card titled "No indoor monitor", and the toddler profile, if picked, greyed with "Needs an indoor monitor".
 - No `config.toml` and no token: the demo, with made-up data.
 - A token but no `config.toml`: the server stops with "No config: copy config.example.toml to config.toml (or set CONFIG_TOML)".
 
-If a monitor is missing on the page, check that the token's account has one monitor set as indoor and one as outdoor.
+If a monitor named in `[place]` is missing on the page, check that the token's account has a monitor of that kind: one set as indoor for `indoor`, one set as outdoor for `outdoor`.
 
 ## Outside the US
 
@@ -159,32 +190,32 @@ The page is built for the US. Outside it, in `config.toml`:
 
 The weather card's forecast link still goes to the US National Weather Service, which has no page for other places. Open-Meteo (weather and the PM2.5 forecast) and AirGradient's nearby monitors work everywhere.
 
-## Adding a need
+## Adding a profile
 
-A need is code, not a setting. To add one, touch each of these and keep the tests green (`pytest -q && node --test tests/`):
+A profile is code, not a setting. To add one, touch each of these and keep the tests green (`pytest -q && node --test tests/`):
 
-- `config.py`: add it to `NEEDS`.
-- `summary.py`: the need's state in the needs row, and which items serve it.
-- `server.py`: the need's line in `build_needs`.
-- `phrases.py`: the need's sentences.
+- `config.py`: add it to `PROFILES`.
+- `summary.py`: its state in `profiles_row`, and which items serve it.
+- `server.py`: its line in `build_profiles`.
+- `phrases.py`: its sentences, in `PILLS`.
 - `static/home.js`, `static/app.js`, `static/summary.js`: its name, icon and wording.
-- `index.html`: its chip in the Home menu and its icon in the summary's needs line.
-- `config.example.toml`: a commented line under `[needs]`.
-- `demo/` and its tests: the demo moments are the test fixtures, so a new need shows up in them in the same commit.
+- `index.html`: its chip under "Profiles" in the Home menu.
+- `config.example.toml`: a commented line under `[profiles]`.
+- `demo/` and its tests: the demo moments are the test fixtures, so a new profile shows up in them in the same commit.
 
-### Ideas for more needs
+### Ideas for more profiles
 
-The three needs come from one household. Others will care about other things. Each idea below lists what it would watch and whether the data is already there. If you build one, a pull request is welcome; if you only want one, open an issue saying which and why.
+The three profiles come from one household. Other homes have other people in them. Each idea below lists what the page would watch for that person and whether the data is already there. If you build one, a pull request is welcome; if you only want one, open an issue saying which and why.
 
-| Need | What it would watch | Data today |
+| Profile | What it would watch | Data today |
 |---|---|---|
-| Sleep | Bedroom CO₂ overnight (under 1,000 ppm), bedroom temperature (about 16–19 °C), outside noise or pollen if the window stays open | Yes: indoor CO₂, temperature, pollen |
-| Working from home | CO₂ during work hours, with a nudge to air out before the room gets stuffy (around 1,000 ppm) | Yes: indoor CO₂ |
-| Asthma or sensitive lungs | Stricter PM2.5 lines inside and out, ozone, and smoke days | Partly: PM2.5 and smoke yes; ozone not fetched yet (Open-Meteo has it) |
-| Cooking with gas | NOx and PM spikes indoors after cooking, and how long they take to clear | Yes: indoor NOx index and PM2.5 |
-| Mold-prone home | Indoor humidity above 60% for days, not hours | Yes: indoor humidity history |
-| Baby's room | Humidity 40–60%, temperature, CO₂ at night | Yes, if the indoor monitor is in that room |
-| Cycling commute | Outdoor PM2.5 and the road's rush at fixed commute times | Yes: like the runner need, with set hours |
-| Pets (birds especially) | Indoor VOCs (birds react to fumes from non-stick pans and sprays) | Yes: indoor VOC index |
+| A light sleeper | Bedroom CO₂ overnight (under 1,000 ppm), bedroom temperature (about 16–19 °C), outside noise or pollen if the window stays open | Yes: indoor CO₂, temperature, pollen |
+| Someone working from home | CO₂ during work hours, with a nudge to air out before the room gets stuffy (around 1,000 ppm) | Yes: indoor CO₂ |
+| Someone with asthma or sensitive lungs | Stricter PM2.5 lines inside and out, ozone, and smoke days | Partly: PM2.5 and smoke yes; ozone not fetched yet (Open-Meteo has it) |
+| Someone who cooks on gas | NOx and PM spikes indoors after cooking, and how long they take to clear | Yes: indoor NOx index and PM2.5 |
+| Someone sensitive to mold | Indoor humidity above 60% for days, not hours | Yes: indoor humidity history |
+| A baby | Humidity 40–60%, temperature, CO₂ at night | Yes, if the indoor monitor is in the baby's room |
+| Someone who cycles to work | Outdoor PM2.5 and the road's rush at fixed commute times | Yes: like the runner profile, with set hours |
+| A pet bird | Indoor VOCs (birds react to fumes from non-stick pans and sprays) | Yes: indoor VOC index |
 
-Needs that only re-read existing data (most of the table) are the easiest start: copy the runner or toddler need and change what it reads.
+Profiles that only re-read existing data (most of the table) are the easiest start: copy the runner or toddler profile and change what it reads.

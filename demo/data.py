@@ -20,10 +20,12 @@ from time import monotonic
 
 import requests
 
+import publicmap
 from config import route_path
+from summary import corrected_pm
 
 from . import public
-from .moments import MOMENTS, SAMPLES, TZ, moment_for
+from .moments import MOMENTS, SAMPLES, SOURCE_MONITOR_ID, TZ, data_key, moment_for
 
 STEP = timedelta(minutes=5)
 WEEK = timedelta(days=7)
@@ -40,6 +42,13 @@ NEARBY = (
     (5109, "Bushwick", 40.6990, -73.9220), (5110, "Long Island City", 40.7440, -73.9480),
     (5111, "Lower East Side", 40.7150, -73.9850), (5112, "Ridgewood", 40.7060, -73.9050),
 )
+
+# indoor-near's public monitor (?moment=indoor-near): made up, about 1.1 km northeast of the demo's home; its owner too
+SOURCE_PLACE = {"publicLocationName": "Larkspur Yard", "publicPlaceName": "Quill Street",
+                "publicContributorName": "Demo Neighbor", "latitude": 40.7275, "longitude": -73.9415}
+SOURCE_FIELDS = ("pm02_corrected", "rhum", "atmp", "rco2")   # what AirGradient's map gives in a monitor's history
+RAW_PM_MAX = 1000.0   # µg/m³ raw pm02: the bisection's upper bound, far above any story's PM2.5 once corrected
+RAW_PM_STEPS = 60   # bisection steps finding the raw pm02 whose EPA correction is the story's PM2.5 (far below 0.01)
 
 _HOME = {}   # the demo config's place and road, set by install()
 # how far past a History range a request's start may reach and still get that range: the route builds from = now − h,
@@ -213,6 +222,34 @@ def history_points(key, location_id, now_local, hours=24):
     return [(datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00")).astimezone(now_local.tzinfo), r) for r in rows]
 
 
+# ── indoor-near's public monitor ──
+
+def _raw_pm(pm, rh):
+    """The raw pm02 that AirGradient's EPA correction (summary.corrected_pm) turns into `pm` at humidity `rh`."""
+    lo, hi = 0.0, RAW_PM_MAX
+    for _ in range(RAW_PM_STEPS):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if (corrected_pm(mid, rh) or 0) < pm else (lo, mid)
+    return round(hi, 2)
+
+
+def source_row(key):
+    """The public monitor as AirGradient's world list gives it: the balcony monitor's reading now (the story's), with
+    the raw pm02 its correction reads back as the story's PM2.5."""
+    m, _ = world(key)
+    out = history(key)[1][-1]
+    return {"locationId": SOURCE_MONITOR_ID, "locationName": SOURCE_PLACE["publicLocationName"], "locationType": "outdoor",
+            **SOURCE_PLACE, "publicPlaceUrl": None, "pm02": _raw_pm(m.pm_out, out["rhum"]), "rhum": out["rhum"],
+            "atmp": out["atmp"], "rco2": out["rco2"], "timestamp": _z(m.at), "offline": False}
+
+
+def source_past(key, frm, to):
+    """The public monitor's history between frm and to (aware datetimes), as AirGradient's map gives it: the balcony
+    monitor's readings, in the map's fields."""
+    rows = past(key, OUTDOOR_ID, {"from": _z(frm), "to": _z(to)})
+    return [{"timestamp": r["timestamp"], **{k: r[k] for k in SOURCE_FIELDS if k in r}} for r in rows]
+
+
 # ── weather, the PM2.5 model, pollen, smoke, nearby ──
 
 def _dew(t, rh):
@@ -357,7 +394,7 @@ def install(server, moment_for_request):
     With ?monitor=<id> (server.request_monitor()) and that id an outdoor monitor of AirGradient's public map, the
     request is about that monitor instead: the real fetchers at its place, through the real cache under keys that
     carry its id (MONITOR_TTL), its history from AirGradient's public map when the map has it (monitor_history), no
-    pollen, no road, the runner's need only (its view's), and its reading counts only while it's online and recent
+    pollen, no road, the runner's profile only (its view's), and its reading counts only while it's online and recent
     (server.outdoor_row). An id that can't be shown (unknown, or the map didn't answer) gets the default sample's
     made-up answers, which no one caches, and the page says why (window.APP.public.error).
 
@@ -368,12 +405,13 @@ def install(server, moment_for_request):
                  route=cfg.road.route if cfg.road else None)
     _route.cache_clear()
     nearby.cache_clear()
-    key = lambda: moment_for_request().key
+    key = lambda: data_key(moment_for_request())   # whose made-up readings: a hidden case shows the rush's
     # the real ones, before they're replaced: a public monitor uses them
     _REAL.clear()
     _REAL.update({name: getattr(server, name) for name in (
         "cached", "_fetch_world", "_fetch_nearby", "get_open_meteo_data", "get_air_forecast", "smoke_status",
-        "local_now", "road_traffic", "source_on", "page_view")}, force=server._force, world_cache=server.WORLD_CACHE)
+        "local_now", "road_traffic", "source_on", "page_view", "outdoor_source", "indoor_monitor")},
+        force=server._force, world_cache=server.WORLD_CACHE)
     real = _REAL
     request_monitor = server.request_monitor
     ranges = sorted(server.HIST_TTL)   # the History card's ranges (h): a monitor's history is fetched and cached by them
@@ -396,10 +434,27 @@ def install(server, moment_for_request):
     def here():
         return public.here_of(monitor())
 
+    def sample():
+        """The sample's moment, or None for a public monitor's page. A hidden case's moment says which monitors the
+        home has (indoor, outdoor_from), as a config's place and [sources] outdoor_from would."""
+        return moment_for_request() if which() == "sample" else None
+
+    def outdoor_from():
+        """server.outdoor_from: a hidden indoor-only case's source; None for the samples and a public monitor."""
+        m = sample()
+        return m.outdoor_from if m else None
+
+    def own_rows(rows):
+        """The home's own monitors (server.place_rows for the demo): an indoor-only case has no balcony monitor, an
+        outdoor-only one no bedroom monitor."""
+        m = sample()
+        drop = {"outdoor"} if m and m.outdoor_from is not None else {"indoor"} if m and not m.indoor else set()
+        return [r for r in rows if r["locationType"] not in drop]
+
     def api_get(path, params=None):
         w = which()
         if path == "/locations/measures/current":
-            return public.current_rows(monitor()) if w == "monitor" else current(key())
+            return public.current_rows(monitor()) if w == "monitor" else own_rows(current(key()))
         hit = re.fullmatch(r"/locations/(\d+)/measures/past", path)
         if hit:   # a public monitor's comes from AirGradient's public map (the API shares it only with its owner)
             if w == "sample":
@@ -428,7 +483,39 @@ def install(server, moment_for_request):
 
     def nearby_of(world, *a, **k):
         w = which()
-        return [dict(n) for n in nearby(key())] if w == "sample" else real["_fetch_nearby"](world, here())
+        if w != "sample":
+            return real["_fetch_nearby"](world, here())
+        rows = [dict(n) for n in nearby(key())]
+        if outdoor_from() is None:
+            return rows
+        # an indoor-only case: no balcony monitor among them; indoor-near's public monitor is, at its place
+        rows = [n for n in rows if n["locationId"] != OUTDOOR_ID]
+        if isinstance(outdoor_from(), int):
+            row = source_row(key())
+            pm = corrected_pm(row["pm02"], row["rhum"])
+            rows.append({**row, "distance_km": round(_km(_HOME["lat"], _HOME["lon"], row["latitude"], row["longitude"]), 1),
+                         **({"pm02_corrected": pm} if pm is not None else {})})
+        return sorted(rows, key=lambda n: n["distance_km"])
+
+    def outdoor_source(now=None, with_history=True):
+        """server.outdoor_source: indoor-near's public monitor, made up (its reading, and its last day of history),
+        through server.py's own shapes; anything else (the model, a sample with the balcony, a public monitor's page)
+        is server.py's."""
+        of = outdoor_from()
+        if not isinstance(of, int):
+            return real["outdoor_source"](now, with_history)
+        row = source_row(key())
+        at = moment_for_request().at
+        rows = source_past(key(), at - timedelta(hours=server.SOURCE_HOURS), at) if with_history else []
+        return server._source("monitor", **server._monitor_facts(row), row=publicmap.reading_row(row), history=rows)
+
+    def source_history_rows(location_id, frm, to):
+        """server.source_history_rows: indoor-near's public monitor's rows between frm and to; [] for another id."""
+        return source_past(key(), frm, to) if location_id == SOURCE_MONITOR_ID == outdoor_from() else []
+
+    def indoor_monitor():
+        m = sample()
+        return m.indoor if m else real["indoor_monitor"]()
 
     def now(*a, **k):
         w = which()
@@ -450,7 +537,15 @@ def install(server, moment_for_request):
     def page_view():
         mid = request_monitor()
         if mid is None:
-            return real["page_view"]()
+            view, m = real["page_view"](), moment_for_request()
+            if m.indoor and m.outdoor_from is None:
+                return view
+            # a hidden one-monitor case: its place without the monitor it lacks, and its source (config.public_view)
+            of = m.outdoor_from
+            place = {**view["place"], **({"outdoor": None} if of is not None else {}), **({} if m.indoor else {"indoor": None})}
+            return {**view, "place": place,
+                    **({"outdoor_from": {"kind": of if isinstance(of, str) else "monitor", "id": None if isinstance(of, str) else of}}
+                       if of is not None else {})}
         mon, error = _resolve(mid)
         return public.view_of(mon, server.APP_VIEW) if mon else {**server.APP_VIEW, "public": {"id": mid, "error": error}}
 
@@ -490,6 +585,11 @@ def install(server, moment_for_request):
     server.page_clock = page_clock
     server.monitor_missing = lambda: asked() == "missing"
     server.outdoor_row = monitor   # a public monitor's row from the world list: its age and offline flag; None for a sample
+    # the hidden one-monitor cases (?moment=indoor-near, indoor-model, outdoor-only): which monitors the home has
+    server.outdoor_from = outdoor_from
+    server.outdoor_source = outdoor_source
+    server.source_history_rows = source_history_rows
+    server.indoor_monitor = indoor_monitor
 
 
 # ── public monitors (?monitor=) ──
@@ -529,7 +629,7 @@ def _resolve(mid):
     if memo and memo[0] == mid:
         return memo[1]
     try:
-        mon = public.find(world_list(), mid)
+        mon = publicmap.find(world_list(), mid)
         out = (mon, None) if mon else (None, public.UNKNOWN.format(id=mid))
     except WORLD_ERRORS:
         out = (None, public.WORLD_DOWN)
@@ -544,12 +644,12 @@ def monitor_history(mon, hours):
     HISTORY_TTL. A failed fetch isn't cached, so the next request asks again."""
     here_key = public.here_of(mon).key
     try:
-        mid, _ = real_cached(f"ag:mapid:{here_key}", lambda: public.map_id(mon), ttl=public.MAP_ID_TTL,
-                                 wait=public.MAP_WAIT)
+        mid, _ = real_cached(f"ag:mapid:{here_key}", lambda: publicmap.map_id(mon), ttl=publicmap.MAP_ID_TTL,
+                                 wait=publicmap.MAP_WAIT)
         if mid is None:
             return []
-        rows, _ = real_cached(f"ag:maphist:{here_key}:{hours}h", lambda: public.history(mid, hours),
-                                  ttl=public.HISTORY_TTL, wait=public.MAP_WAIT)
+        rows, _ = real_cached(f"ag:maphist:{here_key}:{hours}h", lambda: publicmap.history(mid, hours),
+                                  ttl=publicmap.HISTORY_TTL, wait=publicmap.MAP_WAIT)
     except WORLD_ERRORS:   # the map failed or timed out, like the world list; a bug in our code still raises
         return []
     return [dict(r) for r in rows]

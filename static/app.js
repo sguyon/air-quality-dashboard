@@ -3,7 +3,7 @@ const ICONS = {"toddler":"<svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"t
 // Each inserted copy of a drawing gets its own ids: a gradient referenced from a hidden copy doesn't paint.
 let svgCopy = 0;
 const uniq = svg => { const n = ++svgCopy; return svg.replace(/id="([^"]+)"/g, `id="$1-${n}"`).replace(/url\(#([^)]+)\)/g, `url(#$1-${n})`); };
-// The home (place, links, road, needs, limits, pollen seasons) comes from the server's config: window.APP, set in index().
+// The home (place, links, road, profiles, limits, pollen seasons) comes from the server's config: window.APP, set in index().
 const APP = window.APP;
 // A public AirGradient monitor's page (the demo's ?monitor=<id>): {id, name, street, contributor, url}. One that can't
 // be shown ({id, error}) gets the default sample's page instead, with the reason in the demo banner (picker.js).
@@ -11,6 +11,18 @@ const APP = window.APP;
 const PUB = APP.public && !APP.public.error ? APP.public : null;
 const NO_INDOOR = APP.place.indoor === null || !!PUB;
 const VIEW_PLACE = NO_INDOOR ? { ...APP.place, indoor: null } : APP.place;   // what home.js reads to draw the indoor slot disabled
+// An indoor-only home: no outdoor monitor of its own; its outdoor PM2.5 comes from a chosen source (APP.outdoor_from), which
+// /api/current names on its outdoor entry ("source"): a nearby public monitor's readings, or an estimate for the area.
+const NO_OUTDOOR = APP.place.outdoor === null && !PUB;
+const OUT_ROW = 'Outdoor PM2.5';   // that home's outdoor row in the Home menu and the sources list
+const outSource = () => (NO_OUTDOOR && state.outdoor && state.outdoor.source) || null;
+// An indoor-only home whose outdoor PM2.5 is an estimate (area or model, or a chosen monitor that isn't reporting): no
+// AirGradient device stands for it, so its card, the header's pill and the Home menu row show Open-Meteo's mark instead.
+const ESTIMATE_ICON = '<span class="mc-est" title="Open-Meteo"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#3d9ae6"/><circle cx="15.4" cy="8" r="3" fill="#ffd56a"/><circle cx="9.2" cy="14.4" r="2.9" fill="#fff"/><circle cx="13.4" cy="13.2" r="3.5" fill="#fff"/><circle cx="16.8" cy="14.8" r="2.4" fill="#fff"/><rect x="8.4" y="14.2" width="9" height="3.1" rx="1.5" fill="#fff"/></svg></span>';
+const outEstimate = () => { const w = NO_OUTDOOR && sourceLine(outSource() || APP.outdoor_from); return !!(w && w.estimate); };
+const outIcon = () => outEstimate() ? ESTIMATE_ICON : uniq(ICONS.openair);
+// that home's source in the Home menu's words: what /api/current says, else what the home chose (before it answers)
+const outWords = () => NO_OUTDOOR ? (sourceLine(outSource() || APP.outdoor_from) || {}).menu || '' : '';
 const SELF = selfWords(!!PUB);   // the neighborhood's words for the shown monitor: This / You
 // The page's clock (summary.js): the demo's story moment (APP.now), or the real time. What the page shows uses it;
 // timers and cache stamps keep Date.now(). The demo also names its moment, or its public monitor, on every /api call.
@@ -23,10 +35,12 @@ const RH_LOW = APP.limits.rh_dry, RH_GOOD = APP.limits.rh_good, RH_DAMP = APP.li
 const PM_RING_MAX = 55;          // µg/m³: the PM2.5 ring is full at this reading
 const CO2_EXCELLENT = 600, CO2_FAIR = 1000, CO2_POOR = 1500;   // ppm: the CO₂ card's words around the configured limit
 const RH_OUT_DAMP = 80;          // %: outdoor humidity the outdoor card calls damp
+const LEGEND_OUT_W = 74;         // px (chart units): the History legend's Outdoor entry; Indoor moves into its place without it
 const RANGE_HOURS = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 };
 const RANGE_LABEL = { '1h': 'Last hour', '6h': 'Last 6 hours', '24h': 'Last 24 hours', '7d': 'Last 7 days' };
 const READ_MAX_AGE = 10 * 60 * 1000;
-const CACHE_KEY = 'air-read-v2' + (APP.now ? ':' + APP.now.moment : '');   // the demo keeps one per moment
+// v3: the read's "needs" became "profiles" (2026-11-09), so a saved v2 read would show no profile icons
+const CACHE_KEY = 'air-read-v3' + (APP.now ? ':' + APP.now.moment : '');   // the demo keeps one per moment
 
 const state = { range: '1h', indoor: null, outdoor: null, neighbors: [], read: null, readAt: 0, readKey: '' };
 
@@ -34,9 +48,9 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Fill the page's home-specific links and labels ([data-app] in index.html) from the config, once at load.
-// Without a road: no road card, source row, legend or road words. Needs that are off are hidden.
+// Without a road: no road card, source row, legend or road words. Profiles that are off are hidden.
 function applyConfig() {
-  const { place, links, road, needs } = APP;
+  const { place, links, road, profiles } = APP;
   const set = (el, attr, v) => { if (v) el.setAttribute(attr, v); else el.removeAttribute(attr); };
   const runner = `Runner: adds the run check, saying when the outdoor air${road ? ` and ${road.name} traffic` : ''} make${road ? '' : 's'} a run worth it.`;
   const fill = {
@@ -53,16 +67,18 @@ function applyConfig() {
     },
     'nb-map': el => { el.setAttribute('aria-label', `Map of nearby monitors${road ? ` and the ${road.name}` : ''}`); },
     'runner-tip': el => { el.dataset.tip = runner; if (el.hasAttribute('aria-label')) el.setAttribute('aria-label', runner); },
-    'needs-label': el => {
+    'profiles-label': el => {
       const names = { toddler: 'Toddler', sinus: 'Sinus and allergy', runner: 'Runner' };
-      const on = Object.keys(names).filter(k => needs[k]).map(k => names[k]);   // for screen readers: the pill shows no need icons
-      el.textContent = on.length ? 'Needs: ' + on.join(', ') : '';
+      const on = Object.keys(names).filter(k => profiles[k]).map(k => names[k]);   // for screen readers: the pill shows no profile icons
+      el.textContent = on.length ? (on.length === 1 ? 'Profile: ' : 'Profiles: ') + on.join(', ') : '';
     },
+    'profiles-heading': el => { el.textContent = Object.values(profiles).filter(Boolean).length === 1 ? 'Profile' : 'Profiles'; },
+    'monitors-heading': el => { if (PUB) el.textContent = 'Monitor'; },   // a public monitor is one monitor, and not yours
     'road-only': el => { el.hidden = !road; },
     'smoke-about': el => { el.textContent = smokeText(place.region); },
     'smoke-card-about': el => { el.textContent = smokeMapText(place.region); },
-    'needs-for': el => { const t = needsFor(needs); el.textContent = t; el.parentElement.hidden = !t; },
-    'sources-label': el => { el.setAttribute('aria-label', sourcesLabel(APP.sources, !!road, !NO_INDOOR)); },
+    'profiles-for': el => { const t = profilesFor(profiles); el.textContent = t; el.parentElement.hidden = !t; },
+    'sources-label': el => { el.setAttribute('aria-label', sourcesLabel(APP.sources, !!road, !NO_INDOOR, !NO_OUTDOOR, !!PUB)); },
     'monitors-title': el => { if (PUB) el.textContent = 'Monitor'; },
     'self-legend': el => { el.textContent = SELF.legend; },
   };
@@ -73,6 +89,7 @@ function applyConfig() {
     'road-exhaust': el => { el.textContent = `${road.name} exhaust`; },
     'road-about-label': el => { el.setAttribute('aria-label', `About the ${road.name} estimate`); },
     'traffic': el => { el.href = links.traffic; el.title = `Live traffic on the ${road.name} near ${place.name}, Google Maps`; },
+    'road-why': el => { if (!road) return; const why = roadWhyText(road); el.setAttribute('data-tip', why); el.setAttribute('aria-label', why); },   // the ⓘ in the map legend
     'road-clock': el => { el.textContent = roadClockText(road); },
     'road-wind': el => { el.textContent = roadWindText(road); },
   });
@@ -81,7 +98,13 @@ function applyConfig() {
     const link = document.querySelector('[data-app="traffic"]'); if (link) { link.removeAttribute('href'); link.removeAttribute('target'); const arr = link.querySelector('.k-arr'); if (arr) arr.remove(); }
     const q = document.querySelector('[data-road-q]'); if (q) q.hidden = true;
   }
-  document.querySelectorAll('[data-need]').forEach(el => { el.hidden = !needs[el.dataset.need]; });
+  document.querySelectorAll('[data-profile]').forEach(el => { el.hidden = !profiles[el.dataset.profile]; });
+  // An outdoor-only home: a picked profile its monitors can't serve (Toddler reads CO₂ indoors) stays, greyed, with its reason
+  if (!PUB) document.querySelectorAll('.view.profiles [data-profile]').forEach(el => { const why = profileOff(el.dataset.profile, place.indoor !== null);
+    if (why) { el.classList.add('off'); el.dataset.tip = why; } });
+  // An indoor-only home: the outdoor row says where its outdoor PM2.5 comes from (the words follow /api/current's source)
+  const outRow = NO_OUTDOOR && $('st-openair') && $('st-openair').closest('.pr');
+  if (outRow) { outRow.querySelector('.pr-t b').textContent = OUT_ROW; outRow.querySelector('.pr-t em').textContent = outWords(); }
 }
 applyConfig();
 if ($('nb-credit')) $('nb-credit').innerHTML = creditHtml(!!APP.now);   // the demo's line, or AirGradient's credit
@@ -93,10 +116,9 @@ if ((APP.now || APP.public) && $('demo-bar') && !/[?&]shot\b/.test(location.sear
 }
 // Nearby monitors turned off in the config: the section says so in one line instead of showing an empty table and map.
 if ((APP.sources || {}).nearby === false) {
-  const lead = document.getElementById('nb-lead'), card = document.querySelector('.nb-card');
-  if (lead) lead.textContent = 'Off. ' + sourceOff('nearby', 'off').line;
+  const off = document.getElementById('nb-off'), card = document.querySelector('.nb-card');
+  if (off) { off.textContent = 'Off. ' + sourceOff('nearby', 'off').line; off.hidden = false; }
   if (card) card.hidden = true;
-  if ($('nb-sub')) $('nb-sub').hidden = true;
 }
 // Zero is a real reading; only null and undefined mean missing.
 const has = v => v !== null && v !== undefined && !Number.isNaN(v);
@@ -146,12 +168,17 @@ const srcOk = { ...(SRC_ON.nearby !== false ? { nearby: null } : {}), wx: null, 
 function setStatus(id, tone, text, title) {
   const el = $('st-' + id); if (!el) return;
   el.className = 'pst ' + tone; el.lastElementChild.textContent = text; el.title = title || text;
+  const row = el.closest('.pr'); if (row) row.classList.toggle('off', rowOff(tone, text));   // greyed like a missing monitor
   if (tone === 'neutral' && id !== 'bqe') delete srcOk[id];   // off or not set up: not counted, not an error
   else if (id in srcOk && id !== 'bqe') srcOk[id] = tone === 'good';
 }
 function monitorStatus(id, m) {
-  const r = monitorRow(m, readingsNow(), id === 'one' && NO_INDOOR, TZ);
+  const srcRow = id === 'openair' && NO_OUTDOOR, src = srcRow ? outSource() : null;
+  if (srcRow) { const ic = $('st-openair').closest('.pr').querySelector('.pr-ic'), est = outEstimate();   // the row's mark follows the source
+    if (ic && ic.dataset.est !== String(est)) { ic.dataset.est = est; ic.innerHTML = outIcon(); } }   // an indoor-only home's outdoor PM2.5 row: its source, not greyed
+  const r = srcRow ? sourceStatus(src, m, readingsNow(), TZ).row : monitorRow(m, readingsNow(), id === 'one' && NO_INDOOR, TZ);
   const row = $('st-' + id) && $('st-' + id).closest('.pr'); if (row) row.classList.toggle('off', r.off);   // greyed device
+  if (src && row) row.querySelector('.pr-t em').textContent = sourceLine(src).menu;
   setStatus(id, r.tone, r.text, r.title);
 }
 function sourceSummary() {
@@ -192,9 +219,9 @@ function rhLevel(v, indoor) {
 }
 const TONE = { good: 'var(--good)', warn: 'var(--warn)', bad: 'var(--bad)', muted: 'var(--soft)' };
 
-function pmRing(pm, tone) {
+function pmRing(pm, tone, title = '') {   // title: an estimate's hour ("Estimate for 3 PM")
   const r = 34, c = 2 * Math.PI * r, pct = has(pm) ? Math.min(pm / PM_RING_MAX, 1) : 0;
-  return `<div class="mc-ring"><svg viewBox="0 0 80 80" aria-hidden="true"><circle class="mc-ring-bg" cx="40" cy="40" r="${r}"/>` +
+  return `<div class="mc-ring"${title ? ` title="${esc(title)}"` : ''}><svg viewBox="0 0 80 80" aria-hidden="true"><circle class="mc-ring-bg" cx="40" cy="40" r="${r}"/>` +
     `<circle class="mc-ring-fill" cx="40" cy="40" r="${r}" stroke="${TONE[tone]}" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c - pct * c).toFixed(1)}"/></svg>` +
     `<div><b style="color:${TONE[tone]}">${pmNum(pm)}</b><span>µg/m³</span></div></div>`;
 }
@@ -208,16 +235,35 @@ function tempScale(tC, otherC, indoor) {
   return `<div class="t-scale" title="Comfort range ${band}${has(otherC) ? ` · ${indoor ? 'outside' : 'inside'} ${fmtTemp(otherC)}` : ''}"><span class="t-band" style="left:${at(68)}%;width:${(at(76) - at(68)).toFixed(1)}%"></span>${o}<i class="ts-me" style="left:${at(toF(tC))}%"></i></div>`;
 }
 
-function monitorCard(m, indoor) {
-  const f = freshness(m, readingsNow()), r = reading(m, indoor);
+// An indoor-only home's outdoor PM2.5 now when it is an estimate: the summary's model hour (null until the summary has one).
+const estimateAt = () => estimateNow(state.read && state.read.summary && state.read.summary.timeline, readingsNow());   // {pm, at} or null
+const estimatePm = () => { const e = estimateAt(); return e ? e.pm : null; };
+// Outdoor PM2.5 as the outdoor card shows it: the monitor's reading, or an indoor-only home's estimate.
+const outdoorPm = () => { const w = outSource() && sourceLine(outSource()); return w && w.estimate ? estimatePm() : reading(state.outdoor, false).pm; };
+
+// ghost: a monitor this view doesn't have (a public monitor's page, or a home without an indoor one): the same card, empty, greyed
+function monitorCard(m, indoor, ghost = false) {
+  // an indoor-only home's outdoor card: where its outdoor PM2.5 comes from (sourceLine), not a monitor of its own
+  const src = !indoor && !ghost && NO_OUTDOOR && m && m.source ? m.source : null, sw = src && sourceLine(src), est = !!(sw && sw.estimate);
+  // no source entry yet (/api/current sent none): the source's card, greyed with one line (rule 11), never a device of its own
+  const pending = !indoor && !ghost && NO_OUTDOOR && !src;
+  if (pending) { ghost = true; m = null; }
+  const gw = pending ? { status: NO_OUT_YET, aria: 'Outdoor: ' + NO_OUT_YET.toLowerCase() } : ghostWords(!!PUB);
+  const f = ghost ? { tone: 'off', label: gw.status } : src ? sourceStatus(src, m, readingsNow(), TZ).card : freshness(m, readingsNow()), r = reading(m, indoor);
+  // an estimate is PM2.5 only; temperature and humidity are Open-Meteo's weather when the page has it
+  const wx = est && state.ctx && state.ctx.weather ? state.ctx.weather : null, wxOn = !!wx && (has(wx.temperature) || has(wx.humidity));
+  if (est) Object.assign(r, { pm: estimatePm(), co2: null, t: wx ? wx.temperature : null, rh: wx ? wx.humidity : null });
   const pl = pmLevel(has(r.pm) ? r.pm : null, APP.limits), cl = co2Level(r.co2), hl = rhLevel(r.rh, indoor);
-  const voc = m && m.tvocIndex, nox = m && m.noxIndex, wifi = PUB ? null : m && m.wifi;   // a public monitor's Wi‑Fi isn't ours to show
-  // a public monitor is named by its owner's name for it, then "public monitor"; a home's by the device and its place
+  const voc = m && m.tvocIndex, nox = m && m.noxIndex, wifi = PUB || src ? null : m && m.wifi;   // a public monitor's Wi‑Fi isn't ours to show
+  // a public monitor is named by its owner's name for it, then "public monitor"; a home's by the device and its place;
+  // an indoor-only home's outdoor card by its source ("Nearby public monitor · Cedar & 2nd Ave, 1.1 km")
   const pubName = !indoor && PUB && PUB.name ? PUB.name : null;
-  const what = pubName ? 'public monitor' : esc(indoor ? APP.place.indoor : APP.place.outdoor);
+  const what = ghost ? '' : sw ? esc(sw.sub) : pubName ? 'public monitor' : esc(indoor ? APP.place.indoor : APP.place.outdoor);
+  const title = pending ? esc((sourceLine(APP.outdoor_from) || { name: 'Estimate for your area' }).name) : ghost ? 'No indoor monitor' : sw ? esc(sw.name) : pubName ? esc(pubName) : indoor ? 'AirGradient ONE' : 'AirGradient Open Air';
+  const dim = on => on ? ' mc-dim' : '';   // greyed: what only a monitor of its own measures (rule 11)
   const bar = (pct, tone) => `<div class="mc-bar"><i style="width:${Math.max(0, Math.min(100, pct)).toFixed(0)}%;background:${TONE[tone]}"></i></div>`;
-  const metric = (label, value, unit, color, extra, sub) =>
-    `<div class="mc-m"><span>${label}</span><b${color ? ` style="color:${color}"` : ''}>${value}${unit ? `<small>${unit}</small>` : ''}</b>${extra || ''}<em>${sub || ''}</em></div>`;
+  const metric = (label, value, unit, color, extra, sub, off = false) =>
+    `<div class="mc-m${dim(off)}"><span>${label}</span><b${color ? ` style="color:${color}"` : ''}>${value}${unit ? `<small>${unit}</small>` : ''}</b>${extra || ''}<em>${sub || ''}</em></div>`;
   // the chosen unit big (one decimal), the other one in the word line (°C with a decimal, °F whole)
   const tBig = has(r.t) ? fmtTemp(r.t, { digits: 1, bare: true }) : '—', tAlt = has(r.t) ? fmtTemp(r.t, { unit: otherUnit(), digits: otherUnit() === 'C' ? 1 : 0, tight: true }) : '';
   const other = (indoor ? state.outdoor : state.indoor) ? reading(indoor ? state.outdoor : state.indoor, !indoor) : {};
@@ -226,54 +272,69 @@ function monitorCard(m, indoor) {
   const tl = !has(fT) ? { word: '', tone: 'muted' } : indoor
     ? (fT < 64 ? { word: 'Cold', tone: 'warn' } : fT < 68 ? { word: 'Cool', tone: 'muted' } : fT <= 76 ? { word: 'Comfortable', tone: 'muted' } : fT <= 80 ? { word: 'Warm', tone: 'muted' } : { word: 'Hot', tone: 'warn' })
     : { word: fT < 40 ? 'Cold' : fT < 60 ? 'Cool' : fT < 75 ? 'Mild' : fT < 85 ? 'Warm' : 'Hot', tone: 'muted' };
-  return `<article class="card mc ${indoor ? 'mc-in' : 'mc-out'}" style="--tint:${indoor ? 'var(--series-in)' : 'var(--series-out)'}">
+  return `<article class="card mc ${indoor ? 'mc-in' : 'mc-out'}${ghost ? ' mc-ghost' : ''}"${ghost ? ` aria-label="${gw.aria}"` : ''} style="--tint:${indoor ? 'var(--series-in)' : 'var(--series-out)'}">
     <div class="mc-head">${uniq(indoor ? ICONS.sceneIn : ICONS.sceneOut).replace('<svg ', '<svg preserveAspectRatio="xMidYMax slice" ')}
-      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${uniq(indoor ? ICONS.one : ICONS.openair)}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name${pubName ? ' mc-pub' : ''}">${pubName ? esc(pubName) : indoor ? 'AirGradient ONE' : 'AirGradient Open Air'}<span class="mc-loc"> · ${what}</span></div><div class="mc-status ${f.tone}" title="${(m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i><span class="mc-st">${f.label}<span class="mc-loc2" aria-hidden="true"> · ${what}</span>${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi"> · Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</span></div></div></div>
+      <div class="mc-id"><span class="mc-hw" aria-hidden="true">${indoor ? uniq(ICONS.one) : outIcon()}</span><div><div class="mc-kind ${indoor ? 'in' : 'out'}">${indoor ? 'Indoor' : 'Outdoor'}</div><div class="mc-name${pubName || sw ? ' mc-pub' : ''}">${title}${what ? `<span class="mc-loc"> · ${what}</span>` : ''}</div><div class="mc-status ${f.tone}" title="${est ? esc(sw.down || sw.name) : (m && m.timestamp ? 'Last reading ' + clock(m.timestamp) : 'No reading') + (has(wifi) ? ' · Wi‑Fi ' + wifi + ' dBm' : '')}"><i class="live ${f.tone}"></i><span class="mc-st">${esc(f.label)}${what && !(sw && sw.down) ? `<span class="mc-loc2" aria-hidden="true"> · ${what}</span>` : ''}${has(wifi) && f.tone === 'good' ? `<span class="mc-wifi"> · Wi‑Fi ${wifi >= -65 ? 'good' : wifi >= -75 ? 'fair' : 'weak'}</span>` : ''}</span></div></div></div>
     </div>
     <div class="mc-hero ${pl.tone}">
-      ${pmRing(r.pm, pl.tone)}
-      <div><div class="mc-hero-k" style="color:${TONE[pl.tone]}">PM2.5 — ${pl.word}</div>
+      ${pmRing(r.pm, pl.tone, est && estimateAt() ? `Estimate for ${new Date(estimateAt().at).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric' })}` : '')}
+      <div><div class="mc-hero-k" style="color:${TONE[pl.tone]}">${est ? `PM2.5 estimate${has(r.pm) ? ` — ${pl.word}` : ''}` : `PM2.5 — ${pl.word}`}</div>
         <div class="mc-hero-s">Fine particles · aim under ${PM_FINE} µg/m³</div></div>
     </div>
     <div class="mc-grid">
-      ${metric('CO₂', has(r.co2) ? Math.round(r.co2).toLocaleString() : '—', 'ppm', cl.tone === 'warn' || cl.tone === 'bad' ? TONE[cl.tone] : null, has(r.co2) ? bar(r.co2 / 2000 * 100, cl.tone === 'good' ? 'muted' : cl.tone) : '', cl.word)}
-      ${metric('Temp', tBig, '°' + tempUnit(), tl.tone === 'warn' ? TONE.warn : null, has(r.t) ? tempScale(r.t, other.t, indoor) : '', has(r.t) ? `${tl.word} · ${tAlt}` : '')}
-      ${metric('Humidity', has(r.rh) ? Math.round(r.rh) : '—', '%', indoor && hl.tone === 'warn' ? TONE.warn : null, has(r.rh) ? bar(r.rh, indoor && hl.tone === 'warn' ? 'warn' : 'muted') : '', hl.word)}
+      ${metric('CO₂', has(r.co2) ? Math.round(r.co2).toLocaleString() : '—', 'ppm', cl.tone === 'warn' || cl.tone === 'bad' ? TONE[cl.tone] : null, has(r.co2) ? bar(r.co2 / 2000 * 100, cl.tone === 'good' ? 'muted' : cl.tone) : '', cl.word, est)}
+      ${metric('Temp', tBig, '°' + tempUnit(), tl.tone === 'warn' ? TONE.warn : null, has(r.t) ? tempScale(r.t, other.t, indoor) : '', has(r.t) ? `${tl.word} · ${tAlt}` : '', est && !has(r.t))}
+      ${metric('Humidity', has(r.rh) ? Math.round(r.rh) : '—', '%', indoor && hl.tone === 'warn' ? TONE.warn : null, has(r.rh) ? bar(r.rh, indoor && hl.tone === 'warn' ? 'warn' : 'muted') : '', hl.word, est && !has(r.rh))}
     </div>
     <div class="mc-pm mc-groups">
-      <div class="mc-g"><span class="mc-gl">Gases</span><div class="mc-gr">
+      <div class="mc-g${dim(est)}"><span class="mc-gl">Gases</span><div class="mc-gr">
         <div title="Volatile organic compounds, Sensirion index (100 = this room's usual)"><span>VOC index</span><b${has(voc) && voc > 150 ? ' class="warn"' : ''}>${has(voc) ? voc : '—'}</b><em>${has(voc) ? (voc <= 100 ? 'normal' : voc <= 200 ? 'elevated' : 'high') : ''}</em></div>
         <div title="Nitrogen oxides, Sensirion index (1 = clean)"><span>NOx index</span><b>${has(nox) ? nox : '—'}</b><em>${has(nox) ? (nox <= 20 ? 'clean' : nox <= 100 ? 'moderate' : 'high') : ''}</em></div>
       </div></div>
-      <div class="mc-g" title="Also measured: PM2.5 before AirGradient's correction ${pmNum(m && m.pm02)} µg/m³ · particles over 0.3 µm ${m && has(m.pm003Count) ? Math.round(m.pm003Count) : '—'} per dL"><span class="mc-gl">Particles</span><div class="mc-gr">
+      <div class="mc-g${dim(est)}" title="Also measured: PM2.5 before AirGradient's correction ${pmNum(m && m.pm02)} µg/m³ · particles over 0.3 µm ${m && has(m.pm003Count) ? Math.round(m.pm003Count) : '—'} per dL"><span class="mc-gl">Particles</span><div class="mc-gr">
         <div><span>PM1</span><b>${pmNum(m && m.pm01)}<small>µg/m³</small></b></div>
         <div><span>PM10</span><b>${pmNum(pick(m, 'pm10_corrected', 'pm10'))}<small>µg/m³</small></b></div>
       </div></div>
     </div>${pubName ? `
-    <p class="mc-credit">${monitorCredit(PUB, esc)}</p>` : ''}
+    <p class="mc-credit">${monitorCredit(PUB, esc)}</p>` : sw && !est ? `
+    <p class="mc-credit">${monitorCredit(src, esc)}</p>` : est ? `
+    <p class="mc-credit">${estimateNote(wxOn)}</p>` : ''}
   </article>`;
 }
 
 // The Monitor section: the home's two cards; a view without an indoor monitor shows the outdoor one first, then the slot.
 function monitorsHTML() {
-  return NO_INDOOR ? monitorCard(state.outdoor, false) + indoorSlotHTML() : monitorCard(state.indoor, true) + monitorCard(state.outdoor, false);
+  return NO_INDOOR ? monitorCard(state.outdoor, false) + monitorCard(null, true, true) : monitorCard(state.indoor, true) + monitorCard(state.outdoor, false);
 }
 
 // Monitor status sits on the avatar as a dot; the words are its tooltip.
 function updateStatus() {
   setTimeout(renderSources, 0);
-  const live = monitorsLive([freshness(state.indoor, readingsNow(), NO_INDOOR), freshness(state.outdoor, readingsNow())]);
+  const live = monitorsLive([freshness(state.indoor, readingsNow(), NO_INDOOR), freshness(state.outdoor, readingsNow(), NO_OUTDOOR)]);
   monitorStatus('one', state.indoor); monitorStatus('openair', state.outdoor);
   const status = `${live.text} · ${sourceSummary()}`;
   $('avatar').dataset.tip = status; $('avatar').setAttribute('aria-label', 'Home · ' + status);
   $('dot-sum').className = 'av-dot ' + live.tone;
   const hw = $('vsum-hw');
-  if (hw) hw.innerHTML = monitorPill(VIEW_PLACE, state.indoor, state.outdoor, readingsNow(), { one: uniq(ICONS.one), openair: uniq(ICONS.openair) });
+  if (hw) hw.innerHTML = monitorPill(VIEW_PLACE, state.indoor, state.outdoor, readingsNow(), { one: uniq(ICONS.one), openair: outIcon() }, outWords());
+}
+
+// An indoor-only home's estimate waits for the summary (its PM2.5 now) and the weather (temperature, humidity): redraw
+// the cards when either arrives. Nothing to do for a home whose outdoor card shows a monitor.
+// What an estimate's card shows that arrives later: its number and hour, and the weather's temperature and humidity.
+const estimateKey = () => { const e = estimateAt(), w = (state.ctx && state.ctx.weather) || {};
+  return JSON.stringify([e && e.pm, e && e.at, w.temperature, w.humidity]); };
+let shownEstimate = '';
+function redrawEstimate() {
+  const src = outSource(); if (!src || !sourceLine(src).estimate || !$('monitors').childElementCount) return;
+  const key = estimateKey(); if (key === shownEstimate) return;   // nothing new: no redraw, no replayed animation
+  $('monitors').innerHTML = monitorsHTML(); shownEstimate = key;
+  if (typeof SKY !== 'undefined' && SKY) SKY.pm(outdoorPm());
 }
 
 function renderMonitors() {
-  $('monitors').innerHTML = monitorsHTML();
-  if (typeof SKY !== 'undefined' && SKY) SKY.pm(reading(state.outdoor, false).pm);
+  $('monitors').innerHTML = monitorsHTML(); shownEstimate = estimateKey();
+  if (typeof SKY !== 'undefined' && SKY) SKY.pm(outdoorPm());
   updateStatus();
   const stamps = [state.indoor, state.outdoor].filter(m => m && m.timestamp).map(m => new Date(m.timestamp));
   lastStamp = stamps.length ? Math.max(...stamps) : null;
@@ -342,6 +403,7 @@ function idleCard(id, { word, line, calendar }) {
 
 function renderContext(ctx) {
   state.ctx = ctx;   // kept so a unit switch can redraw without a reload
+  redrawEstimate();
   const w = ctx.weather || {}, b = ctx.bqe || {}, pollen = ctx.pollen || [];
   window.__wx = w; window.__bqe = b; window.__road = ctx.road || null; window.__fc = Array.isArray(ctx.forecast) ? ctx.forecast : []; window.__pollenT = Array.isArray(ctx.pollen_tomorrow) ? ctx.pollen_tomorrow : [];
   if (state.neighbors && state.neighbors.length) renderNeighborhood();
@@ -446,24 +508,28 @@ function growBars() {
 }
 
 function renderNeighborhood() {
-  const own = new Set([state.indoor, state.outdoor].filter(Boolean).map(m => m.locationId));
+  // the home's own monitors (an indoor-only home's outdoor entry is a source, not its own: no You row) and the public
+  // monitor it reads, which stays with the others, tagged (nbSplit, home.js)
+  const ownIds = [state.indoor, NO_OUTDOOR ? null : state.outdoor].filter(Boolean).map(m => m.locationId);
+  const src = outSource(), usedId = src && src.kind === 'monitor' && !src.fallback ? state.outdoor.locationId : null;
   // each neighbor's PM2.5 is the corrected one when the server could correct it (nbPm, home.js), like the home's own monitors
   const live = state.neighbors.filter(n => !n.offline && has(nbPm(n)) && (!n.timestamp || readingsNow() - new Date(n.timestamp) < 2 * 3600e3));
   // the shown monitor's row reads what its outdoor card reads (nbYou, home.js)
-  const you = nbYou(live.find(n => own.has(n.locationId)), state.outdoor, pick(state.outdoor, 'pm02_corrected', 'pm02'));
-  const others = live.filter(n => !own.has(n.locationId));
+  const split = nbSplit(live, ownIds, usedId), others = split.others;
+  const you = nbYou(split.you || undefined, state.outdoor, pick(state.outdoor, 'pm02_corrected', 'pm02'));
   const rows = (you ? [you] : []).concat(others);
   setStatus('nearby', others.length ? 'good' : 'bad', others.length ? `${others.length} reporting` : 'No answer', others.length ? `${others.length} nearby monitors sent a reading in the last 2 hours` : 'Nearby monitors did not answer');
   if (!rows.length) {
     $('nb-lead').textContent = 'Nearby monitors did not answer.';
+    $('nb-wind').textContent = '';
+    showFindings();
     $('nb').innerHTML = '';
     return;
   }
   // Speak only when the comparison changes a decision; otherwise stay silent.
   const lead = nbLead(you, others, PM_FINE, SELF, { esc, pm: pmNum, num });
   $('nb-lead').innerHTML = lead;
-  $('nb-lead').hidden = !lead;
-  $('nb-sub').textContent = `${others.length} public AirGradient monitors within 15 km · PM2.5 µg/m³`;
+  state.nbCount = others.length;   // the "Show N more of M within 15 km" button says how many public monitors there are
   const barMax = Math.max(55, Math.ceil(Math.max(...rows.map(nbPm))));
   const limPct = (PM_FINE / barMax * 100).toFixed(1);
   $('nb-max').textContent = barMax; $('nb-limpos').style.left = limPct + '%';
@@ -483,9 +549,16 @@ function renderNeighborhood() {
   $('nb-wind').innerHTML = road && has(w.wind_direction) ? `<b>Wind ${esc(w.wind_cardinal || '')} ${num(w.wind_speed)} km/h:</b> ` + (
     toward ? `<b class="warn">${ex} drifts toward your block.</b> Worst in the rush hours; keep windows shut then.`
     : away ? `${ex} drifts away from your block.`
-    : `${ex} passes beside your block, not over it.`) +
-    ` <span class="nb-why">${esc(roadWhyText(road))}</span>` : '';
+    : `${ex} passes beside your block, not over it.`) : '';   // the road's distance is the ⓘ in the map legend (roadWhyText)
+  showFindings();
   if (typeof NBMAP !== 'undefined') NBMAP.update(you, others, has(w.wind_direction) ? w.wind_direction : null);
+}
+
+// The findings block between the map and the table: its two lines, hidden when both are empty (no empty gap).
+function showFindings() {
+  const lead = $('nb-lead'), wind = $('nb-wind');
+  lead.hidden = !lead.textContent; wind.hidden = !wind.textContent;
+  $('nb-find').hidden = lead.hidden && wind.hidden;
 }
 
 // The table's rows (the open one with its band), and the nearest 8 under the map with "Show all" for the rest.
@@ -496,7 +569,7 @@ function drawNbRows() {
   document.querySelector('.nb-card').classList.toggle('nb-all', !!state.nbAll);
   more.hidden = extra <= 0;
   more.innerHTML = state.nbAll ? 'Show the nearest 8 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>'
-    : `Show ${extra} more monitor${extra === 1 ? '' : 's'} <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+    : `${nbMoreText(extra, state.nbCount)} <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   more.setAttribute('aria-expanded', String(!!state.nbAll));
   [...$('nb').querySelectorAll('tr[data-id]')].forEach((tr, i) => { tr.classList.toggle('nb-extra', i >= 8); });   // an open row's band hides with it (app.css)
 }
@@ -581,8 +654,10 @@ function draw(id, a, b, times, range, spec) {
   }
   // legend, top right
   const over = limitNear && values.some(v => v > spec.limit), lx = over ? -112 : 0;
-  g += `<g class="ts-legend" transform="translate(${L + iw + R - 4},12)">` + (NO_INDOOR ? '' : `<rect x="${-150 + lx}" y="-5" width="14" height="4" rx="2" class="ts-sw ts-in"/><text x="${-131 + lx}" y="0">Indoor</text>`) +
-       `<rect x="${-76 + lx}" y="-5" width="14" height="4" rx="2" class="ts-sw ts-out"/><text x="${-57 + lx}" y="0">Outdoor</text>` +
+  // an estimate has no outdoor history: Indoor alone, in Outdoor's place
+  const ix = noOutLine() ? LEGEND_OUT_W : 0;
+  g += `<g class="ts-legend" transform="translate(${L + iw + R - 4},12)">` + (NO_INDOOR ? '' : `<rect x="${-150 + lx + ix}" y="-5" width="14" height="4" rx="2" class="ts-sw ts-in"/><text x="${-131 + lx + ix}" y="0">Indoor</text>`) +
+       (noOutLine() ? '' : `<rect x="${-76 + lx}" y="-5" width="14" height="4" rx="2" class="ts-sw ts-out"/><text x="${-57 + lx}" y="0">Outdoor</text>`) +
        (over ? `<rect x="-100" y="-7" width="14" height="9" rx="2" class="ts-sw-over"/><text x="-81" y="0">Over the limit</text>` : '') + `</g>`;
   if (!limitNear) g += `<text class="ts-under" x="${L}" y="12">All under the limit of ${spec.limit.toLocaleString()}</text>`;
   // short axis labels that never collide: minutes for 1 h and 6 h, hours for 24 h, weekdays for 7 d
@@ -617,16 +692,28 @@ function draw(id, a, b, times, range, spec) {
 // History is fetched once for 7 days, in the background; every shorter range is cut from it, so switching is instant.
 // Until the week is in (or after it's 5 minutes old), the picked range is fetched on its own, with a loading state.
 const hist = { week: null, at: 0, pending: null };
-const fetchHist = (from, to) => Promise.all([state.indoor, state.outdoor].map(m =>
-  m ? getJSON(`/api/history/${m.locationId}?from=${from.toISOString()}&to=${to.toISOString()}`).catch(() => null) : Promise.resolve([])));
-// A public monitor's empty week isn't kept: the server answers [] when AirGradient's map is slow or down too, and a
-// kept one would hide History for 30 minutes. The next loadCharts asks again.
+// An estimate (an indoor-only home's area or model source) has no history id: no request, no outdoor line in History;
+// the summary's day chart draws the model's past hours instead, labeled as the model.
+// An indoor-only home without a public monitor's history (an estimate, or no source entry yet): History draws no
+// outdoor line and says why in one line (#hist-est). The server keeps only the model's last day, and an area estimate's
+// scale needs the area monitors' histories from AirGradient's map, so History asks for nothing more.
+const noOutLine = () => NO_OUTDOOR && !(state.outdoor && has(state.outdoor.locationId));
+const fetchHist = (from, to) => Promise.all([state.indoor, state.outdoor].map(m => {
+  const url = histUrl(m, from, to);
+  return url ? getJSON(url).catch(() => null) : Promise.resolve([]);
+}));
+// The outdoor week comes from AirGradient's map: a public monitor's page, or the nearby public monitor an indoor-only
+// home chose (an estimate has no locationId, so no week of its own).
+const mapWeek = () => PUB || (NO_OUTDOOR && !noOutLine());
+// A map week that's empty isn't kept: the server answers [] when AirGradient's map is slow or down too (or, on a cold
+// start, not cached yet), and a kept one would cut the outdoor line from History until the next catch-up. The next
+// loadCharts asks again.
 function loadWeek() {   // once per visit, then at most every 30 minutes
   if (hist.pending) return hist.pending;
   if (hist.week && Date.now() - hist.at < 30 * 60e3) return Promise.resolve(hist.week);
   const to = readingsNow(), from = new Date(to - 168 * 3600e3);
   hist.pending = fetchHist(from, to).then(([ih, oh]) => {
-    if (!ih || !oh || (PUB && !oh.length)) throw new Error('history');
+    if (!ih || !oh || (mapWeek() && !oh.length)) throw new Error('history');
     hist.week = { ih, oh, to }; hist.at = Date.now(); return hist.week;
   }).finally(() => { hist.pending = null; });
   return hist.pending;
@@ -670,6 +757,7 @@ async function loadCharts({ fresh = false, quiet = false } = {}) {
     if ($('chart-co2').childElementCount) return;
     ih = ih || []; oh = oh || [];
   }
+  if ($('hist-est')) $('hist-est').hidden = !noOutLine();
   const none = !!PUB && !oh.length && !(hist.week && hist.week.oh.length);
   showHistory(!none);
   if (none) return;
@@ -727,7 +815,7 @@ function broadcastHover(t) {
       g.style.display = ''; g.querySelector('.ts-xh').setAttribute('x1', xx); g.querySelector('.ts-xh').setAttribute('x2', xx);
       for (const [cls, arr] of [['in', h.a], ['out', h.b]]) { const c = g.querySelector('.ts-hd.' + cls); if (has(arr[i])) { c.style.display = ''; c.setAttribute('cx', xx); c.setAttribute('cy', h.y(arr[i]).toFixed(1)); } else c.style.display = 'none'; }
       const f = v => has(v) ? h.spec.fmt(v) : '—';
-      h.note.textContent = `${atLabel(h.times[i])} · ${NO_INDOOR ? '' : `Indoor ${f(h.a[i])} · `}Outdoor ${f(h.b[i])} ${h.spec.unit}`;
+      h.note.textContent = `${atLabel(h.times[i])} · ${NO_INDOOR ? '' : `Indoor ${f(h.a[i])}${noOutLine() ? ` ${h.spec.unit}` : ' · '}`}${noOutLine() ? '' : `Outdoor ${f(h.b[i])} ${h.spec.unit}`}`;
     } else {
       const inRange = t != null && t >= h.t0 && t <= h.t1;
       if (!inRange) { h.mark.style.display = 'none'; h.readout.textContent = h.label; h.readout.classList.remove('over'); continue; }
@@ -769,12 +857,13 @@ function reveal() {   // a short fade on the summary's items as they arrive
     [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 480, delay: i * 120, easing: 'cubic-bezier(.2, .7, .2, 1)', fill: 'backwards' }));
 }
 
-// the summary card: no TODAY label (the heading above has it); the need icons go in the card's header strip
-const SUMMARY_OPTS = () => ({ label: false, needsEl: $('s-needs') });
-const summaryPopOpen = () => !!document.querySelector('#summary details[open], #s-needs details[open]');
+// the summary card: no TODAY label (the heading above has it); the profile icons go in the card's header strip
+const SUMMARY_OPTS = () => ({ label: false, profilesEl: $('s-profiles') });
+const summaryPopOpen = () => !!document.querySelector('#summary details[open], #s-profiles details[open]');
 
 function renderRead(r, stale, why) {
   shownSig = readSig(r);
+  redrawEstimate();   // an estimate's PM2.5 now comes with the summary
   // the card is drawn by static/summary.js from the rules' summary; an earlier read without one keeps what's shown
   if (r.summary) SummaryCard.renderSummary($('summary'), r.summary, appNow(), SUMMARY_OPTS());   // TODAY/TONIGHT is the heading above
   else if (!$('summary').childElementCount) SummaryCard.renderSummary($('summary'), null, appNow(), SUMMARY_OPTS());
@@ -882,6 +971,7 @@ async function loadRead(force) {
     // nothing new to show: leave the page alone (no re-render, no fade). A manual refresh always shows its result.
     if (!revealNext && readSig(r) === shownSig) {   // redraw only so passed times drop ("before 4 PM"), unless a sentence is open
       if (r.summary && !summaryPopOpen()) SummaryCard.renderSummary($('summary'), r.summary, appNow(), SUMMARY_OPTS());
+      redrawEstimate();
       return;
     }
     const parts = ['summary'].map(id => [$(id), $(id).innerHTML]);
@@ -927,8 +1017,8 @@ function refresh({ manual = false, busy = false } = {}) {
       const nbP = SRC_ON.nearby === false ? Promise.resolve(null) : getJSON('/api/neighborhood').catch(() => null);   // the slowest source; the rest doesn't wait for it
       const [current, ctx] = await Promise.all([getJSON('/api/current'), getJSON('/api/context').catch(() => null)]);
       if (current && current.state === 'no_token') { showNoToken(); return; }
-      state.indoor = current.find(m => m.locationType === 'indoor') || null;
-      state.outdoor = current.find(m => m.locationType === 'outdoor') || null;
+      // the home's own entries (home.js pickEntries): none for a monitor it doesn't have; an indoor-only home's source
+      Object.assign(state, pickEntries(current, NO_INDOOR, NO_OUTDOOR));
       renderMonitors();
       showBootRead();
       nbP.then(nb => { if (Array.isArray(nb)) { state.neighbors = nb; renderNeighborhood(); } });
@@ -1088,7 +1178,7 @@ if ('serviceWorker' in navigator) {
 
 // The summary byline shows its sources as a small stack of the Home panel's icons: gray at rest, in color and fanned out on hover,
 // with a dot on any source that isn't answering, and a card listing each source with its live status.
-const SOURCES = [['AirGradient ONE', 'one', 'Your indoor monitor'], ['AirGradient Open Air', 'openair', PUB ? 'This monitor' : 'Your outdoor monitor'],
+const SOURCES = [['AirGradient ONE', 'one', 'Your indoor monitor'], NO_OUTDOOR ? [OUT_ROW, 'openair', OUT_ROW] : ['AirGradient Open Air', 'openair', PUB ? 'This monitor' : 'Your outdoor monitor'],
   ['Open-Meteo', 'wx', 'Weather · Open-Meteo'], ['Google Pollen', 'pollen', 'Pollen · Google'], ['NOAA HMS', 'smoke', 'Smoke · NOAA'],
   ...(APP.road ? [[`${APP.road.name} estimate`, 'bqe', `Traffic · ${APP.road.name} estimate`]] : [])]
   .filter(([, id]) => sourcesOn(APP.sources, !!APP.road, !NO_INDOOR).includes(id));   // what the config turned off is not listed or counted
@@ -1106,14 +1196,14 @@ function renderSources() {
 }
 renderSources();
 
-// Links from the advice into the Home panel: a card's need opens it at "Specific needs", the byline's sources at the sources.
+// Links from the advice into the Home panel: a card's profile opens it at "Profiles", the byline's sources at the sources.
 function openHome(where) {
   const home = document.querySelector('.bar details.custom'), dsp = $('dsp'); if (!home) return;
   if (dsp) dsp.open = false;
   home.open = true;
   window.scrollTo({ top: 0, behavior: reduceMotion.matches ? 'auto' : 'smooth' });
   const heads = [...home.querySelectorAll('.blocks section.pg h4')];
-  const targets = where === 'needs' ? heads.filter(h => /needs/i.test(h.textContent)) : heads.filter(h => /monitors|outside/i.test(h.textContent));
+  const targets = where === 'profiles' ? heads.filter(h => /profiles/i.test(h.textContent)) : heads.filter(h => /monitors|outside/i.test(h.textContent));
   targets.forEach(h => { const sec = h.closest('section');
     if (!reduceMotion.matches) sec.animate([{ backgroundColor: 'var(--accent-soft)' }, { backgroundColor: 'transparent' }], { duration: 1600, delay: 250, easing: 'ease-out' }); });
 }
