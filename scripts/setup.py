@@ -275,6 +275,14 @@ def account_rows(token):
         raise SetupError("Couldn't read the monitors from AirGradient. Check the token in .env and API access, then try again.") from None
 
 
+def connected_line(rows):
+    """One line for the user: the account's monitors by name and kind."""
+    if not rows:
+        return "Connected to AirGradient, but the account has no monitor with readings yet."
+    names = [f'{publicmap.plain_text(r.get("locationName") or "") or "Unnamed monitor"} ({sources.monitor_kind(r) or "kind not set"})' for r in rows]
+    return f"Connected to AirGradient: {len(rows)} monitor{'s' if len(rows) != 1 else ''}: {', '.join(names)}."
+
+
 def choose_monitors(rows, args):
     chosen = {}
     unknown = [r for r in rows if r.get("locationType") not in ("indoor", "outdoor")]
@@ -584,7 +592,11 @@ def main(argv, env, root=ROOT):
             return live(args.live or f"http://localhost:{port_from(env)}", env, root)
         if not args.address and args.lat is None and args.lon is None:
             prepare_env(root)
-            print("Prepared .env. Open the app's startup link to connect AirGradient, or open .env in your text editor.")
+            token = env_key("AIRGRADIENT_TOKEN", env) or env_key("AIRGRADIENT_TOKEN", saved_keys(root))
+            if not token:
+                print("Prepared .env. Open the app's startup link to connect AirGradient, or open .env in your text editor.")
+                return 0
+            print(connected_line(account_rows(token)))   # after the page connected: what the account has, for the agent to say
             return 0
         return setup(args, env, root)
     except (SetupError, ConfigError, OSError, UnicodeError) as error:

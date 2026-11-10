@@ -350,3 +350,12 @@ def test_live_checks_running_destination_using_only_gets(root, monkeypatch, caps
     code, out = run(root, capsys, "--live", "http://destination:8000")
     assert code == expected and words in out, out
     assert calls == ["http://destination:8000/health", "http://destination:8000/"] + (["http://destination:8000/api/current"] if token else [])
+
+
+def test_after_the_page_connects_the_default_command_names_the_monitors(root, monkeypatch, capsys):
+    # The agent tells the user what the account has, without ever seeing the token.
+    monkeypatch.setattr(setup, "account_rows", lambda token: [{"locationName": "Living room", "locationType": "indoor"},
+                                                                {"locationName": "Back porch", "model": "O-1PST"}])
+    code, out = run(root, capsys)
+    assert code == 0 and TOKEN not in out
+    assert "Connected to AirGradient: 2 monitors: Living room (indoor), Back porch (outdoor)." in out
