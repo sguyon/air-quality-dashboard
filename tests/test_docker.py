@@ -73,7 +73,7 @@ def test_compose_is_local_only_with_optional_keys_and_a_read_only_config():
                      r"\s+bind:\n\s+create_host_path: false\n", compose)
     assert re.search(r"- path: \.env\n\s+required: false", compose)
     assert "restart: unless-stopped" in compose
-    assert "# image: ghcr.io/sguyon/home-air-quality:latest" in compose
+    assert "build: ." in compose
 
 
 def test_image_workflow_publishes_only_from_main():

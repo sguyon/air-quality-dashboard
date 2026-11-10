@@ -257,7 +257,8 @@ def summary_inputs(payload, co2, rh, rh_out, t_in, t_out, pm_out, pts_in, pts_ou
     weather = sources.get_open_meteo_data()
     hw, daily = weather.get("hourly") or {}, weather.get("daily") or {}
     col = lambda name, k: (hw.get(name) or [None] * (k + 1))[k] if k < len(hw.get(name) or []) else None
-    hourly = [{"t": sources._local(t, tz), "temp": col("temperature_2m", k), "pop": col("precipitation_probability", k),
+    hourly = [{"t": sources._local(t, tz), "temp": col("temperature_2m", k), "dew": col("dew_point_2m", k),
+               "pop": col("precipitation_probability", k),
                "mm": col("precipitation", k), "uv": col("uv_index", k), "wind_dir": col("wind_direction_10m", k)}
               for k, t in enumerate(hw.get("time") or [])]
     cams = sources.model_hours(now)

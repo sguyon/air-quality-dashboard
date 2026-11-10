@@ -22,17 +22,26 @@ The deployed copy doesn't follow the local file by itself. After every edit:
 
 If the maintainer's private rules (`internal/AGENTS.local.md`) list services, update all of them.
 
+## Changing the setup
+
+The setup (`SETUP.md`, `scripts/setup.py`, the token page) is a stranger's first contact with the app: keep it as short and automatic as it can be.
+
+- No new questions. Find the answer from the account, the location or a default; fold anything the user must know into a message they already get (the token step says what's needed, so "I don't have a monitor" is an answer, not an extra question).
+- One way to do each step; a fallback only where the main way can't work (Docker, a home server, Railway).
+- Each option or branch has to be tested and maintained: prefer removing a failure point to documenting it.
+
 ## Keys
 
 - Never read, print or `cat` `.env` or `.env.*`. Repo settings deny it to Claude Code; every other agent follows this line.
 - Never ask the user to paste a key into the chat. The user types keys into `.env` themselves, or a command writes them there without showing them (see `SETUP.md`).
 - `scripts/check_config.py` says whether each key is set, never its value. Use it instead of looking.
-- A paid key gets a cap when it's created: the pollen key is limited to the Pollen API and to 150 calls a day (`SETUP.md`, step 5). Check both on an existing key too: `gcloud services api-keys list` and `gcloud beta quotas info list --service=pollen.googleapis.com`.
+- A paid key gets a cap when it's created: the pollen key is limited to the Pollen API and to 150 calls a day ([`docs/optional.md`](docs/optional.md#pollen)). Check both on an existing key too: `gcloud services api-keys list` and `gcloud beta quotas info list --service=pollen.googleapis.com`.
 - Never commit `config.toml`, `.env*` or real readings. `config.toml` and `.env*` are gitignored, and CI fails a PR that adds them.
 
 ## Layout
 
 - `server.py`: the Flask app, its routes and page, config loading and startup.
+- `token_setup.py`: local token entry guards, the random startup code and cookie, one-use form values and rate limit; `templates/token_card.html` is the card.
 - `sources.py`: the outside sources, monitor history, outdoor source for indoor-only homes, and their shared cache.
 - `air_read.py`: builds the page’s air read, profiles, source facts for the summary, and summary inputs.
 - `summary.py`: the rules that pick the actions, the profiles' states and the day chart's data. No network.
@@ -42,7 +51,7 @@ If the maintainer's private rules (`internal/AGENTS.local.md`) list services, up
 - `DESIGN.md`: the page's design rules (cards, disabled states, colors that carry meaning, motion, the check before shipping); read it before changing the page.
 - `publicmap.py`: AirGradient's public monitors for any home or the demo: the outdoor ones in the world list, the nearest, the outdoor source an indoor-only home is offered at setup, a monitor's reading row, its place on the public map and its history there. No import of `demo/` or `server.py`.
 - `demo/`: the demo's home (`config.toml`), its made-up data (`data.py`), its three moments and three hidden one-monitor cases (`moments.py`) and the public monitors' pages at `?monitor=<id>` (`public.py`).
-- `scripts/`: `setup.py` (SETUP.md's answers to a written `config.toml`, the token into `.env` unseen, and `--live`), `check_config.py`, `screenshot.sh` (the README's images, from the demo), `vercel_build.sh` (the demo's build on Vercel).
+- `scripts/`: `setup.py` (prepares an empty token entry, discovers monitors, writes household choices with a backup, checks config and readings; `railway` transfers saved settings through stdin and `--live` checks a running page), `check_config.py`, `screenshot.sh` (the README's images, from the demo), `vercel_build.sh` (the demo's build on Vercel).
 - `Dockerfile`, `docker-compose.yml` and `.dockerignore`: the container (DEPLOYMENT.md, "Docker"). `.github/workflows/image.yml` publishes the image to `ghcr.io/sguyon/home-air-quality` from `main`.
 - `tests/`: Python tests (pytest) and page tests (`*.test.mjs`, Node's test runner).
 

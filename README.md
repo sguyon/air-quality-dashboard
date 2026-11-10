@@ -27,9 +27,9 @@ You need one or two AirGradient monitors (indoor, outdoor or both) on AirGradien
 Clone https://github.com/sguyon/home-air-quality and set up Home Air Quality for my home by following its SETUP.md.
 ```
 
-It asks a few questions, writes your config and runs the page on your computer, then can put it online ([`DEPLOYMENT.md`](DEPLOYMENT.md)).
+It connects AirGradient, asks your location and profiles, writes your config and runs the page on your computer, then can put it online ([`DEPLOYMENT.md`](DEPLOYMENT.md)).
 
-**With Docker,** on a home server or NAS: write `config.toml` and save your token with `scripts/setup.py` ([`SETUP.md`](SETUP.md) steps 1–4), then run `docker compose up -d` and open http://localhost:8000. [Details](DEPLOYMENT.md#docker).
+**With Docker,** on a home server or NAS: follow [Docker setup](DEPLOYMENT.md#docker) to create `config.toml` and enter the token in `.env`, then start Compose and open http://localhost:8000.
 
 **Just trying it?** A fresh copy with no token opens the demo: `uv run --with-requirements requirements.txt server.py`, then http://localhost:5555.
 
@@ -50,7 +50,7 @@ I have two AirGradient monitors at home, one inside and one outside. AirGradient
 
 My first version had an AI model write the actions, but it kept suggesting the same few things, so I turned each one into a plain rule. I plan to try AI again for patterns across weeks of readings.
 
-It's minimal on purpose, and by necessity: I built it around what my own two monitors measure :) It's meant to be easy to extend with your coding agent: the rules are short Python functions with their numbers named at the top, and [AGENTS.md](AGENTS.md) tells an agent how the code fits together. Adding a profile of your own, like someone who cooks on gas, or a baby ([more ideas](SETUP.md#ideas-for-more-profiles)), hasn't been tried by anyone else yet: if you do, tell me how it went in an issue, or send a pull request.
+It's minimal on purpose, and by necessity: I built it around what my own two monitors measure :) It's meant to be easy to extend with your coding agent: the rules are short Python functions with their numbers named at the top, and [AGENTS.md](AGENTS.md) tells an agent how the code fits together. Adding a profile of your own, like someone who cooks on gas, or a baby ([how to add one](docs/optional.md#adding-a-profile)), hasn't been tried by anyone else yet: if you do, tell me how it went in an issue, or send a pull request.
 
 ## Limitations
 

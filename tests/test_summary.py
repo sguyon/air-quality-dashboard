@@ -497,9 +497,9 @@ import summary as summary_mod  # noqa: E402
 DAMP_R = {"rh": 64, "rh_out": 80, "t_in": 21, "t_out": 21}
 
 
-def damp_item(monkeypatch, appliances):
+def damp_item(monkeypatch, appliances, **kwargs):
     monkeypatch.setattr(summary_mod, "APPLIANCES", set(appliances))
-    s = busy()
+    s = busy(**kwargs)
     return next(i for i in s["items"] if i["id"] == "rh")
 
 
@@ -523,9 +523,60 @@ def test_damp_with_only_the_ac(monkeypatch):
 
 def test_damp_with_neither(monkeypatch):
     rh = damp_item(monkeypatch, set())
-    # nothing lowers the humidity, so no "until under" and no "Stop at"
+    # No machine is running, so no "until under" and no "Stop at".
     assert rh["action"] == {"text": "Keep the windows shut", "when": None, "when_end": None}
     assert "dry mode" not in rh["why"] and "Stop at" not in rh["why"]
+    assert rh["why"].endswith("Run the bathroom or kitchen fan after showers and cooking, and dry laundry outside the room.")
+
+
+def test_damp_without_appliances_airs_at_first_drier_hour(monkeypatch):
+    hourly = [{"t": at(23), "dew": 8}, {"t": at(16), "dew": 17}, {"t": at(22), "dew": 9}]
+    rh = damp_item(monkeypatch, set(), hourly=hourly)
+    assert rh["action"] == {"text": "Air the room for 10 min", "when": "after 10 PM", "when_end": iso(at(22))}
+    assert rh["why"].endswith("Outside gets drier at 10 PM, so ten minutes of airing helps.")
+    assert "Run the bathroom" not in rh["why"] and "Stop at" not in rh["why"]
+
+
+def test_damp_without_appliances_skips_drier_hours_in_dirty_stretches(monkeypatch):
+    # Two dirty stretches: skip both starts and interiors; the ending hour is clean.
+    cams = [(at(h), v) for h, v in [(15, 4), (16, 20), (17, 20), (18, 4), (19, 20), (20, 20), (21, 4)]]
+    hourly = [{"t": at(h), "dew": dew} for h, dew in [(16, 9), (17, 9), (18, 17), (19, 9), (20, 9), (21, 9)]]
+    rh = damp_item(monkeypatch, set(), cams=cams, hourly=hourly)
+    assert rh["action"] == {"text": "Air the room for 10 min", "when": "after 9 PM", "when_end": iso(at(21))}
+    assert "Outside gets drier at 9 PM" in rh["why"]
+
+
+def test_damp_without_appliances_ignores_past_missing_and_distant_dew(monkeypatch):
+    hourly = [{"t": at(15), "dew": 9}, {"t": NOW, "dew": 9}, {"t": at(16)},
+              {"t": at(17), "dew": None}, {"t": at(22), "dew": 17}, {"t": at(4, day=1), "dew": 9}]
+    rh = damp_item(monkeypatch, set(), hourly=hourly)
+    assert rh["action"] == {"text": "Keep the windows shut", "when": None, "when_end": None}
+    assert "Run the bathroom or kitchen fan" in rh["why"] and "Outside gets drier at" not in rh["why"]
+
+
+def test_damp_without_appliances_includes_the_lookahead_boundary(monkeypatch):
+    end = NOW + timedelta(hours=12)
+    rh = damp_item(monkeypatch, set(), hourly=[{"t": end, "dew": 9}])
+    assert rh["action"] == {"text": "Air the room for 10 min", "when": "after 3:40 AM", "when_end": iso(end)}
+
+
+def test_damp_without_appliances_needs_room_dew_point(monkeypatch):
+    rh = damp_item(monkeypatch, set(), r={"rh": 64}, hourly=[{"t": at(22), "dew": 9}])
+    assert rh["action"]["text"] == "Keep the windows shut" and "Run the bathroom" in rh["why"]
+
+
+def test_damp_without_appliances_requires_the_dew_point_margin(monkeypatch):
+    # Saturated air at 20°C has a 20°C dew point; exactly 1°C lower is not enough.
+    rh = damp_item(monkeypatch, set(), r={"rh": 100, "t_in": 20},
+                   hourly=[{"t": at(22), "dew": 19}, {"t": at(23), "dew": 18.9}])
+    assert rh["action"]["when"] == "after 11 PM"
+
+
+def test_damp_forecast_keeps_appliance_actions_and_explanations(monkeypatch):
+    for appliances in ({"dehumidifier"}, {"ac_dry"}, {"dehumidifier", "ac_dry"}):
+        before = damp_item(monkeypatch, appliances)
+        later = damp_item(monkeypatch, appliances, hourly=[{"t": at(22), "dew": 9}])
+        assert later["action"] == before["action"] and later["why"] == before["why"]
 
 
 def damp_pollen_pill(monkeypatch, appliances):

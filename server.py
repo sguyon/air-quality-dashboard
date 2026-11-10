@@ -50,6 +50,7 @@ VISIBILITY_VERY_LOW_M, VISIBILITY_REDUCED_M, VISIBILITY_MODERATE_M = 2000, 5000,
 # digits: the longest ?monitor= read as an id (AirGradient's are 5-6 digits today); a longer one is junk, and past
 # about 4,300 digits Python's int() raises instead of reading it
 MONITOR_ID_MAX_DIGITS = 12
+SAVED_NAMES_SHOWN = 4   # monitor names listed on the "connected" card; more become "and N more"
 
 
 def _note_cache(info):
@@ -60,7 +61,7 @@ def _note_cache(info):
 
 
 app = Flask(__name__)
-token_state = token_setup.TokenState()
+token_state = token_setup.TokenState(TOKEN)
 
 
 def use_config(cfg):
@@ -224,20 +225,44 @@ def inline_touch_icon(html):
 
 @app.route("/")
 def index():
+    if "setup" in request.args:
+        response = redirect("/", code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if (setup_mode() and token_setup.local_entry(request, env_path)
+                and not token_setup.has_token(env_path, TOKEN)
+                and token_state.authorized(request.args["setup"])):
+            response.set_cookie(token_setup.COOKIE_NAME, token_state.code, httponly=True,
+                                samesite="Strict", secure=request.is_secure)
+        return response
     return render_page()
+
+
+def setup_mode():
+    # A fresh copy opens the demo; its startup link must collect the token before setup can discover monitors.
+    return MODE == "no_token" or (MODE == "demo" and CFG.demo and os.environ.get("DEMO") != "1")
+
+
+def print_setup_link(port):
+    if not real_value(TOKEN) and token_state.code:
+        print(f"Paste your AirGradient token here: http://localhost:{port}/?setup={token_state.code}", flush=True)
 
 
 def render_page(error=None, status=200):
     """The missing-token card works without JavaScript; no credential is ever embedded in the page."""
     html_path = Path(__file__).parent / "index.html"
     html = inline_touch_icon(tag_env(version_assets(html_path.read_text())))
-    html = inject_app(html)
-
     browser = None
-    if MODE == "no_token":
-        entry = token_setup.allowed(request, env_path, TOKEN, MODE)
+    # A fresh copy (the demo, no home yet) shows only the card: the token box with its link, then "saved" until setup restarts it.
+    saved = setup_mode() and MODE == "demo" and token_state.saved
+    show_setup = MODE == "no_token" or saved or (setup_mode() and token_state.authorized(request.cookies.get(token_setup.COOKIE_NAME, "")))
+    html = inject_app(html, setup_page=show_setup)
+    if show_setup:
+        entry = (token_setup.allowed(request, env_path, TOKEN, "no_token")
+                 and token_state.authorized(request.cookies.get(token_setup.COOKIE_NAME, "")))
         value, browser = token_state.issue(request) if entry else (None, None)
-        card = render_template("token_card.html", entry=entry, nonce=value, error=error,
+        card = render_template("token_card.html", entry=entry and not saved, saved=saved,
+                               found=token_state.saved["names"] if saved else [], shown=SAVED_NAMES_SHOWN, nonce=value, error=error,
                                instructions=token_setup.instructions(request), max_length=token_setup.TOKEN_MAX_LENGTH)
         html = html.replace('id="no-token" hidden', 'id="no-token"')
         html = html.replace("<!-- token-setup -->", card)
@@ -249,11 +274,12 @@ def render_page(error=None, status=200):
         f'<body data-build="{build_info}">'
     )
 
-    if MODE == "no_token":
-        html = html.replace('<body data-build=', '<body class="no-token" data-build=', 1)
+    if show_setup:
+        # fresh-copy: no home yet, so the header has no home menu to show
+        html = html.replace('<body data-build=', '<body class="no-token%s" data-build=' % (" fresh-copy" if MODE == "demo" else ""), 1)
     response = make_response(html, status)
     response.headers["Referrer-Policy"] = "same-origin"
-    if MODE == "no_token":
+    if show_setup:
         response.headers["Cache-Control"] = "no-store"
         response.headers["Content-Security-Policy"] = "frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
         response.headers["X-Frame-Options"] = "DENY"
@@ -267,11 +293,11 @@ def save_token():
     """First-run local setup only. Validate unlocked, then serialize the final check and save."""
     global TOKEN, MODE
     with token_state.lock:
-        if MODE == "demo" or not token_setup.local_entry(request, env_path) or not token_setup.same_origin(request):
+        if (MODE == "demo" and not setup_mode()) or not token_setup.local_entry(request, env_path) or not token_setup.same_origin(request):
             return jsonify(error="Token entry is only available on this computer's local page."), 403
         if token_setup.has_token(env_path, TOKEN):
             return jsonify(error="A token is already set."), 409
-        if MODE != "no_token":
+        if not setup_mode():
             return jsonify(error="Token entry is only available on this computer's local page."), 403
         request.max_content_length = token_setup.TOKEN_POST_MAX_BYTES
         if not token_state.consume(request, request.form.get("setup_nonce", "")):
@@ -285,7 +311,7 @@ def save_token():
         if (not candidate or len(candidate) > token_setup.TOKEN_MAX_LENGTH
                 or not token_setup.TOKEN_CHARACTERS.fullmatch(candidate) or not real_value(candidate)):
             token_state.failed()
-            return render_page("AirGradient didn't accept this token", 400)
+            return render_page("AirGradient didn't accept this token. Copy it again from API access and paste it here.", 400)
     try:
         accepted = sources.validate_token(candidate)
     except (sources.requests.RequestException, ValueError):
@@ -294,9 +320,9 @@ def save_token():
             return render_page("AirGradient didn't answer. Try again shortly.", 502)
 
     with token_state.lock:
-        if not accepted:
+        if accepted is None:
             token_state.failed()
-            return render_page("AirGradient didn't accept this token", 400)
+            return render_page("AirGradient didn't accept this token. Copy it again from API access and paste it here.", 400)
         # Recheck for a token written while the validation call was waiting.
         if token_setup.has_token(env_path, TOKEN):
             return jsonify(error="A token is already set."), 409
@@ -305,7 +331,9 @@ def save_token():
         except (OSError, UnicodeError, ValueError):
             return render_page("Couldn't save the token. Check that the app's folder is writable.", 500)
         os.environ["AIRGRADIENT_TOKEN"] = candidate
-        TOKEN, MODE = candidate, "live"
+        TOKEN, MODE = candidate, server_mode(CFG, candidate)
+        token_state.code = None
+        token_state.saved = {"names": accepted}   # the account's monitors, for the "connected" card
         token_state.nonces.clear()
         token_state.failures.clear()
         response = redirect("/", code=303)
@@ -325,11 +353,11 @@ def page_clock():
     return None
 
 
-def inject_app(html):
+def inject_app(html, setup_page=False):
     """The home's config for the page's scripts (config.public_view), as window.APP before the first of them.
     Every "<" is escaped (\\u003c, still the same JSON) so no config value can close the script or open a comment."""
-    now = page_clock()
-    data = json.dumps({**page_view(), "env": icon_env(), **({"now": now} if now else {}), **({"state": "no_token"} if MODE == "no_token" else {})}, ensure_ascii=False).replace("<", "\\u003c")
+    now = None if setup_page else page_clock()   # the token card never shows the demo's moments
+    data = json.dumps({**page_view(), "env": icon_env(), **({"now": now} if now else {}), **({"state": "no_token"} if MODE == "no_token" or setup_page else {})}, ensure_ascii=False).replace("<", "\\u003c")
     return html.replace("<script src=", f"<script>window.APP = {data};</script>\n<script src=", 1)
 
 
@@ -633,4 +661,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5555))
     host = os.environ.get("HOST", "127.0.0.1")   # HOST=0.0.0.0 to open it from a phone on the same network
     print(f"Home Air Quality → http://localhost:{port}")
+    print_setup_link(port)
     app.run(host=host, port=port, debug=False)

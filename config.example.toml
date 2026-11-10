@@ -12,8 +12,11 @@ timezone = "America/New_York"
 # Either monitor may be left out (delete its line), not both. Without an outdoor one, set outdoor_from under [sources].
 # What to call your indoor monitor in sentences (the room it's in). The page finds the monitor itself, from your token.
 indoor = "living room"
+# Optional account monitor id, written by setup when it discovers your monitors.
+# indoor_id = 7001
 # What to call your outdoor monitor in sentences.
 outdoor = "porch"
+# outdoor_id = 7002
 # Your US ZIP code, used for the pollen.com link. Delete this line for no pollen link (outside the US).
 pollen_zip = "19103"
 # Your city or region, used in a few sentences, e.g. "the usual New York season". Leave out for neutral wording.
@@ -30,8 +33,8 @@ runner = true
 
 [home]
 # What you have to dry a damp room: "dehumidifier", "ac_dry" (an AC with a dry mode), both, or [] for neither.
-# The humidity action uses these; leave one out if you don't have it. With both, it says to run the dehumidifier.
-appliances = ["dehumidifier", "ac_dry"]
+# Default: none. Add only what you have. With both, the humidity action says to run the dehumidifier.
+appliances = []
 
 [limits]
 # Indoor CO2 (ppm) above which the page says to ventilate.
@@ -66,7 +69,7 @@ pollen = true
 nearby = true
 
 # Optional: a busy road near your home. Leave this whole section out for no road.
-# Example, the road in the demo (demo/config.toml). SETUP.md describes the route file:
+# Example, the road in the demo (demo/config.toml). docs/optional.md describes the route file:
 # [road]
 # # The name shown on the page.
 # name = "BQE"

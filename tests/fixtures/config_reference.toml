@@ -51,3 +51,7 @@ name = "Weed"
 start = [8, 15]
 peak = [[8, 25], [9, 20]]
 end = [10, 20]
+
+# This reference home has both appliances; new homes default to none.
+[home]
+appliances = ["dehumidifier", "ac_dry"]

@@ -1589,6 +1589,7 @@ html { touch-action: manipulation; }
 .no-token-card { margin-top: 18px; }
 .no-token-card p { margin: 0; font: 500 15px/1.5 Inter, sans-serif; color: var(--ink); }
 body.no-token .page > :not(.bar):not(.no-token-card) { display: none; }
+body.fresh-copy .bar .custom { display: none; }
 .nb-credit { margin: 0; padding: 0 24px 14px; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .nb-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 640px) {
@@ -1680,16 +1681,46 @@ html.sky-ink:not(.sky-dark) .site svg.mark .mk-fr, html.sky-ink:not(.sky-dark) .
 html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }
 
 /* ── Local first-run token form (begin) ── */
-.no-token-card h2 { margin: 0 0 10px; font: 600 21px/1.3 Inter, sans-serif; color: var(--ink); }
-.no-token-card p { margin: 10px 0; }
-.no-token-card ol { margin: 18px 0; padding-left: 24px; }
-.no-token-card li { padding-left: 4px; margin: 16px 0; line-height: 1.5; color: var(--ink); }
+/* One narrow card on the plain page background (sky.js keeps the sky off here): two numbered steps, each with one action. */
+.no-token-card { max-width: 640px; margin: 56px auto 0; padding: 32px 36px; }
+#no-token h2 { display: block; margin: 0 0 8px !important; font: 600 24px/1.25 Inter, sans-serif; letter-spacing: -.01em; text-transform: none; color: var(--ink); }
+.no-token-card > p { margin: 0; color: var(--soft); }
+.no-token-card ol { counter-reset: step; list-style: none; margin: 28px 0 24px; padding: 0; }
+.no-token-card ol > li { counter-increment: step; position: relative; margin: 0; padding: 0 0 28px 44px; line-height: 1.5; color: var(--ink); }
+.no-token-card ol > li:last-child { padding-bottom: 0; }
+.no-token-card ol > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--tile); border: 1px solid var(--line-strong); font: 600 14px/1 Inter, sans-serif; color: var(--soft); }
+.no-token-card ol > li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 6px; border-left: 1px solid var(--line); }
+.no-token-card li p { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
 .no-token-card a { color: var(--accent-ink); text-underline-offset: 3px; }
-.no-token-card label { display: block; margin-bottom: 8px; font-weight: 500; }
-.token-entry { display: flex; flex-wrap: wrap; gap: 10px; max-width: 540px; }
+/* The AirGradient link: a button-sized link with the "opens elsewhere" arrow, so it reads as the step's action and a new page. */
+.no-token-card li a[target="_blank"] { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--accent-line);
+  border-radius: 8px; background: var(--accent-soft); font: 600 15px/1.3 Inter, sans-serif; text-decoration: none; }
+.no-token-card li a[target="_blank"]::after { content: ""; width: 16px; height: 16px; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17 17 7M8 7h9v9'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17 17 7M8 7h9v9'/%3E%3C/svg%3E") center / contain no-repeat; }
+.no-token-card li a[target="_blank"]:hover { border-color: var(--accent); }
+.no-token-card li a:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 3px; }
+.no-token-card li p b { font-weight: 600; color: var(--soft); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.no-token-card label { display: block; margin-bottom: 10px; font-weight: 500; }
+.token-entry { display: flex; flex-wrap: wrap; gap: 10px; }
 .token-entry input { flex: 1 1 220px; min-width: 0; padding: 11px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--tile); color: var(--ink); font: inherit; }
-.token-entry button { padding: 11px 20px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--tile); color: var(--accent-ink); font: 600 15px/1.3 Inter, sans-serif; cursor: pointer; }
+.token-entry input:hover { border-color: var(--faint); }
+.token-entry button { padding: 11px 22px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: var(--card); font: 600 15px/1.3 Inter, sans-serif; cursor: pointer; }
+.token-entry button:hover { filter: brightness(1.08); }
 .token-entry :focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 3px; }
-.no-token-card .token-storage { color: var(--muted); font-size: 13px; }
-.no-token-card .token-error { color: var(--bad); }
+.no-token-card .token-storage { margin: 0; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.no-token-card .token-error { margin: 14px 0 0; color: var(--bad); }
+/* After saving: a check in the "good" color, what the check found, then the next step. */
+.token-ok { display: flex; gap: 14px; align-items: flex-start; }
+.token-ok > svg.i { flex: none; width: 32px; height: 32px; margin-top: -1px; color: var(--good); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.token-found { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.token-found li { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--tile); font-size: 14px; color: var(--ink); }
+.no-token-card .token-next { margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--line); color: var(--soft); }
+@media (max-width: 640px) {
+  .no-token-card { margin-top: 24px; padding: 24px 18px; }
+  #no-token h2 { font-size: 21px; }
+  .token-entry button { flex: 1 0 100%; }
+}
 /* ── Local first-run token form (end) ── */

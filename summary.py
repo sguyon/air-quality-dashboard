@@ -17,6 +17,7 @@ ANCHOR_FADE = timedelta(hours=6)   # how long a gap between the monitor and CAMS
 MAX_ITEMS = 3                      # items shown on the card; the rest go on the Also line
 CALIBRATION_RANGE = (0.1, 3.0)     # bounds on the monitor/CAMS factor, so a few odd hours can't zero or triple the forecast
 DRIER_BY_C = 1                     # °C: outside counts as drier when its dew point is this much below the room's
+DRY_AIR_LOOKAHEAD_H = 12            # hours to find drier outdoor air for a damp room with no drying appliance
 NIGHT = (22, 7)                    # hours: "last night" runs from 10 PM to 7 AM
 NIGHT_STALE, NIGHT_ALL = 0.5, 0.9  # share of last night over the CO₂ limit: "stale", and "all last night" (else "most of")
 COLD_C = 10                        # °C: "close it after ten minutes" when it gets this cold within COLD_AHEAD
@@ -234,11 +235,12 @@ def _first_over(outlook, now):
 AC_DRY = "Run the AC’s dry mode"   # the damp-room action when the AC is the only appliance
 
 
-def action(item, r, outlook, rush, now, estimate=False):
+def action(item, r, outlook, rush, now, estimate=False, hourly=()):
     """What to do for one item, with its time: text, when, and when_end (ISO, the moment `when` goes stale).
     `estimate`: the outdoor PM2.5 has no reading now (an indoor-only home on the area or the model). Airing before the
     dirty stretch then reads "now, before 8 AM" ("now, before the 8 AM rush" when it starts in a rush with the wind
-    toward home), so it doesn't read as a clash with "Windows shut · 8–11 AM"."""
+    toward home), so it doesn't read as a clash with "Windows shut · 8–11 AM".
+    `hourly`: weather rows with forecast dew points, to time airing a damp room with no drying appliance."""
     act = lambda text, when=None, end=None: {"text": text, "when": when, "when_end": end.isoformat() if end else None}
     stretch = _first_over(outlook, now)
     kind = item["id"]
@@ -257,12 +259,22 @@ def action(item, r, outlook, rush, now, estimate=False):
     if kind == "rh":
         rh = r.get("rh")
         if rh is not None and rh > LIMITS["rh_damp"]:
-            if _drier_outside(r) and not stretch:
+            drier_now = _drier_outside(r)
+            if drier_now and not stretch:
                 return act("Air the room for 10 min", "drier outside")
             if "dehumidifier" in APPLIANCES:
                 return act("Run the dehumidifier", f"until under {LIMITS['rh_stop']}%")
             if "ac_dry" in APPLIANCES:
                 return act(AC_DRY, f"until under {LIMITS['rh_stop']}%")
+            if not APPLIANCES and not drier_now:
+                room_dew = dew_point(r.get("t_in"), rh)
+                if room_dew is not None:
+                    dry_hour = next((h["t"] for h in sorted(hourly, key=lambda h: h["t"])
+                                     if now < h["t"] <= now + timedelta(hours=DRY_AIR_LOOKAHEAD_H)
+                                     and h.get("dew") is not None and h["dew"] < room_dew - DRIER_BY_C
+                                     and not any(a <= h["t"] < b for a, b in outlook.get("over") or [])), None)
+                    if dry_hour is not None:
+                        return act("Air the room for 10 min", f"after {clock(dry_hour)}", dry_hour)
             return act("Keep the windows shut")   # nothing to lower it: no "until under"
         if _drier_outside(r):
             return act("Keep windows shut", "while it’s this dry outside")
@@ -481,7 +493,7 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
     for it in items:
         # whose profile the item is: its chip on the card names that profile and opens its sentence after the item's
         it["profile"] = {"co2": "toddler", "rh": "sinus", "pollen": "sinus"}.get(it["id"], "toddler" if outlook.get("high") and indoor else "runner")
-        it["action"] = action(it, r, outlook, rush, now, estimate=estimate)
+        it["action"] = action(it, r, outlook, rush, now, estimate=estimate, hourly=hourly)
         f = dict(it["facts"])
         when = it["action"]["when"] or ""
         if it["id"] == "co2":
@@ -500,10 +512,13 @@ def build_summary(r, cams, hourly, co2_pts, rh_pts, pm_past, smoke, pollen_today
         home = {}   # facts for the sentences only, not kept on the item
         if it["id"] == "rh":
             f["drier_out"] = _drier_outside(r)
+            if when.startswith("after "):
+                f["dry_at"] = when[6:]
             if f["drier_out"] and not it["action"]["text"].startswith("Air"):
                 f["drier_out"] = None   # drier outside, but the air there is dirty soon: say nothing about airing
             # the AC as a second option, unless it is the action; "stop at" only when something is running
-            home = {"ac_too": "ac_dry" in APPLIANCES and it["action"]["text"] != AC_DRY, "appliance": bool(APPLIANCES)}
+            home = {"ac_too": "ac_dry" in APPLIANCES and it["action"]["text"] != AC_DRY, "appliance": bool(APPLIANCES),
+                    "no_appliance": not APPLIANCES and it["action"]["text"] == "Keep the windows shut"}
         if it["id"] == "pm":
             f.update(wind_dir=wind_at(outlook["max_at"] or now), smoke=bool(smoke))
             # how the forecast was fitted, and to which monitor: its timing sentence says so

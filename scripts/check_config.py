@@ -253,7 +253,7 @@ def main(argv, env, root: Path = ROOT) -> int:
         return 0   # not "Config OK" yet: the source is still to write
     print("Config OK")
     if not keys.get("AIRGRADIENT_TOKEN"):
-        print("Not live yet: add your AirGradient token to .env (scripts/setup.py token, SETUP.md step 4), then restart the server.")
+        print("Not live yet: add your AirGradient token to .env in your text editor, then restart the app.")
     return 0
 
 

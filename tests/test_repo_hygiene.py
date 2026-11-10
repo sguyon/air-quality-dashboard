@@ -29,4 +29,4 @@ def test_demo_config_is_tracked_and_the_home_config_is_not():
     assert "demo/config.toml" in git("ls-files", "demo").stdout.split()
     assert git("check-ignore", "-q", "demo/config.toml").returncode == 1
     assert git("check-ignore", "-q", "config.toml").returncode == 0
-    assert git("check-ignore", "-q", "config.toml.bak-20261110-1430").returncode == 0   # setup.py --replace's backup
+    assert git("check-ignore", "-q", "config.toml.bak-20261110-1430").returncode == 0   # setup.py keeps a copy before replacing config

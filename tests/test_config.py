@@ -201,27 +201,27 @@ def test_rh_good_defaults_to_50_and_reaches_the_page():
     assert set_.limits["rh_good"] == 45
 
 
-def test_appliances_default_to_both_without_a_home_section():
-    text = (REPO / "tests/fixtures/config_reference.toml").read_text(encoding="utf-8")
-    assert "[home]" not in text
-    assert load_config({"CONFIG_TOML": text}, REPO).appliances == ("dehumidifier", "ac_dry")
+def test_appliances_default_to_none_without_a_home_section():
+    text = EXAMPLE.split("[home]")[0] + "[limits]" + EXAMPLE.split("[limits]", 1)[1]
+    assert "\n[home]\n" not in text
+    assert load_config({"CONFIG_TOML": text}, REPO).appliances == ()
 
 
 def test_appliances_from_the_home_section():
-    one = EXAMPLE.replace('appliances = ["dehumidifier", "ac_dry"]', 'appliances = ["ac_dry"]')
+    one = EXAMPLE.replace('appliances = []', 'appliances = ["ac_dry"]')
     assert load_config({"CONFIG_TOML": one}).appliances == ("ac_dry",)
-    none = EXAMPLE.replace('appliances = ["dehumidifier", "ac_dry"]', "appliances = []")
+    none = EXAMPLE.replace('appliances = []', "appliances = []")
     assert load_config({"CONFIG_TOML": none}).appliances == ()
 
 
 def test_unknown_appliance_is_named():
-    bad = EXAMPLE.replace('appliances = ["dehumidifier", "ac_dry"]', 'appliances = ["dehumidifier", "humidifier", "purifier"]')
+    bad = EXAMPLE.replace('appliances = []', 'appliances = ["dehumidifier", "humidifier", "purifier"]')
     with pytest.raises(ConfigError) as e:
         load_config({"CONFIG_TOML": bad})
     msg = str(e.value)
     assert "humidifier" in msg and "purifier" in msg and "dehumidifier, ac_dry" in msg
     with pytest.raises(ConfigError):
-        load_config({"CONFIG_TOML": EXAMPLE.replace('appliances = ["dehumidifier", "ac_dry"]', 'appliances = "ac_dry"')})
+        load_config({"CONFIG_TOML": EXAMPLE.replace('appliances = []', 'appliances = "ac_dry"')})
 
 
 @pytest.mark.parametrize("change, keys", [

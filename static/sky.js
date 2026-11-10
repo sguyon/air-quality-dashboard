@@ -34,9 +34,11 @@ var SKY = (() => {
   } catch {}
   const remember = () => { try { localStorage.setItem(LIVE_KEY, JSON.stringify({ at: Date.now(), v: { dir: live.dir, spd: live.spd, cloud: live.cloud, pm: live.pm, rain: live.rain, thunder: live.thunder, temp: live.temp } })); } catch {} };
   let preview = null;
-  const on = /[?&]shot\b/.test(location.search) ? { sky: false, wind: false, haze: false }   // screenshot mode
+  // Screenshots and the token page (plain light or dark, nothing moving behind the form) keep every effect off and save nothing.
+  const quiet = /[?&]shot\b/.test(location.search) || APP.state === 'no_token';
+  const on = quiet ? { sky: false, wind: false, haze: false }
     : (() => { try { return JSON.parse(localStorage.getItem('aq-fx') || 'null') || { sky: true, wind: true, haze: true }; } catch { return { sky: true, wind: true, haze: true }; } })();
-  const save = () => { if (/[?&]shot\b/.test(location.search)) return; try { localStorage.setItem('aq-fx', JSON.stringify(on)); } catch {} };
+  const save = () => { if (quiet) return; try { localStorage.setItem('aq-fx', JSON.stringify(on)); } catch {} };
   const nyMinutes = () => { const p = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(appNow()); const g = t => Number(p.find(x => x.type === t).value); return (g('hour') % 24) * 60 + g('minute'); };
   function sunPos(minutes) {
     const now = appNow();

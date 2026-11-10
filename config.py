@@ -25,8 +25,9 @@ LIMITS = ("co2", "pm", "pm_high", "rh_dry", "rh_good", "rh_damp", "rh_stop", "po
 # the household's thresholds, [limits] in config.toml; config.example.toml says what each one means
 DEFAULT_LIMITS = {"co2": 800, "pm": 15, "pm_high": 35, "rh_dry": 30, "rh_good": 50, "rh_damp": 60, "rh_stop": 55, "pollen": 3}
 SOURCES = ("smoke", "pollen", "nearby")   # outside sources [sources] can turn off
-# what [home] appliances may list: the damp-room action runs the first one the home has. Default: both.
+# what [home] appliances may list: the damp-room action runs the first one the home has.
 APPLIANCES = ("dehumidifier", "ac_dry")
+DEFAULT_APPLIANCES = ()  # no equipment assumed: a home opts in to the appliances it has.
 # the named ways to get outdoor PM2.5 without an outdoor monitor of your own ([sources] outdoor_from); the other way is a public monitor's id
 OUTDOOR_FROM_KINDS = ("area", "model")
 
@@ -116,6 +117,8 @@ class Place:
     outdoor: str | None   # None: no outdoor monitor; Config.outdoor_from says where outdoor PM2.5 comes from
     pollen_zip: str | None
     region: str | None = None   # city or region for a few sentences ("the usual New York season"); None: neutral wording
+    indoor_id: int | None = None  # account monitor chosen at setup; older configs select by type.
+    outdoor_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -137,7 +140,7 @@ class Config:
     limits: dict[str, float]
     pollen_seasons: tuple[dict, ...]
     sources: dict[str, bool]
-    appliances: tuple[str, ...] = APPLIANCES
+    appliances: tuple[str, ...] = DEFAULT_APPLIANCES
     outdoor_from: int | str | None = None   # without an outdoor monitor: a public monitor's locationId, "area" or "model"
 
 
@@ -199,6 +202,16 @@ def _int(v, where: str, source: str) -> int:
     return v
 
 
+def _monitor_id(place, kind, source):
+    value = place.get(kind + "_id")
+    if value is None:
+        return None
+    value = _int(value, f"place.{kind}_id", source)
+    if value <= 0:
+        raise ConfigError(f"{source}: place.{kind}_id must be positive")
+    return value
+
+
 def _flag(v, where: str, source: str) -> bool:
     if not isinstance(v, bool):
         raise ConfigError(f"{source}: {where} must be true or false")
@@ -227,7 +240,7 @@ def limit_order_problems(limits: Mapping[str, float]) -> list[str]:
 
 
 def _appliances(home: dict, source: str) -> tuple[str, ...]:
-    v = home.get("appliances", list(APPLIANCES))
+    v = home.get("appliances", list(DEFAULT_APPLIANCES))
     if not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
         raise ConfigError(f"{source}: home.appliances must be a list, like [\"dehumidifier\", \"ac_dry\"]")
     unknown = [x for x in v if x not in APPLIANCES]
@@ -272,6 +285,8 @@ def _parse(text: str, source: str, root: Path, demo: bool) -> Config:
         outdoor=_monitor_name(p, "outdoor"),
         pollen_zip=str(p["pollen_zip"]) if p.get("pollen_zip") else None,
         region=_region(p.get("region"), source),
+        indoor_id=_monitor_id(p, "indoor", source),
+        outdoor_id=_monitor_id(p, "outdoor", source),
     )
     if place.indoor is None and place.outdoor is None:
         raise ConfigError(f"{source}: [place] needs indoor, outdoor or both (the names of your monitors)")

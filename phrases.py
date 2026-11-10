@@ -33,8 +33,10 @@ LIBRARY = {
         "effect": ["Above {rh_damp}%, mold and dust mites grow, which is hard on sinuses."],
         "now": ["{drier_on}The air outside is drier, so ten minutes of airing helps.",
                 "{wetter_on}Outside is wetter ({rh_out}%), so a window won’t dry the room."],
-        "timing": ["{ac_too_on}The AC’s dry mode works too. Stop at {rh_stop}%.",
-                   "{appliance_on}Stop at {rh_stop}%."],
+        "timing": ["Outside gets drier at {dry_at}, so ten minutes of airing helps.",
+                   "{ac_too_on}The AC’s dry mode works too. Stop at {rh_stop}%.",
+                   "{appliance_on}Stop at {rh_stop}%.",
+                   "{no_appliance_on}Run the bathroom or kitchen fan after showers and cooking, and dry laundry outside the room."],
     },
     "rh_dry": {
         "effect": ["Under {rh_dry}%, dry air irritates the nose and throat."],
@@ -152,6 +154,8 @@ def _derived(facts):
         f["ac_too_on"] = ""
     if f.get("appliance"):
         f["appliance_on"] = ""
+    if f.get("no_appliance"):
+        f["no_appliance_on"] = ""
     for a in ("dehumidifier", "ac_dry"):   # which one the home has, for the damp + pollen pill
         if f.get(a):
             f[a + "_on"] = ""
