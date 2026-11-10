@@ -50,6 +50,7 @@ VISIBILITY_VERY_LOW_M, VISIBILITY_REDUCED_M, VISIBILITY_MODERATE_M = 2000, 5000,
 # digits: the longest ?monitor= read as an id (AirGradient's are 5-6 digits today); a longer one is junk, and past
 # about 4,300 digits Python's int() raises instead of reading it
 MONITOR_ID_MAX_DIGITS = 12
+APP_VERSION = "v0.1"   # the release shown on the page's build line (and the dev bar)
 SAVED_NAMES_SHOWN = 4   # monitor names listed on the "connected" card; more become "and N more"
 
 
@@ -144,7 +145,7 @@ def get_build_info():
             ).decode().strip()
         except Exception:
             commit = "no-git"
-    return f"v2 · {commit} · {sources.local_now().strftime('%H:%M:%S %Z')}"
+    return f"{APP_VERSION} · {commit} · {sources.local_now().strftime('%H:%M:%S %Z')}"
 
 
 def asset_version(rel_path):
