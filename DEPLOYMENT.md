@@ -52,7 +52,7 @@ Start with the user's OK:
 docker compose up -d
 ```
 
-Open http://localhost:8000. Verify with `docker compose exec home-air-quality python scripts/setup.py --live http://localhost:8000`. For another port, use its address inside the container. `docker compose logs` shows startup problems.
+Open http://localhost:8000. Verify with `docker compose exec home-air-quality python scripts/setup.py --live http://localhost:8000`. If you change only the host port mapping, open that host address in your browser and keep http://localhost:8000 in the container's verification command. Change the verification port only if you also change PORT inside the container. `docker compose logs` shows startup problems.
 
 To open it from a phone on the same network, change the Compose port line to `"8000:8000"`, recreate the service, and use `http://<server-address>:8000`. Anyone on that network can then see the page; it has no password or HTTPS. Don't forward this port on your router. Use Railway or a home VPN for access from outside.
 
