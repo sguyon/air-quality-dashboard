@@ -34,9 +34,11 @@ public/
 vercel.json
 requirements-dev.txt
 
-# Scripts the server doesn't need (check_config.py stays: it checks a config inside the container)
+# Scripts the server doesn't need. check_config.py and setup.py stay: DEPLOYMENT.md checks the config and the
+# live page from inside the container (docker compose exec ... scripts/setup.py --live)
 scripts/*
 !scripts/check_config.py
+!scripts/setup.py
 tools/
 
 # The container files themselves

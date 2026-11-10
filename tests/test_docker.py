@@ -88,3 +88,14 @@ def test_image_workflow_publishes_only_from_main():
     assert "ghcr.io/sguyon/home-air-quality:latest" in wf
     assert "ghcr.io/sguyon/home-air-quality:${{ github.sha }}" in wf
     assert "org.opencontainers.image.source=https://github.com/sguyon/home-air-quality" in wf
+
+
+def test_image_keeps_the_scripts_deployment_runs_inside_the_container():
+    """DEPLOYMENT.md runs `docker compose exec ... python scripts/setup.py --live`: the image must contain it
+    (found by a simulated Docker setup: "can't open file '/app/scripts/setup.py'")."""
+    from pathlib import Path
+    ignore = (Path(__file__).parent.parent / ".dockerignore").read_text().splitlines()
+    deployment = (Path(__file__).parent.parent / "DEPLOYMENT.md").read_text()
+    for script in ("scripts/setup.py", "scripts/check_config.py"):
+        if script in deployment:
+            assert "!" + script in ignore, f"{script} is used inside the container but left out of the image"
