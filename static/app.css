@@ -1589,7 +1589,7 @@ html { touch-action: manipulation; }
 .no-token-card { margin-top: 18px; }
 .no-token-card p { margin: 0; font: 500 15px/1.5 Inter, sans-serif; color: var(--ink); }
 body.no-token .page > :not(.bar):not(.no-token-card) { display: none; }
-body.fresh-copy .bar .custom { display: none; }
+body.no-token .bar .custom { display: none; }   /* the token page: no home menu until the app reads the monitors */
 .nb-credit { margin: 0; padding: 0 24px 14px; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .nb-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 640px) {
@@ -1685,12 +1685,12 @@ html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }
 .no-token-card { max-width: 640px; margin: 56px auto 0; padding: 32px 36px; }
 #no-token h2 { display: block; margin: 0 0 8px !important; font: 600 24px/1.25 Inter, sans-serif; letter-spacing: -.01em; text-transform: none; color: var(--ink); }
 .no-token-card > p { margin: 0; color: var(--soft); }
-.no-token-card ol { counter-reset: step; list-style: none; margin: 28px 0 24px; padding: 0; }
-.no-token-card ol > li { counter-increment: step; position: relative; margin: 0; padding: 0 0 28px 44px; line-height: 1.5; color: var(--ink); }
-.no-token-card ol > li:last-child { padding-bottom: 0; }
-.no-token-card ol > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
+.no-token-card > ol { counter-reset: step; list-style: none; margin: 28px 0 24px; padding: 0; }
+.no-token-card > ol > li { counter-increment: step; position: relative; margin: 0; padding: 0 0 28px 44px; line-height: 1.5; color: var(--ink); }
+.no-token-card > ol > li:last-child { padding-bottom: 0; }
+.no-token-card > ol > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
   display: grid; place-items: center; background: var(--tile); border: 1px solid var(--line-strong); font: 600 14px/1 Inter, sans-serif; color: var(--soft); }
-.no-token-card ol > li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 6px; border-left: 1px solid var(--line); }
+.no-token-card > ol > li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 6px; border-left: 1px solid var(--line); }
 .no-token-card li p { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
 .no-token-card a { color: var(--accent-ink); text-underline-offset: 3px; }
 /* The AirGradient link: a button-sized link with the "opens elsewhere" arrow, so it reads as the step's action and a new page. */
@@ -1702,7 +1702,31 @@ html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }
 .no-token-card li a[target="_blank"]:hover { border-color: var(--accent); }
 .no-token-card li a:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 3px; }
 .no-token-card li p b { font-weight: 600; color: var(--soft); }
+.no-token-card li p.token-hint { margin-top: 4px; font-size: 13px; color: var(--muted); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* "Show me where": a closed-by-default picture of AirGradient's API Access settings, under step 1. */
+.token-help { margin-top: 10px; }
+.token-help summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 500; color: var(--accent-ink); }
+.token-help summary::-webkit-details-marker { display: none; }
+.token-help summary::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .15s ease; }
+.token-help[open] summary::after { transform: translateY(1px) rotate(-135deg); }
+.token-help summary:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 3px; border-radius: 4px; }
+.token-help figure { margin: 12px 0 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--tile); }
+.token-help .token-help-label { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--muted); }
+.token-help img { display: block; width: 100%; height: auto; border-radius: 6px; }
+.token-help-zoom { position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.token-help-zoom span { position: absolute; right: 8px; bottom: 8px; padding: 3px 8px; border-radius: 6px; background: rgba(15, 34, 51, .78); color: #fff; font-size: 12px; font-weight: 500; }
+.token-help-zoom:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 3px; border-radius: 6px; }
+.token-help-big { width: min(1240px, 94vw); max-height: 92vh; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); }
+.token-help-big::backdrop { background: rgba(0, 0, 0, .55); }
+.token-help-big img { display: block; width: 100%; height: auto; border-radius: 6px; }
+.token-help-big-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.token-help-close { padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--tile); color: var(--ink); font: 600 14px/1.3 Inter, sans-serif; cursor: pointer; }
+.token-help-steps { counter-reset: mark; list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; line-height: 1.5; color: var(--soft); }
+.token-help-steps li { counter-increment: mark; display: flex; gap: 8px; margin: 4px 0; }
+/* the marks' red, as drawn on the picture */
+.token-help-steps li::before { content: counter(mark); flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; background: #e63c3c; color: #fff; font-size: 11px; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .token-help summary::after { transition: none; } }
 .no-token-card label { display: block; margin-bottom: 10px; font-weight: 500; }
 .token-entry { display: flex; flex-wrap: wrap; gap: 10px; }
 .token-entry input { flex: 1 1 220px; min-width: 0; padding: 11px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--tile); color: var(--ink); font: inherit; }

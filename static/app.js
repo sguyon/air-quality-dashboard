@@ -998,6 +998,11 @@ let inFlight = null, lastRefresh = 0;
 // A config but no AirGradient token yet: the header and one plain card. Everything that needs the monitors stays hidden.
 function showNoToken() {
   bootRead = null;
+  // "Show me where": the picture opens larger in a dialog on this page (never in another app); Esc or Close shuts it
+  const big = document.querySelector('.token-help-big');
+  document.querySelector('.token-help-zoom')?.addEventListener('click', () => big?.showModal());
+  big?.querySelector('.token-help-close')?.addEventListener('click', () => big.close());
+  big?.addEventListener('click', e => { if (e.target === big) big.close(); });
   document.body.classList.add('no-token');
   $('no-token').hidden = false;
   setBusy(false);

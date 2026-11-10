@@ -7,25 +7,36 @@
     <p>{{ found|length }} monitor{{ '' if found|length == 1 else 's' }} on your account:</p>
     <ul class="token-found">{% for name in found[:shown] %}<li>{{ name }}</li>{% endfor %}{% if found|length > shown %}<li>and {{ found|length - shown }} more</li>{% endif %}</ul>
     {% else %}
-    <p>Your account has no monitors yet. Add one in the AirGradient app, then go back to your agent.</p>
+    <p>No monitors with readings yet. A new monitor shows up here once it has sent its first reading: check it shows readings in the AirGradient app, then go back to your agent.</p>
     {% endif %}
   </div>
 </div>
 <p class="token-next"><b>Next:</b> go back to your agent. It sets up your home and restarts the app, then your readings show here.</p>
 {% else %}
 <h2>Connect your AirGradient account</h2>
-<p>This app reads your monitors through your AirGradient account, with an access token you copy from AirGradient.</p>
+<p>Paste a token from your AirGradient account so this app can read your monitors.</p>
 {% if entry %}
 <ol>
   <li><a href="https://app.airgradient.com/settings/place?tab=4" target="_blank" rel="noopener noreferrer">Open AirGradient settings<span class="visually-hidden"> (opens in a new tab)</span></a>
-    <p>Go to <b>General settings → Connectivity → API access</b>.<br>Turn API access on if it's off, then copy the token.</p></li>
+    <p><b>Connectivity → API access</b>: turn it on, then copy the token.</p>
+    <p class="token-hint">Landed on the dashboard after signing in? Press the button again.</p>
+    <details class="token-help"><summary>Show me where</summary>
+      <figure><figcaption class="token-help-label">Picture of AirGradient's settings page</figcaption>
+        <button type="button" class="token-help-zoom" aria-haspopup="dialog" title="See it larger"><img src="/static/airgradient-api-access.png" width="1200" height="756" alt="AirGradient's settings page, marked: 1 General Settings in the left menu, 2 the Connectivity tab, 3 the API Access row with its Enabled switch and the token's copy button."><span>See it larger</span></button>
+        <ol class="token-help-steps"><li>General Settings, in the left menu</li><li>The Connectivity tab</li><li>API Access: turn it on, then press the copy button (not "Renew API token")</li></ol></figure>
+    </details>
+    <dialog class="token-help-big" aria-label="Picture of AirGradient's settings page">
+      <div class="token-help-big-top"><span>Picture of AirGradient's settings page</span><button type="button" class="token-help-close">Close</button></div>
+      <img src="/static/airgradient-api-access.png" width="1200" height="756" alt="">
+    </dialog></li>
   <li><form method="post" action="/api/token" autocomplete="off">
     <input type="hidden" name="setup_nonce" value="{{ nonce }}">
     <label for="airgradient-token">Paste the token</label>
     <div class="token-entry"><input id="airgradient-token" name="token" type="password" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" autocapitalize="none" spellcheck="false" required maxlength="{{ max_length }}"><button type="submit">Connect</button></div>
+    {% if error and not entry %}<p class="token-error" role="alert">{{ error }}</p>{% endif %}
   </form></li>
 </ol>
-<p class="token-storage">The app checks it with AirGradient, then keeps it on this computer only, in its .env file. Your agent never sees it.</p>
+<p class="token-storage">Checked with AirGradient, then saved on this computer only. Your agent never sees it.</p>
 {% elif instructions == 'railway' %}
 <p>Add AIRGRADIENT_TOKEN in your Railway project → Variables, then redeploy.</p>
 {% elif instructions == 'docker' %}

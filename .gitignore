@@ -35,3 +35,6 @@ PRODUCT.md
 
 # the local dev server keeps the day's pollen here (server.py, DEV_CACHE_DIR)
 /.cache/
+
+# Generated setup screenshots (scripts/setup_shots.sh)
+/docs/setup-shots/

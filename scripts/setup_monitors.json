@@ -1,0 +1,4 @@
+[
+  {"locationId": 7001, "locationName": "Bedroom", "locationType": "indoor", "model": "I-9PSL", "pm02": 3, "rco2": 700, "atmp": 21, "rhum": 45},
+  {"locationId": 7002, "locationName": "Balcony", "locationType": "outdoor", "model": "O-1PST", "pm02": 5, "atmp": 18, "rhum": 55}
+]

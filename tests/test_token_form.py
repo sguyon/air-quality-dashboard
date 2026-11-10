@@ -1,3 +1,4 @@
+from pathlib import Path
 """Local first-run token entry; all credentials and files here are made up."""
 import logging
 from html import unescape
@@ -75,8 +76,11 @@ def test_local_form_is_visible_and_private(local):
     assert 'type="password"' in text and 'autocomplete="off"' in text
     assert 'action="/api/token"' in text
     assert "Connect your AirGradient account" in text and "data-1p-ignore" in text
+    # "Show me where": closed by default, the picture is in the repo and described for screen readers
+    assert '<details class="token-help">' in text and "Picture of AirGradient" in text and 'src="/static/airgradient-api-access.png"' in text and "alt=" in text
+    assert (Path(server.__file__).parent / "static" / "airgradient-api-access.png").exists()
     assert "https://app.airgradient.com/settings/place?tab=4" in text
-    assert "Your agent never sees it" in text
+    assert "Your agent never sees it" in text and "Landed on the dashboard" in text
     assert response.headers["Cache-Control"] == "no-store"
     assert response.headers["Referrer-Policy"] == "same-origin"
     assert "frame-ancestors 'none'" in response.headers["Content-Security-Policy"]
@@ -326,6 +330,20 @@ def test_empty_account_is_a_valid_token(local, monkeypatch):
             return []
     monkeypatch.setattr(sources.requests, "get", lambda *a, **k: Empty())
     assert submit(local).status_code == 303
+
+
+def test_fresh_copy_with_an_empty_account_says_to_add_a_monitor(local, monkeypatch):
+    from dataclasses import replace
+    class Empty(Reply):
+        def json(self):
+            return []
+    monkeypatch.setattr(server, "CFG", replace(server.CFG, demo=True))
+    monkeypatch.setattr(server, "MODE", "demo")
+    monkeypatch.delenv("DEMO", raising=False)
+    monkeypatch.setattr(sources.requests, "get", lambda *a, **k: Empty())
+    assert submit(local).status_code == 303
+    text = local.get("/", base_url=BASE).get_data(as_text=True)
+    assert "Connected to AirGradient" in text and "No monitors with readings yet" in text and "token-found" not in text
 
 
 def test_fresh_copy_card_lists_the_account_monitors(local, monkeypatch):

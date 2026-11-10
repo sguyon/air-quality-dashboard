@@ -296,7 +296,7 @@ def choose_monitors(rows, args):
         if kind in chosen:
             unknown = [r for r in unknown if r.get("locationId") != chosen[kind].get("locationId")]
     if not chosen:
-        raise SetupError("AirGradient has no monitors in this account. Add them in its dashboard, then run setup again.")
+        raise SetupError("AirGradient lists no monitors with readings in this account. A monitor shows up once it has sent its first reading: check it shows readings in the AirGradient app, then run setup again.")
     if len({str(r.get("locationId")) for r in chosen.values()}) != len(chosen):
         raise SetupError("Choose a different monitor for indoors and outdoors in AirGradient.")
     for row in chosen.values():

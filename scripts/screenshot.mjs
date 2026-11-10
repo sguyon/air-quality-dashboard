@@ -33,7 +33,15 @@ const port = 9300 + Math.floor(Math.random() * 500);
 const chrome = spawn(chromePath, ['--headless=new', '--hide-scrollbars', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
   '--allow-file-access-from-files', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, `--window-size=${W},${H}`, 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const quit = async code => { chrome.kill(); await Promise.race([new Promise(r => chrome.once('exit', r)), sleep(5000)]); process.exit(code); };   // gone before the next one starts
+// Ask Chrome to close itself (Browser.close) before killing it: on macOS a killed Chrome shows a "quit unexpectedly" dialog.
+let closeBrowser = null;
+const quit = async code => {
+  const exited = new Promise(r => chrome.once('exit', r));
+  if (closeBrowser) await Promise.race([closeBrowser().catch(() => {}), sleep(1000)]);
+  await Promise.race([exited, sleep(3000)]);
+  if (chrome.exitCode === null && chrome.signalCode === null) { chrome.kill(); await Promise.race([exited, sleep(5000)]); }
+  process.exit(code);
+};   // gone before the next one starts
 const fail = msg => { console.error(msg); return quit(1); };
 try {
   let target;
@@ -47,6 +55,7 @@ try {
   let id = 0; const waiting = new Map();
   ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && waiting.has(m.id)) { waiting.get(m.id)(m); waiting.delete(m.id); } };
   const send = (method, params = {}) => new Promise(ok => { const n = ++id; waiting.set(n, ok); ws.send(JSON.stringify({ id: n, method, params })); });
+  closeBrowser = () => send('Browser.close');
   const evaluate = async expr => (await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result?.result?.value;
   const metrics = h => send('Emulation.setDeviceMetricsOverride', { width: W, height: h, deviceScaleFactor: dpr, mobile });
 
