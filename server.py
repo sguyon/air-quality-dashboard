@@ -43,6 +43,10 @@ TOKEN = env_key("AIRGRADIENT_TOKEN")   # .env.example's placeholder counts as no
 NO_CONFIG_MESSAGE = "No config: copy config.example.toml to config.toml (or set CONFIG_TOML)"
 APP_LOAD_ERROR = 4   # gunicorn's exit code for "the app can't load": the master stops instead of respawning forever
 ENV_LABEL = {"dev": "DEV", "preview": "PREVIEW"}   # the tag on the page title and app name on dev and preview
+# Addresses that only reach this machine or the home's own network (for the DEV tag): private IPv4 ranges, Tailscale's
+# 100.64.0.0/10 range, and names that never resolve on the internet: bare machine names, Bonjour's .local, Tailscale's ts.net
+LOCAL_HOST = re.compile(r"^(localhost|0\.0\.0\.0|127\.[\d.]+|10\.[\d.]+|192\.168\.[\d.]+|172\.(1[6-9]|2\d|3[01])\.[\d.]+"
+                        r"|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.[\d.]+|[a-z0-9-]+|[a-z0-9.-]+\.(local|ts\.net))$")
 # The weather card's words. Dew point (°C) under DEW_DRY_C dries sinuses (the Open-Meteo source note says so), under
 # DEW_SEVERE_DRY_C badly. Visibility (m) under each line reads very low, reduced, moderate; above the last, clear.
 DEW_SEVERE_DRY_C, DEW_DRY_C = 5, 10
@@ -193,8 +197,7 @@ def icon_env():
     address is "dev"; otherwise a deployment names itself with APP_ENV, never by its address: a home that runs the app
     on its own network (a laptop, a small home server at 192.168.…) is a normal deployment."""
     host = (request.host or "").split(":")[0].lower()
-    local = host in ("localhost", "127.0.0.1", "0.0.0.0") or host.startswith(("127.", "10.", "192.168.")) or re.match(r"^172\.(1[6-9]|2\d|3[01])\.", host)
-    if local and sources._dev_server():
+    if LOCAL_HOST.match(host) and sources._dev_server():
         return "dev"
     env = os.environ.get("APP_ENV", "").strip().lower()
     return env if env in ENV_LABEL else None

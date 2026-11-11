@@ -45,8 +45,11 @@ def test_local_address_is_dev_only_on_the_reloading_dev_server(client, monkeypat
     """The maintainer's `flask run --reload` is dev; a home running the app on its own network is not."""
     monkeypatch.delenv("APP_ENV", raising=False)
     monkeypatch.setenv("WERKZEUG_RUN_MAIN", "true")
-    for host in ("localhost:5555", "127.0.0.1", "192.168.1.5", "10.0.0.2", "172.20.1.1"):
+    for host in ("localhost:5555", "127.0.0.1", "192.168.1.5", "10.0.0.2", "172.20.1.1",
+                 "laptop:5555", "mymac.local", "laptop.tail1234ab.ts.net", "100.103.6.97"):   # a machine name, Bonjour, Tailscale
         assert app_env(page(client, host).get_data(as_text=True)) == '"dev"', host
+    for host in ("example.com", "100.200.1.1"):   # a public name, and a public 100.x address outside Tailscale's range
+        assert app_env(page(client, host).get_data(as_text=True)) == "null", host
     monkeypatch.delenv("WERKZEUG_RUN_MAIN")
     for host in ("localhost:5555", "192.168.1.5"):
         html = page(client, host).get_data(as_text=True)
