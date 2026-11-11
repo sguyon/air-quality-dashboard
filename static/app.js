@@ -879,7 +879,6 @@ function renderRead(r, stale, why) {
   note.hidden = !why;
   note.textContent = why === 'offline' ? `Earlier summary, written at ${r.clock}. It updates when the page is back online.`
     : why === 'failed' ? `Earlier summary, written at ${r.clock}. A new one could not be written just now.` : '';
-  $('read-meta').textContent = `Updated at ${r.clock}${stale ? ' (earlier summary)' : ''}.`;
 }
 
 // ── Busy state ────────────────────────────────────────
@@ -1218,7 +1217,6 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-open-home]'); if (!t) return;
   e.preventDefault(); e.stopPropagation(); openHome(t.dataset.openHome);
 }, true);
-$('s-src') && $('s-src').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHome('sources'); } });
 
 // Dev and local only: the build and a Clear cache button (the dev site registers a service worker that caches files).
 (() => {

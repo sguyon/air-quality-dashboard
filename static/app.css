@@ -745,7 +745,6 @@ svg.ts .ts-hd.out { fill: var(--series-out); }
 .now-text { flex: 1 1 auto; display: flex; align-items: center; gap: 16px; min-width: 0; }
 .now-bar .dsp { flex: none; }
 .now-bar .dsp-pop { top: calc(100% + 10px); right: 0; left: auto; background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
-.s-src-card::after { content: "Click to change sources"; display: block; margin-top: 2px; opacity: .6; font-size: 11.5px; }
 .blocks section.pg { border-radius: 10px; }
 .chart-bar.loading #ranges button.on { animation: skel 1s ease-in-out infinite; }
 .grid2 .card.loading svg.ts { opacity: .45; transition: opacity .2s ease; }
@@ -1184,7 +1183,6 @@ html.outside-night .mc-scene .wx-c { opacity: .35; }
 .s-info-meta { opacity: .7; }
 .s-info-sh { margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .14); font-weight: 600; }
 .s-info-list { display: grid; gap: 7px; }
-.s-info-card::after { content: "Click to change sources"; }
 @media (max-width: 560px) {
   .s-info .s-info-card { width: min(300px, calc(100vw - 48px)); }
 }
@@ -1767,9 +1765,9 @@ html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }
   .seg button::before { content: ""; position: absolute; inset: -9px 0; }
   .sx-nchip::before { content: ""; position: absolute; inset: -12px -4px; }
 }
-/* Touch screens: no tip on the Home pill's monitor pictures. A tap there opens the panel, which names each monitor and
-   its state, and the tip from that tap stayed on screen. The other tips stay. */
-@media (hover: none) { .vhw[data-tip]::after { content: none; } }
+/* Touch screens: no tip on the Home pill's monitor pictures or the avatar. A tap there opens the panel, which names each
+   monitor and its state, and the tip from that tap stayed on screen. The other tips stay. */
+@media (hover: none) { .vhw[data-tip]::after, #avatar[data-tip]::after { content: none; } }
 /* A hover tip left over from the tap that opened the Home panel would sit on top of the panel. */
 .bar .custom[open] > summary [data-tip]::after, .bar .custom[open] > summary[data-tip]::after { content: none; }
 
