@@ -1756,3 +1756,20 @@ html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }
   .token-entry button { flex: 1 0 100%; }
 }
 /* ── Local first-run token form (end) ── */
+
+/* Touch screens: small icon controls keep their look but get an invisible tap area of about 44 px
+   (the phone pass found the legend's (i) at 13 px, the (?) buttons at 22–28 px, the chart's range buttons at 27 px tall). */
+@media (pointer: coarse) {
+  .q, .sx-nh-i, .sx-nchip, .dsp-b, .lg-info, .seg button { position: relative; }
+  .q::before, .sx-nh-i::before { content: ""; position: absolute; inset: -8px; }
+  .dsp-b::before { content: ""; position: absolute; inset: -8px 0; }   /* side by side: grow only up and down */
+  .lg-info::before { content: ""; position: absolute; inset: -15px; }
+  .seg button::before { content: ""; position: absolute; inset: -9px 0; }
+  .sx-nchip::before { content: ""; position: absolute; inset: -12px -4px; }
+}
+/* Touch screens: no tip on the Home pill's monitor pictures. A tap there opens the panel, which names each monitor and
+   its state, and the tip from that tap stayed on screen. The other tips stay. */
+@media (hover: none) { .vhw[data-tip]::after { content: none; } }
+/* A hover tip left over from the tap that opened the Home panel would sit on top of the panel. */
+.bar .custom[open] > summary [data-tip]::after, .bar .custom[open] > summary[data-tip]::after { content: none; }
+
