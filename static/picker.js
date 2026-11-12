@@ -1,6 +1,7 @@
-// Home Air Quality: the demo's banner (sample data 1 2 3, a public AirGradient monitor, Source and setup) and its
-// monitor picker. Demo only: app.js mounts it when window.APP has `now` (a sample) or `public` (a monitor's page).
-// Also gives every /api call its URL (apiUrl). Mock: internal/design-archive/public-monitor/ (README, round 4).
+// Home Air Quality: the demo's top area (the name and pitch, then three ways in: the made-up home's samples 1 2 3, a public
+// monitor near you, your own monitor) and its monitor picker. Demo only: app.js draws it where showsTop says (window.APP has
+// `now`, a sample, or `public`, a monitor's page; never in screenshots). Also gives every /api call its URL (apiUrl).
+// Mocks: internal/design-archive/93-demo-top-area (concept E), public-monitor/ (the picker, README round 4).
 (function (root) {
   'use strict';
 
@@ -11,9 +12,11 @@
   const PM_WHOLE_FROM = 10;         // µg/m³: as the page's rings, one decimal below 10 (3.9), whole numbers from 10 up
   const GEO_TIMEOUT_MS = 10000;     // how long "Near me" waits for the browser's location before saying it's off
   const GEO_MAX_AGE_MS = 600000;    // a location the browser found in the last 10 minutes is good enough
-  const SOURCE_URL = 'https://github.com/sguyon/home-air-quality#installation';
+  const REPO_URL = 'https://github.com/sguyon/home-air-quality';
+  const SOURCE_URL = `${REPO_URL}#installation`;   // the README's setup steps: "Setup guide"
   const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
   const DEFAULT_PLACE = 'New York';   // demo/public.py DEFAULT_LIST: the list before anyone gives a location
+  const PICKER_PARTS = '#db-pickwrap, [aria-controls="db-pop"]';   // the picker and every button that opens it
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // the page's PM2.5 words (home.js), so the picker and the cards use one scale
@@ -26,7 +29,6 @@
     near: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 22 2l-9 19-2-8z"/></svg>',
     search: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
     close: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
-    octo: '<svg class="db-octo" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>',
   };
 
   // ── pure parts (tested in tests/picker.test.mjs) ──
@@ -40,20 +42,46 @@
 
   const roundCoord = x => Number(Number(x).toFixed(COORD_DECIMALS));
 
-  // The strip: the Demo tag, the samples (the shown one marked; none on a monitor's page), the live option's dropdown
-  // (the chosen monitor's name, or "Select a monitor"; the picker says what public monitors are), and the code's link: the GitHub mark, with "GitHub" beside it on a wide screen.
-  function bannerHTML(app) {
+  // The top area's drawn marks: a text arrow like ↗ shows as an emoji on iOS (Sacha, 2026-11-12)
+  const MARK = '<svg class="dt-mark" viewBox="0 0 32 32" aria-hidden="true"><path class="mk-sky" d="M4.2 15.6V7.4a3.2 3.2 0 0 1 3.2-3.2h17.2a3.2 3.2 0 0 1 3.2 3.2v8.2z"/>' +
+    '<rect class="mk-fr" x="3" y="3" width="26" height="26" rx="4.4"/><path class="mk-br" d="M16 3v26M3 16h26"/><circle class="mk-dot" cx="22.4" cy="22.4" r="3"/></svg>';
+  const WAY_ICON = {
+    home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-6h6v6"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+    monitor: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6"/></svg>',
+  };
+  const OUT_ICON = '<svg class="dt-bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>';
+
+  // The demo's top area (mock 93, E): the name and pitch, then the three ways in, each a title, one line and its control.
+  // See a demo: the samples (the shown one marked and named; none on a monitor's page). See a live monitor near you: the
+  // picker's button (the chosen monitor's name, or "Select a monitor"). Set up your own monitor: the README's setup steps.
+  function topHTML(app) {
     const pub = app.public || null;
     const listed = (app.now && app.now.moments) || [];
     const samples = listed.length ? listed : SAMPLES.map(n => ({ n }));
     const shown = (!pub || pub.error) && app.now ? app.now.moment : null;   // an unknown monitor's page ({id, error}) shows the sample
     const links = samples.map(m => `<a href="?sample=${m.n}"${m.label ? ` title="${esc(m.label)}"` : ''}${m.key && m.key === shown ? ' aria-current="page"' : ''}>${m.n}</a>`).join('');
     const name = pub && !pub.error && pub.name ? esc(pub.name) : '';
-    return `<div class="db-inner">
-  <div class="db-sample"><span class="db-tag">Demo</span><span class="db-label" id="db-label">Sample data</span><nav class="db-seg" aria-labelledby="db-label">${links}</nav></div>
-  <div class="db-end"><p class="db-live">Or live:</p><span class="db-pickwrap" id="db-pickwrap"><button type="button" class="db-pick${name ? ' is-chosen' : ''}" id="db-pick" aria-haspopup="dialog" aria-expanded="false" aria-controls="db-pop"><i class="live" aria-hidden="true"></i><span class="db-pick-t">${name || 'Select a monitor'}</span>${ICON.chev}</button></span></div>
-  <a class="db-gh" href="${SOURCE_URL}" target="_blank" rel="noopener" aria-label="Source and setup on GitHub" title="Source and setup on GitHub">${ICON.octo}<span class="db-gh-t">GitHub</span></a>
+    const way = (cls, tone, icon, title, line, control) => `<div class="dt-way${cls}"><p class="dt-t"><span class="dt-ico dt-${tone}">${WAY_ICON[icon]}</span>${title}</p>` +
+      `<p class="dt-s">${line}</p><div class="dt-ctl">${control}</div></div>`;
+    return `<div class="dt-in">
+  <div class="dt-brand"><h1 class="dt-name">${MARK}Home Air Quality <span class="dt-tag">Demo</span></h1>
+    <p class="dt-pitch">Your AirGradient monitor's readings and the forecast, turned into timed actions, each with a why. <span>Free and <a href="${REPO_URL}">open source</a>. You run it for your home.</span></p></div>
+  ${way(' dt-w1', 'ink', 'home', 'See a demo',
+    '<span class="dt-gen">Sample data from a made-up home.</span>',
+    `<span class="dt-lab" id="dt-lab">Sample</span><nav class="dt-seg" aria-labelledby="dt-lab">${links}</nav>`)}
+  ${way('', 'sky', 'pin', 'See a live monitor near you', 'Real readings from a public AirGradient monitor.',
+    `<span class="dt-pickwrap" id="db-pickwrap"><button type="button" class="dt-pick${name ? ' is-chosen' : ''}" id="db-pick"${name ? ` aria-label="Monitor: ${name}. Change monitor"` : ''} aria-haspopup="dialog" aria-expanded="false" aria-controls="db-pop"><i class="live" aria-hidden="true"></i><span class="dt-pick-t">${name || 'Select a monitor'}</span>${ICON.chev}</button></span>`)}
+  ${way('', 'good', 'monitor', 'Set up your own monitor', 'You install it, with a coding agent or Docker.',
+    `<a class="dt-btn" href="${SOURCE_URL}" target="_blank" rel="noopener">Setup guide${OUT_ICON}</a>`)}
 </div>`;
+  }
+
+  // Where the top area shows: every demo page (the made-up home, a sample, a moment, a monitor's page), whatever other
+  // parameters the URL carries (?utm_source=). Never in screenshots (?shot: the README's images), on a real home or the token card.
+  function showsTop(app, search) {
+    if (!app || !(app.now || app.public) || app.state === 'no_token') return false;
+    return !new URLSearchParams(search || '').has('shot');
   }
 
   const kmText = km => !Number.isFinite(km) ? '' : `${km >= KM_WHOLE_FROM ? Math.round(km) : (Math.round(km * 10) / 10).toFixed(1)} km`;
@@ -74,6 +102,9 @@
     }).join('');
   }
 
+  // A click on the picker or on a button that opens it: the click-outside handler leaves the picker open.
+  const insidePicker = el => !!(el && el.closest && el.closest(PICKER_PARTS));
+
   // A typed place's first match (Open-Meteo's free geocoder, from the browser), or null.
   async function geocode(q) {
     const r = await fetch(`${GEOCODE_URL}?name=${encodeURIComponent(q)}&count=1`);
@@ -82,7 +113,11 @@
     return hit ? { name: hit.name, lat: hit.latitude, lon: hit.longitude } : null;
   }
 
-  const api = { apiUrl, roundCoord, bannerHTML, rowsHTML, geocode };
+  // Near me failed (location off or refused): the list still shows the default place's monitors, so say so; it read as
+  // the visitor's own location (Sacha, 2026-11-12: "if location is off why does it show my nearby places still?")
+  const offNote = place => `Location is off, so this list is around ${place}. Type a place to see another.`;
+
+  const api = { apiUrl, roundCoord, topHTML, showsTop, rowsHTML, geocode, insidePicker, offNote };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   // ── the page ──
@@ -146,7 +181,7 @@
   }
 
   function nearMe() {
-    const off = () => { note('pm-note', 'Location is off. Type a place instead.'); $('pm-near').setAttribute('aria-pressed', 'false'); $('pm-q').focus(); };
+    const off = () => { note('pm-note', offNote(st.near || DEFAULT_PLACE)); $('pm-near').setAttribute('aria-pressed', 'false'); $('pm-q').focus(); };
     if (!navigator.geolocation) return off();
     note('pm-note', '');
     navigator.geolocation.getCurrentPosition(p => {
@@ -171,11 +206,14 @@
 
   function isOpen() { const p = $('db-pop'); return !!p && !p.hidden; }
 
+  // The buttons that open the picker say whether it's open.
+  const expanded = on => document.querySelectorAll('[aria-controls="db-pop"]').forEach(b => b.setAttribute('aria-expanded', String(on)));
+
   // focus: true when a person opened it (keyboard focus moves in); the page opening it on load leaves focus alone.
   function open({ focus = true } = {}) {
     if (!$('db-pop')) return;
     $('db-pop').hidden = false;
-    $('db-pick').setAttribute('aria-expanded', 'true');
+    expanded(true);
     if (!st.rows && !st.loading) load(DEFAULT_PLACE);   // the first open, or again after a load that failed
     if (focus) $('pm-near').focus();
   }
@@ -183,15 +221,15 @@
   function close({ focus = true } = {}) {
     if (!isOpen()) return;
     $('db-pop').hidden = true;
-    $('db-pick').setAttribute('aria-expanded', 'false');
+    expanded(false);
     if (focus) $('db-pick').focus();
   }
 
-  // Draw the banner into the strip (index.html #demo-bar) and wire the picker.
-  function mount(bar, app) {
+  // Draw the top area (index.html #demo-top) and wire the picker: it opens under the top area, from its button.
+  function mount(top, app) {
     st.app = app;
-    bar.innerHTML = bannerHTML(app);
-    bar.hidden = false;
+    top.innerHTML = topHTML(app);
+    top.hidden = false;
     $('db-pickwrap').insertAdjacentHTML('beforeend', panelHTML());
     $('db-pick').addEventListener('click', () => (isOpen() ? close() : open()));
     $('pm-close').addEventListener('click', () => close());
@@ -200,7 +238,7 @@
     $('pm-more').addEventListener('click', () => { st.all = true; draw(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen()) close(); });
     // a click outside closes it; a click on something the panel just redrew (Show N more) is no longer in the page, so it's inside
-    document.addEventListener('click', e => { if (isOpen() && e.target.isConnected && !$('db-pickwrap').contains(e.target)) close({ focus: false }); });
+    document.addEventListener('click', e => { if (isOpen() && e.target.isConnected && !insidePicker(e.target)) close({ focus: false }); });
     // a monitor that can't be shown: say why at the top of the open picker
     if (app.public && app.public.error) { note('pm-error', app.public.error); open({ focus: false }); }
   }

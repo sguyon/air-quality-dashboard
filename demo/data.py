@@ -430,7 +430,7 @@ def install(server, moment_for_request):
 
     def which():
         """Where this request's data comes from: "monitor" (one to show) or "sample". A monitor that can't be shown gets
-        the default sample (made-up data), so its page is the sample's, with the reason in the banner."""
+        the default sample (made-up data), so its page is the sample's, with the reason in the monitor picker."""
         return "monitor" if asked() == "monitor" else "sample"
 
     def here():

@@ -6,7 +6,7 @@ const uniq = svg => { const n = ++svgCopy; return svg.replace(/id="([^"]+)"/g, `
 // The home (place, links, road, profiles, limits, pollen seasons) comes from the server's config: window.APP, set in index().
 const APP = window.APP;
 // A public AirGradient monitor's page (the demo's ?monitor=<id>): {id, name, street, contributor, url}. One that can't
-// be shown ({id, error}) gets the default sample's page instead, with the reason in the demo banner (picker.js).
+// be shown ({id, error}) gets the default sample's page instead, with the reason in the demo's monitor picker (picker.js).
 // A public monitor's view has no indoor monitor; neither has a view whose place names none (APP.place.indoor null).
 const PUB = APP.public && !APP.public.error ? APP.public : null;
 const NO_INDOOR = APP.place.indoor === null || !!PUB;
@@ -110,9 +110,15 @@ applyConfig();
 if ($('nb-credit')) $('nb-credit').innerHTML = creditHtml(!!APP.now);   // the demo's line, or AirGradient's credit
 if (PUB && $('hist-none')) $('hist-none').innerHTML = noHistoryHTML();   // shown only if AirGradient's map has no past readings
 
-// The demo's banner (a sample, or a public monitor's page): the samples 1 2 3, the monitor picker, Source and setup.
-if ((APP.now || APP.public) && $('demo-bar') && !/[?&]shot\b/.test(location.search)) {   // not in screenshots: the README says they come from the demo
-  Picker.mount($('demo-bar'), APP);
+// The demo's top area (a sample, or a public monitor's page; not in screenshots: the README says they come from the demo):
+// the name and pitch, the samples 1 2 3, the monitor picker, Setup guide. It holds the name, so the header's logo row goes
+// and the home menu moves to the end of the TODAY line: its row (.bar) goes into the now bar after the weather, so the line
+// leaves it room and the tab order follows what you see (app.css, html.has-demo-top). A real home keeps its header.
+if ($('demo-top') && Picker.showsTop(APP, location.search)) {
+  Picker.mount($('demo-top'), APP);
+  document.documentElement.classList.add('has-demo-top');
+  const nowBar = document.querySelector('.now-bar'), bar = document.querySelector('.page > .bar');
+  if (nowBar && bar) nowBar.append(bar);
 }
 // Nearby monitors turned off in the config: the section says so in one line instead of showing an empty table and map.
 if ((APP.sources || {}).nearby === false) {

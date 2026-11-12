@@ -21,7 +21,7 @@
   (function () {
     var saved = null;
     try { saved = localStorage.getItem('aq-theme'); } catch (e) {}
-    var shot = location.search.match(/[?&]shot(?:=(dark))?\b/);   // screenshot mode (scripts/screenshot.sh): no sky, no dev line, no demo banner
+    var shot = location.search.match(/[?&]shot(?:=(dark))?\b/);   // screenshot mode (scripts/screenshot.sh): no sky, no dev line, no demo top area
     if (shot) saved = shot[1] || 'light';                           // light theme, or ?shot=dark
     var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
@@ -32,7 +32,7 @@
 </head>
 <body>
 <div class="sky" id="sky" aria-hidden="true"><div class="sky-grad" id="sky-grad"></div><canvas id="sky-stars"></canvas><div class="sky-sun" id="sky-sun"></div><canvas id="sky-clouds"></canvas><canvas id="sky-wind"></canvas><canvas id="sky-rain"></canvas><div class="sky-flash" id="sky-flash"></div><div class="sky-haze" id="sky-haze"></div></div><div class="sky-front" id="sky-front" aria-hidden="true"><div class="front-flash" id="front-flash"></div><canvas id="sky-bolt"></canvas></div>
-<div class="demo-bar" id="demo-bar" role="region" aria-label="Demo" hidden></div>   <!-- the demo's strip: static/picker.js draws it -->
+<header class="demo-top" id="demo-top" hidden></header>   <!-- the demo's top area: the name and pitch, its three ways in; static/picker.js draws it -->
 <div class="page">
   <div class="bar">
     <div class="site-wrap">

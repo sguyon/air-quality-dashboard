@@ -107,11 +107,11 @@ MOMENTS = {
 }
 
 
-SAMPLES = ("rush", "clear", "humid")   # ?sample=1, 2, 3: the banner's "Sample data 1 2 3"
+SAMPLES = ("rush", "clear", "humid")   # ?sample=1, 2, 3: the top area's "Sample 1 2 3"
 
 SOURCE_MONITOR_ID = 900001   # indoor-near's public monitor: made up, no real AirGradient monitor has this id
 
-# Homes with one monitor, reachable only by address (?moment=), not in the banner: the morning rush's readings, seen
+# Homes with one monitor, reachable only by address (?moment=), not in the top area: the morning rush's readings, seen
 # from an indoor-only home that reads a public monitor 1.1 km away (indoor-near) or the model alone (indoor-model),
 # and from an outdoor-only home (outdoor-only). tests/test_demo.py pins what each says.
 HIDDEN = {

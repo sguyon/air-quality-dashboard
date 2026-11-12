@@ -789,3 +789,10 @@ test("monitorPill: an indoor-only home's chosen public monitor shows live, an es
   const est = home.monitorPill(place, indoor, { locationType: 'outdoor', source: { kind: 'model' } }, now, {}, 'Estimate for your area');
   assert.equal((est.match(/class="vhw off"/g) || []).length, 1);
 });
+
+test('the demo has one top area above the page, empty and hidden until the demo draws it; the band and the dark bar are gone', () => {
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  assert.match(html, /<header class="demo-top" id="demo-top" hidden><\/header>/);
+  assert.ok(html.indexOf('id="demo-top"') < html.indexOf('<div class="page">'));
+  assert.doesNotMatch(html, /entry-band|demo-bar/);
+});

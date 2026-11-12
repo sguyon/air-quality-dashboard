@@ -10,7 +10,7 @@
 #
 # Needs Google Chrome, Node.js and ImageMagick (magick). Chrome runs headless with its software renderer,
 # so the WebGL map draws. The page's ?shot mode gives the light theme (?shot=dark the dark one) without the
-# sky, the dev line or the demo banner, without touching any saved settings. The laptop and the full page show the
+# sky, the dev line or the demo's top area, without touching any saved settings. The laptop and the full page show the
 # "rush" moment, the phone "clear".
 set -euo pipefail
 

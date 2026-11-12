@@ -227,7 +227,7 @@ def test_fresh_copy_opens_as_the_demo(demo, tmp_path):
     assert demo.startup_config({}, tmp_path).demo is False
 
 
-# ── the hidden one-monitor cases (?moment=indoor-near, indoor-model, outdoor-only): not samples, not in the banner ──
+# ── the hidden one-monitor cases (?moment=indoor-near, indoor-model, outdoor-only): not samples, not in the top area ──
 
 HIDDEN = ("indoor-near", "indoor-model", "outdoor-only")
 SOURCE_ID = 900001   # the made-up public monitor indoor-near reads
@@ -247,7 +247,7 @@ def test_hidden_moments_load_without_outside_calls(c, monkeypatch):
     for m in HIDDEN:
         app = app_of(c, m)
         assert app["now"]["moment"] == m and app["now"]["at"].startswith("2026-04-21T07:45:00")   # the rush's morning
-        assert [x["key"] for x in app["now"]["moments"]] == ["rush", "clear", "humid"]   # the banner keeps the three
+        assert [x["key"] for x in app["now"]["moments"]] == ["rush", "clear", "humid"]   # the top area keeps the three
         current = c.get(f"/api/current?moment={m}")
         assert current.status_code == 200
         assert c.get(f"/api/context?moment={m}").status_code == 200

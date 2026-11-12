@@ -5,17 +5,14 @@
   --bar-lo: #d7f3e8; --bar-hi: #4fb08f; --bubble-ink: #fff; --mark-bg: #0f2233; color-scheme: light; --bg: #f8f9fb; --ink: #18181b; --soft: #52525b;
   --muted: #71717a; --faint: #a1a1aa; --line: #e8e8ec; --line-strong: #d4d4d8; --meter: #eeeff2; --track: #eeeff2; --grid: #ececf0; --warn: #b45309;
   --warn-fill: #f59e0b; --ico-warn: #fef3e2; --good: #15803d; --good-fill: #22a55a; --ico-good: #e8f6ee; --shadow: rgba(0, 0, 0, .05);
-  --bubble-bg: #18181b; --demo-bar: #13283b; --demo-bar-ink: #eef3f8; --demo-bar-soft: rgba(238, 243, 248, .72);
-  --demo-bar-chip: rgba(255, 255, 255, .12); --demo-bar-chip-hover: rgba(255, 255, 255, .2); --demo-bar-rule: rgba(255, 255, 255, .18);
-  --demo-bar-live: #4fd1a1; --sky-city: #9fb0c8; --win-lit: #f6efe2; --brand-ink: #0f2233; --brand-dot: #7fd3e6; --brand-dot-ink: #1f7d93; }
+  --bubble-bg: #18181b; --sky-city: #9fb0c8; --win-lit: #f6efe2; --brand-ink: #0f2233; --brand-dot: #7fd3e6; --brand-dot-ink: #1f7d93; }
 :root[data-theme="dark"] { --good: #52c99d; --good-fill: #2fae82; --bad: #f07a6d; --sky: #6db3e8; --accent: #7fd3e6; --accent-ink: #a9e4f1;
   --accent-soft: #12323b; --accent-line: #2a5a68; --ai-bg: #121f35; --ai-line: #25385a; --pill: rgba(18, 28, 39, .78); --q-bg: #1a2633;
   --q-line: #2d3d50; --q-ink: #c8d3de; --q-hover: #243446; --ico-sky: #15304a; --ico-good: #153a2e; --ico-ink: #1f2c3a; --ico-smoke: #33271d;
   --smoke: #d8a77c; --bar-lo: #1e3d34; --bar-hi: #43c296; --bubble-bg: #e6edf4; --bubble-ink: #0f2233; --mark-bg: #1b3049;
   --shadow: rgba(0, 0, 0, .35); color-scheme: dark; --series-in: #7da2f5; --series-out: #4fc8e0; --bg: #0e0f12; --card: #17181c; --ink: #ececef;
   --soft: #a1a1aa; --muted: #8b8b94; --faint: #6b6b74; --line: #26272d; --line-strong: #3a3b42; --meter: #24252b; --track: #24252b; --grid: #26272d;
-  --tile: #1f2025; --warn: #fbbf24; --warn-fill: #f59e0b; --ico-warn: #3a2c12; --demo-bar: #222d39; --demo-bar-soft: rgba(238, 243, 248, .7);
-  --demo-bar-chip: rgba(255, 255, 255, .09); --demo-bar-chip-hover: rgba(255, 255, 255, .16); --brand-ink: #d6f1f7; --brand-dot: #7fd3e6;
+  --tile: #1f2025; --warn: #fbbf24; --warn-fill: #f59e0b; --ico-warn: #3a2c12; --brand-ink: #d6f1f7; --brand-dot: #7fd3e6;
   --brand-dot-ink: #9fe0ee; }
 * { box-sizing: border-box; }
 
@@ -217,9 +214,7 @@ h2 span { font: 400 13.5px/1.2 Inter, sans-serif !important; color: var(--muted)
 :root[data-theme="light"] { --series-in: #3b6fe0; --series-out: #22a6c4; --bg: #f8f9fb; --ink: #18181b; --soft: #52525b; --muted: #71717a;
   --faint: #a1a1aa; --line: #e8e8ec; --line-strong: #d4d4d8; --meter: #eeeff2; --track: #eeeff2; --grid: #ececf0; --warn: #b45309;
   --warn-fill: #f59e0b; --ico-warn: #fef3e2; --good: #15803d; --good-fill: #22a55a; --ico-good: #e8f6ee; --shadow: rgba(0, 0, 0, .05);
-  --bubble-bg: #18181b; --demo-bar: #13283b; --demo-bar-ink: #eef3f8; --demo-bar-soft: rgba(238, 243, 248, .72);
-  --demo-bar-chip: rgba(255, 255, 255, .12); --demo-bar-chip-hover: rgba(255, 255, 255, .2); --demo-bar-rule: rgba(255, 255, 255, .18);
-  --demo-bar-live: #4fd1a1; }
+  --bubble-bg: #18181b; }
 :root:not([data-theme]) { --series-in: #3b6fe0; --series-out: #22a6c4; }
 .mc-head { display: flex; justify-content: space-between; gap: 12px; border: 0; margin: 0 -22px 18px; padding: 16px 22px;
   border-radius: 16px 16px 0 0; border-bottom: 1px solid var(--line); align-items: center;
@@ -826,53 +821,129 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
 .ps-months { min-height: 14px; }
 #pollen-kv:empty { display: none; }
 
-/* Demo banner and public-monitor picker */
-.demo-bar { position: relative; z-index: 45; background: var(--demo-bar); color: var(--demo-bar-ink); font: 500 12.5px/1.3 Inter, sans-serif; }
-.demo-bar[hidden] { display: none; }
-.db-inner { position: relative; max-width: 1240px; margin: 0 auto; padding: 7px 44px; min-height: 44px; box-sizing: border-box; display: flex;
-  align-items: center; gap: 10px 14px; }
-.db-sample { display: flex; align-items: center; gap: 10px; flex: none; }
-.db-tag { font: 700 10.5px/1 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--demo-bar);
-  background: var(--demo-bar-ink); padding: 5px 7px; border-radius: 5px; }
-.db-label { color: var(--demo-bar-soft); white-space: nowrap; }
-.db-seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--demo-bar-chip); border-radius: 8px; }
-.db-seg a { min-width: 30px; box-sizing: border-box; text-align: center; padding: 6px 8px; border-radius: 6px; color: var(--demo-bar-soft);
+/* The demo's top area (static/picker.js topHTML; mock 93, concept E): the name and pitch, then the three ways in as columns
+   split by hairlines, each with its title, one line and its control as the last line, on one baseline. */
+/* always the light style, in either theme (Sacha, 2026-11-12): the light theme's values (:root above), redefined here; the
+   picker opens inside it, so its panel is light too */
+.demo-top { --card: #fff; --tile: #f4f7fb; --ink: #18181b; --soft: #52525b; --muted: #71717a; --line: #e8e8ec; --line-strong: #d4d4d8;
+  --meter: #eeeff2; --q-bg: #f6f8fb; --q-hover: #e7eef5; --accent: #1c7488; --accent-ink: #155a6b; --accent-soft: #e6f4f7; --accent-line: #a6d3dd;
+  --brand-ink: #0f2233; --brand-dot: #7fd3e6; --brand-dot-ink: #1f7d93; --ico-ink: #e7eef5; --ico-sky: #e3f1fb; --ico-good: #e8f6ee;
+  --sky: #2f7fb8; --good: #15803d; --good-fill: #22a55a; --warn: #b45309; --bad: #b42318; --shadow: rgba(0, 0, 0, .05);
+  --tag-bg: #13283b; --tag-ink: #eef3f8; --live-on-accent: #7fe0b4; --seg-hover: rgba(24, 24, 27, .06); --seg-raise: 0 1px 2px rgba(0, 0, 0, .12);
+  --dt-pad: 16px; --dt-ctl-h: 34px; --dt-btn-h: 32px; --dt-pop-air: 9px; color-scheme: light;
+  position: relative; z-index: 45; background: linear-gradient(180deg, var(--tile), var(--card)); border-bottom: 1px solid var(--line);
+  color: var(--ink); font: 400 13px/1.4 Inter, sans-serif; }
+.demo-top[hidden] { display: none; }
+.dt-in { position: relative; max-width: 1240px; margin: 0 auto; padding: var(--dt-pad) 44px; box-sizing: border-box; display: grid;
+  grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr)); align-items: stretch; }
+.dt-brand { padding-right: 24px; }
+.dt-name { margin: 0; display: flex; align-items: center; gap: 10px; font: 650 19px/1 Inter, sans-serif; letter-spacing: -.02em; color: var(--ink); }
+.dt-mark { width: 28px; height: 28px; flex: none; display: block; }
+.dt-mark .mk-sky { fill: var(--brand-dot); opacity: .5; }
+.dt-mark .mk-fr { fill: none; stroke: var(--brand-ink); stroke-width: 2.4; }
+.dt-mark .mk-br { fill: none; stroke: var(--brand-ink); stroke-width: 2; }
+.dt-mark .mk-dot { fill: var(--brand-dot-ink); }
+.dt-tag { font: 700 10.5px/1 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--tag-ink); background: var(--tag-bg);
+  padding: 5px 7px; border-radius: 5px; }
+.dt-pitch { margin: 10px 0 0; font: 500 13.5px/1.45 Inter, sans-serif; color: var(--ink); }
+.dt-pitch span { color: var(--soft); font-weight: 400; }
+.dt-pitch a { color: var(--accent-ink); text-underline-offset: 2px; }
+.dt-way { display: flex; flex-direction: column; gap: 3px; padding: 0 20px; border-left: 1px solid var(--line); min-width: 0; }
+.dt-t { margin: 0; display: flex; align-items: center; gap: 8px; font: 600 14px/1.3 Inter, sans-serif; }
+.dt-ico { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; flex: none; }
+.dt-ico svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dt-ink { background: var(--ico-ink); color: var(--brand-ink); }
+.dt-sky { background: var(--ico-sky); color: var(--sky); }
+.dt-good { background: var(--ico-good); color: var(--good); }
+.dt-s { margin: 0 0 10px 32px; font-size: 12.5px; color: var(--soft); }
+.dt-ctl { margin-top: auto; display: flex; align-items: center; gap: 8px; min-height: var(--dt-ctl-h); white-space: nowrap; min-width: 0; }
+.dt-lab { font: 600 11px/1 Inter, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+/* the samples 1 2 3 */
+.dt-seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--meter); border-radius: 9px; }
+.dt-seg a { min-width: 30px; box-sizing: border-box; text-align: center; padding: 7px 8px; border-radius: 7px; color: var(--soft);
   font: 600 12.5px/1 Inter, sans-serif; text-decoration: none; transition: background-color .15s ease, color .15s ease; }
-.db-seg a:hover { color: var(--demo-bar-ink); background: var(--demo-bar-chip-hover); }
-.db-seg a[aria-current] { background: var(--demo-bar-ink); color: var(--demo-bar); }
-.demo-bar a:focus-visible, .demo-bar button:focus-visible { outline: 2px solid var(--demo-bar-ink); outline-offset: 2px; }
-.db-end { flex: 1; display: flex; align-items: center; gap: 14px; min-width: 0; }
-.db-live { margin: 0 0 0 4px; padding-left: 14px; border-left: 1px solid var(--demo-bar-rule); color: var(--demo-bar-soft); white-space: nowrap; }
-.db-pickwrap { position: relative; min-width: 0; }
-.db-pick { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; border: 0; cursor: pointer; white-space: nowrap;
-  background: var(--demo-bar-chip); color: var(--demo-bar-ink); font: 600 12.5px/1 Inter, sans-serif; padding: 7px 8px 7px 10px; border-radius: 8px;
-  transition: background-color .15s ease; }
-.db-pick:hover { background: var(--demo-bar-chip-hover); }
-.db-pick-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.db-pick .live { width: 7px; height: 7px; background: var(--demo-bar-live); }
-.db-pick svg.i { width: 15px; height: 15px; flex: none; transition: transform .15s ease; }
-.db-pick[aria-expanded="true"], .db-pick.is-chosen { background: var(--demo-bar-ink); color: var(--demo-bar); }
-.db-pick[aria-expanded="true"] .live, .db-pick.is-chosen .live { background: var(--good-fill); }
-.db-pick[aria-expanded="true"] svg.i { transform: rotate(180deg); }
-.db-gh { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; color: var(--demo-bar-ink); font-weight: 600; text-decoration: none;
-  white-space: nowrap; }
-.db-gh:hover { text-decoration: underline; text-underline-offset: 2px; }
-.db-octo { width: 16px; height: 16px; flex: none; }
+.dt-seg a:hover:not([aria-current]) { color: var(--ink); background: var(--seg-hover); }   /* a tint on the track, never the current one's raised surface */
+.dt-seg a[aria-current] { background: var(--card); color: var(--ink); box-shadow: var(--seg-raise); }
+/* the monitor picker's button; its panel (.pm-pop below) opens under the top area */
+.dt-pickwrap { position: relative; min-width: 0; max-width: 100%; }
+.dt-pick { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-height: var(--dt-btn-h); box-sizing: border-box; padding: 7px 9px 7px 11px;
+  border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: var(--card); font: 600 12.5px/1 Inter, sans-serif;
+  cursor: pointer; white-space: nowrap; transition: background-color .15s ease, border-color .15s ease; }
+.dt-pick:hover, .dt-pick[aria-expanded="true"] { background: var(--accent-ink); border-color: var(--accent-ink); }
+.dt-pick.is-chosen { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
+.dt-pick.is-chosen:hover, .dt-pick.is-chosen[aria-expanded="true"] { background: var(--q-hover); border-color: var(--accent); }
+.dt-pick-t { min-width: 0; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }   /* a monitor's long name, ellipsized */
+.dt-pick .live { width: 7px; height: 7px; background: var(--live-on-accent); }
+.dt-pick.is-chosen .live { background: var(--good-fill); }
+.dt-pick svg.i { width: 15px; height: 15px; flex: none; transition: transform .15s ease; }
+.dt-pick[aria-expanded="true"] svg.i { transform: rotate(180deg); }
+.demo-top .pm-pop { top: calc(100% + (var(--dt-ctl-h) - var(--dt-btn-h)) / 2 + var(--dt-pad) + 1px); left: 0; }   /* from the button down to the top area's edge: the row's slack, the padding, the 1 px border */
+/* Setup guide */
+.dt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; min-height: var(--dt-btn-h); padding: 7px 11px;
+  border: 1px solid var(--line-strong); border-radius: 9px; background: var(--card); color: var(--ink); font: 600 12.5px/1.1 Inter, sans-serif;
+  text-decoration: none; white-space: nowrap; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
+.dt-btn:hover { background: var(--q-hover); }
+.dt-bi { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.demo-top a:focus-visible, .demo-top button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .demo-top, .dt-seg a, .dt-pick, .dt-pick svg.i, .dt-btn { transition: none; }
+}
+@media (max-width: 1060px) and (min-width: 701px) {   /* a tablet: the name and pitch above, the three ways in a row under them */
+  .dt-in { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
+  .dt-brand { grid-column: 1 / -1; padding: 0; }
+  .dt-w1 { border-left: 0; padding-left: 0; }
+}
 @media (max-width: 900px) {
-  .db-inner { padding: 7px 16px; }
+  .dt-in { padding: var(--dt-pad); }
+}
+@media (max-width: 700px) {   /* a phone: one row per way, its title left and its control right; only the sample's name stays under its title */
+  .dt-in { grid-template-columns: 1fr; padding: 12px 16px 4px; }
+  .dt-brand { padding: 0 0 10px; }
+  .dt-name { font-size: 16px; gap: 8px; }
+  .dt-mark { width: 24px; height: 24px; }
+  .dt-pitch { margin-top: 8px; font-size: 13px; }
+  .dt-way { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 10px; padding: 6px 0; border-left: 0;
+    border-top: 1px solid var(--line); }
+  .dt-s { display: none; }
+  .dt-w1 .dt-s { display: block; grid-column: 1; margin: 1px 0 0 32px; font-size: 12px; }
+  .dt-w1 .dt-gen { display: none; }
+  .dt-w1 .dt-ctl { grid-column: 2; grid-row: 1 / span 2; }
+  .dt-ctl { margin: 0; min-height: 0; }
+  .dt-pick, .dt-btn { min-height: 44px; }   /* touch targets of 44 px, as the app's buttons */
+  .dt-seg a { position: relative; min-width: 44px; padding: 14px 8px; }
+  .dt-seg a::before { content: ""; position: absolute; inset: -2px 0; }   /* the hit area reaches over the track's padding: 44 px tall */
+  .dt-pick-t { max-width: 104px; }   /* a picked name stays as wide as "Select a monitor", so the title keeps its two lines */
+  .dt-pickwrap { position: static; }
+  .demo-top .pm-pop { left: 16px; right: 16px; width: auto; top: calc(100% + 1px + var(--dt-pop-air)); }   /* under the top area's border, with a little air */
+}
+
+/* The header on the demo's pages (html.has-demo-top, set by app.js): the top area holds the name, so the logo row goes, and the
+   home menu's row (.bar) sits in the now bar after the weather (app.js): at the right end of the TODAY line, which leaves it room
+   (a computer), or of the time row, with the weather under it (a phone). Not in the weather view (below). */
+html.has-demo-top .bar .site-wrap { display: none; }
+html.has-demo-top .now-bar > .bar { margin: 0; padding: 0; }
+@media (min-width: 701px) {
+  html.has-demo-top:not(.wx-full) .now-bar { display: flex; align-items: center; margin-top: 12px !important; margin-bottom: 16px !important; }
+  /* the menu's 46 px row is 12 px taller than the TODAY line, so the top margin gives back 6 px (the line stays where it was); the menu
+     is the row's tallest, so the bottom margin is its clearance from the summary */
+  html.has-demo-top .now-bar > .bar { flex: none; }
+}
+@media (max-width: 1060px) and (min-width: 701px) {   /* a tablet: the menu without the home's name (as on a phone), so the weather keeps its room */
+  html.has-demo-top .bar .home { display: none; }
 }
 @media (max-width: 700px) {
-  .db-inner { padding: 8px 10px; flex-wrap: wrap; gap: 6px; font-size: 12px; }
-  .db-sample { gap: 5px; }
-  .db-tag { padding: 5px 6px; }
-  .db-label { display: none; }
-  .db-seg a { min-width: 24px; padding: 6px 5px; }
-  .db-end { flex: 1 1 auto; gap: 6px; }
-  .db-live { margin: 0; padding: 0; border: 0; }
-  .db-pickwrap { position: static; flex: 0 1 auto; }
-  .db-pick { gap: 5px; padding: 6px 6px 6px 8px; }
-  .db-gh-t { display: none; }
+  html.has-demo-top { --dt-row: 40px; }   /* px: the time row, as tall as the menu */
+  html.has-demo-top:not(.wx-full) .now-bar > .bar { position: absolute; top: 0; right: 0; }
+  html.has-demo-top:not(.wx-full) .now-line { padding-top: calc(var(--dt-row) + 22px); }   /* 22 px from the menu down to the Weather pill, as drawn */
+  html.has-demo-top:not(.wx-full) .now-bar .sky-cap .cap-live { position: absolute; left: 0; top: 0; height: var(--dt-row); }
+  html.has-demo-top:not(.wx-full) .now-line .dsp { margin-left: auto; }   /* the Weather pill at the right end of the weather row, under the menu */
+  html.has-demo-top:not(.wx-full) .now-bar { margin-bottom: 12px !important; }
 }
+/* The weather view: the top area fades with the page, and the menu leaves the pill */
+.demo-top { transition: opacity .5s ease, visibility .5s; }
+@media (prefers-reduced-motion: reduce) { .demo-top { transition: none; } }   /* after the fade, so it wins */
+html.wx-full .demo-top { opacity: 0; visibility: hidden; pointer-events: none; }
+html.wx-full .now-bar > .bar { display: none; }
 .pm-pop { position: absolute; left: 0; top: calc(100% + 12px); z-index: 50; width: min(440px, calc(100vw - 32px)); box-sizing: border-box;
   text-align: left; white-space: normal; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 16px 12px;
   box-shadow: 0 18px 44px rgba(16, 24, 40, .16); color: var(--ink); font: 400 14px/1.4 Inter, sans-serif; }
@@ -1758,6 +1829,9 @@ html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }
 /* Touch screens: small icon controls keep their look but get an invisible tap area of about 44 px
    (the phone pass found the legend's (i) at 13 px, the (?) buttons at 22–28 px, the chart's range buttons at 27 px tall). */
 @media (pointer: coarse) {
+  .dt-btn, .dt-pick { min-height: 44px; }
+  .dt-seg a { position: relative; min-width: 44px; padding: 14px 8px; }
+  .dt-seg a::before { content: ""; position: absolute; inset: -2px 0; }
   .q, .sx-nh-i, .sx-nchip, .dsp-b, .lg-info, .seg button { position: relative; }
   .q::before, .sx-nh-i::before { content: ""; position: absolute; inset: -8px; }
   .dsp-b::before { content: ""; position: absolute; inset: -8px 0; }   /* side by side: grow only up and down */

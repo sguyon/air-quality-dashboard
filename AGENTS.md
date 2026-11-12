@@ -52,7 +52,7 @@ The setup (`SETUP.md`, `scripts/setup.py`, the token page) is a stranger's first
 - `summary.py`: the rules that pick the actions, the profiles' states and the day chart's data. No network.
 - `phrases.py`: the sentences behind each explanation, filled from the readings and the limits.
 - `config.py`: reads `config.toml` (or the `CONFIG_TOML` or `CONFIG_FILE` variable) and checks it. `config.example.toml` is the commented starter.
-- `index.html` and `static/`: the page, with no build step. `app.js` (data, readings, charts), `summary.js` (the summary card), `home.js` (the home's profiles and road in words), `sky.js` (the live sky), `map.js` (the neighborhood map), `picker.js` (the demo's banner and its monitor picker).
+- `index.html` and `static/`: the page, with no build step. `app.js` (data, readings, charts), `summary.js` (the summary card), `home.js` (the home's profiles and road in words), `sky.js` (the live sky), `map.js` (the neighborhood map), `picker.js` (the demo's top area, its three ways in and the monitor picker).
 - `DESIGN.md`: the page's design rules (cards, disabled states, colors that carry meaning, motion, the check before shipping); read it before changing the page.
 - `publicmap.py`: AirGradient's public monitors for any home or the demo: the outdoor ones in the world list, the nearest, the outdoor source an indoor-only home is offered at setup, a monitor's reading row, its place on the public map and its history there. No import of `demo/` or `server.py`.
 - `demo/`: the demo's home (`config.toml`), its made-up data (`data.py`), its three moments and three hidden one-monitor cases (`moments.py`) and the public monitors' pages at `?monitor=<id>` (`public.py`).
@@ -78,7 +78,7 @@ Both must pass before a commit.
 
 ## The demo moments are the test fixtures
 
-The demo's three moments (`demo/moments.py`: `rush`, `clear`, `humid`, at `?moment=`) are made-up data tuned so the rules tell each story, and `tests/test_demo.py` pins what each one says. A change to the page or the rules that changes a story updates the moments and their tests in the same commit, so the demo keeps showing what the app does. Three hidden moments (`indoor-near`, `indoor-model`, `outdoor-only`) cover homes with one monitor and are pinned the same way; they're reachable only at `?moment=`, not in the banner. `scripts/screenshot.sh` takes the README's images from the demo.
+The demo's three moments (`demo/moments.py`: `rush`, `clear`, `humid`, at `?moment=`) are made-up data tuned so the rules tell each story, and `tests/test_demo.py` pins what each one says. A change to the page or the rules that changes a story updates the moments and their tests in the same commit, so the demo keeps showing what the app does. Three hidden moments (`indoor-near`, `indoor-model`, `outdoor-only`) cover homes with one monitor and are pinned the same way; they're reachable only at `?moment=`, not in the top area's samples. `scripts/screenshot.sh` takes the README's images from the demo.
 
 ## Numbers
 
