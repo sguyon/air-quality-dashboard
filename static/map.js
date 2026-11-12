@@ -64,9 +64,9 @@ var NBMAP = (() => {
       paint: { 'text-color': ink, 'text-halo-color': halo, 'text-halo-width': 2 } });
     if (data.you) {
       map.addSource('you', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'Point', coordinates: [data.you.longitude, data.you.latitude] } } });
-      map.addLayer({ id: 'you', type: 'circle', source: 'you', paint: { 'circle-radius': 9, 'circle-color': '#3a5fc8', 'circle-stroke-color': halo, 'circle-stroke-width': 3 } });
+      map.addLayer({ id: 'you', type: 'circle', source: 'you', paint: { 'circle-radius': 9, 'circle-color': dark ? '#7fd3e6' : '#1c7488', 'circle-stroke-color': halo, 'circle-stroke-width': 3 } });
       map.addLayer({ id: 'you-label', type: 'symbol', source: 'you', layout: { 'text-field': YOU + ' · ' + pmLabel(nbPm(data.you)), 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'text-offset': [0, 1.5], 'text-allow-overlap': true },
-        paint: { 'text-color': dark ? '#9db4ff' : '#3a5fc8', 'text-halo-color': halo, 'text-halo-width': 2.5 } });
+        paint: { 'text-color': dark ? '#7fd3e6' : '#1c7488', 'text-halo-color': halo, 'text-halo-width': 2.5 } });
     }
   }
 

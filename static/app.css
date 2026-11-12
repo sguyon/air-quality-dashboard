@@ -1,5 +1,5 @@
 /* Home Air Quality: page styles. Theme tokens, then components and their responsive/state rules. */
-:root { --card: #fff; --bad: #b42318; --sky: #2f7fb8; --accent: #3a5fc8; --accent-ink: #2f4fae; --accent-soft: #e9effa; --accent-line: #b3c4e0;
+:root { --card: #fff; --bad: #b42318; --sky: #2f7fb8; --accent: #1c7488; --accent-ink: #155a6b; --accent-soft: #e6f4f7; --accent-line: #a6d3dd;
   --ai-bg: #e7eef8; --ai-line: #cdd9ea; --pill: rgba(255, 255, 255, .72); --tile: #f4f7fb; --q-bg: #f6f8fb; --q-line: #d5dee6; --q-ink: #24384a;
   --q-hover: #e7eef5; --ico-sky: #e3f1fb; --ico-ink: #e7eef5; --ico-smoke: #f3eee8; --smoke: #8a5a32; --series-in: #0f2233; --series-out: #2f7fb8;
   --bar-lo: #d7f3e8; --bar-hi: #4fb08f; --bubble-ink: #fff; --mark-bg: #0f2233; color-scheme: light; --bg: #f8f9fb; --ink: #18181b; --soft: #52525b;
@@ -8,8 +8,8 @@
   --bubble-bg: #18181b; --demo-bar: #13283b; --demo-bar-ink: #eef3f8; --demo-bar-soft: rgba(238, 243, 248, .72);
   --demo-bar-chip: rgba(255, 255, 255, .12); --demo-bar-chip-hover: rgba(255, 255, 255, .2); --demo-bar-rule: rgba(255, 255, 255, .18);
   --demo-bar-live: #4fd1a1; --sky-city: #9fb0c8; --win-lit: #f6efe2; --brand-ink: #0f2233; --brand-dot: #7fd3e6; --brand-dot-ink: #1f7d93; }
-:root[data-theme="dark"] { --good: #52c99d; --good-fill: #2fae82; --bad: #f07a6d; --sky: #6db3e8; --accent: #86a3f2; --accent-ink: #b3c6f8;
-  --accent-soft: #1b2944; --accent-line: #3b5285; --ai-bg: #121f35; --ai-line: #25385a; --pill: rgba(18, 28, 39, .78); --q-bg: #1a2633;
+:root[data-theme="dark"] { --good: #52c99d; --good-fill: #2fae82; --bad: #f07a6d; --sky: #6db3e8; --accent: #7fd3e6; --accent-ink: #a9e4f1;
+  --accent-soft: #12323b; --accent-line: #2a5a68; --ai-bg: #121f35; --ai-line: #25385a; --pill: rgba(18, 28, 39, .78); --q-bg: #1a2633;
   --q-line: #2d3d50; --q-ink: #c8d3de; --q-hover: #243446; --ico-sky: #15304a; --ico-good: #153a2e; --ico-ink: #1f2c3a; --ico-smoke: #33271d;
   --smoke: #d8a77c; --bar-lo: #1e3d34; --bar-hi: #43c296; --bubble-bg: #e6edf4; --bubble-ink: #0f2233; --mark-bg: #1b3049;
   --shadow: rgba(0, 0, 0, .35); color-scheme: dark; --series-in: #7da2f5; --series-out: #4fc8e0; --bg: #0e0f12; --card: #17181c; --ink: #ececef;
@@ -146,7 +146,7 @@ tr.you td { font-weight: 650; }
 .pending { color: var(--soft); }
 #nb { display: grid; gap: 0 !important; margin: 0 -12px; }
 .icon-btn:hover { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink);
-  box-shadow: 0 1px 2px var(--shadow), 0 4px 14px rgba(58, 95, 200, .16); }
+  box-shadow: 0 1px 2px var(--shadow), 0 4px 14px rgba(28, 116, 136, .16); }
 .icon-btn:active { transform: scale(.94); box-shadow: none; }
 .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .icon-btn[aria-busy="true"] { cursor: progress; color: var(--accent); }
@@ -964,7 +964,7 @@ h2:not(.now-h):not(.s-do) { margin-top: 32px !important; }
   color: var(--muted) !important; font-size: 12px !important; }
 .nb-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .nb-legend i { display: inline-block; flex: none; }
-.lg-you { width: 9px; height: 9px; border-radius: 50%; background: #3a5fc8; box-shadow: 0 0 0 2px var(--card); }
+.lg-you { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--card); }
 .lg-dot { width: 9px; height: 9px; border-radius: 50%; background: #22a55a; }
 .lg-bqe { width: 16px; height: 4px; border-radius: 2px; background: #71717a; }
 .lg-plume { width: 14px; height: 10px; border-radius: 3px; background: color-mix(in srgb, #f59e0b 45%, transparent) !important; }
