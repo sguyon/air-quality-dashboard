@@ -1,6 +1,6 @@
 # <img src="static/icons/icon.svg" alt="" width="28" height="28"> Home Air Quality
 
-A page for your AirGradient monitors that tells you what to do about your air: when to open the window, when to keep it shut, when to go for a run. It combines your readings with the forecast, pollen, wildfire smoke and the public monitors around you.
+An app for your AirGradient monitors that tells you what to do about your air: when to open the window, when to keep it shut, when to go for a run. It combines your readings with the forecast, pollen, wildfire smoke and the public monitors around you.
 
 **[Try the demo](https://homeair.guyon.dev)** · [Installation](#installation) · [Features](#features) · [How it works](#how-it-works)
 
@@ -39,7 +39,7 @@ It connects AirGradient, asks your location and profiles, writes your config and
 - Weather, pollen, wildfire smoke, and a nearby highway's exhaust when the wind blows it your way
 - Public AirGradient monitors nearby, to see whether bad air is regional or just around your home
 - A live sky behind the page, with the real sun, clouds, rain and haze. Useless, but my toddler's favorite feature :)
-- Installs on your phone's home screen like an app (a PWA)
+- Installs on your phone's home screen like an app (a PWA): [how](SETUP.md#on-your-phone)
 
 ## Why I built it
 

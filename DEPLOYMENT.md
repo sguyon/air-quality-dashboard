@@ -39,7 +39,7 @@ Create an address, with approval. A bare `railway domain` creates a public one, 
 railway domain --service home-air
 ```
 
-The image listens on the `PORT` Railway sets, so there is no port to choose. Open the URL it prints (`railway domain list --service home-air` shows it again). Run `scripts/setup.py --live https://<your-domain>` with the same uv prefix to verify that destination; it should end with "Live OK". If it doesn't answer, check `railway logs --service home-air`.
+The image listens on the `PORT` Railway sets, so there is no port to choose. Open the URL it prints (`railway domain list --service home-air` shows it again). Run `scripts/setup.py --live https://<your-domain>` with the same uv prefix to verify that destination; it should end with "Live OK". If it doesn't answer, check `railway logs --service home-air`. To add it to a phone's home screen, see [SETUP.md](SETUP.md#on-your-phone).
 
 To remove it all, with the user's OK (it can't be undone): take the linked project's ID, the `id` in `railway status --json`, and run `railway delete --project <id>`. An agent can't answer its prompt, so it adds `--yes`, and `--2fa-code <code>` from the user when the account has two-factor sign-in. Then check that it is gone from `railway list`. The address stops working with it.
 

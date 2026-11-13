@@ -382,7 +382,7 @@ var SKY = (() => {
     if (!on.sky && !hazeA) { html.classList.remove('sky-ink', 'sky-dark'); inkLight = null; return; }
     const bodyBg = !on.sky && (getComputedStyle(document.body).backgroundColor.match(/\d+/g) || []).slice(0, 3).map(Number);
     const dpr = cc.width / (W || 1), R = SUN_R * Math.max(W, H), lums = [];
-    for (const el of document.querySelectorAll('.bar .site, .now-bar .now-h, .now-bar .sky-cap, .now-line .dsp-top')) {
+    for (const el of document.querySelectorAll('.now-bar .now-mark, .now-bar .now-h, .now-bar .sky-cap, .now-line .dsp-top')) {
       const r = el.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) continue;   // the phone's visually hidden "Today"
       const x0 = Math.max(0, r.left), x1 = Math.min(W, r.right), y0 = Math.max(0, Math.min(H - 2, r.top)), y1 = Math.max(y0 + 1, Math.min(H, r.bottom));
@@ -443,6 +443,9 @@ var SKY = (() => {
   new IntersectionObserver(es => { visible = es[0].isIntersecting; if (visible) kick(); }).observe($('sky'));
   document.addEventListener('visibilitychange', kick);
   window.addEventListener('resize', () => { resize(); fitCap(); kick(); });
+  // measure again once the web font is in (it widens the text) and whenever the line's room changes (a bigger Weather pill)
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCap);
+  if (window.ResizeObserver && $('sky-cap')) new ResizeObserver(() => fitCap()).observe($('sky-cap').parentElement);
   // panel
   const label = m => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const card = d => ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(d / 22.5) % 16];

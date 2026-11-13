@@ -111,14 +111,11 @@ if ($('nb-credit')) $('nb-credit').innerHTML = creditHtml(!!APP.now);   // the d
 if (PUB && $('hist-none')) $('hist-none').innerHTML = noHistoryHTML();   // shown only if AirGradient's map has no past readings
 
 // The demo's top area (a sample, or a public monitor's page; not in screenshots: the README says they come from the demo):
-// the name and pitch, the samples 1 2 3, the monitor picker, Setup guide. It holds the name, so the header's logo row goes
-// and the home menu moves to the end of the TODAY line: its row (.bar) goes into the now bar after the weather, so the line
-// leaves it room and the tab order follows what you see (app.css, html.has-demo-top). A real home keeps its header.
+// the name and pitch, the samples 1 2 3, the monitor picker, Setup guide. It shows the logo and name, so the TODAY line leaves
+// its logo out (app.css, html.has-demo-top).
 if ($('demo-top') && Picker.showsTop(APP, location.search)) {
   Picker.mount($('demo-top'), APP);
   document.documentElement.classList.add('has-demo-top');
-  const nowBar = document.querySelector('.now-bar'), bar = document.querySelector('.page > .bar');
-  if (nowBar && bar) nowBar.append(bar);
 }
 // Nearby monitors turned off in the config: the section says so in one line instead of showing an empty table and map.
 if ((APP.sources || {}).nearby === false) {

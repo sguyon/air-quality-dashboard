@@ -84,3 +84,7 @@ It uses read-only GET requests and ends with `Live OK`. The page should show the
 Give the user the address, what to expect, and one start command with the full repo path: `cd /path/to/home-air-quality && uv run --python 3.12 --with-requirements requirements.txt server.py`. Include the actual port and log location if started in the background. Ctrl+C stops it in a terminal.
 
 Change names, profiles, drying equipment (`[home] appliances`) or limits in `config.toml`; [config.example.toml](config.example.toml) explains the settings. Restart after editing config or `.env` by hand. Keep a private copy of config; it isn't in git. Optional [pollen, road tracing, new profiles and Vercel demo](docs/optional.md); [Railway and Docker deployment](DEPLOYMENT.md).
+
+## On your phone
+
+To open it from a phone on the same Wi-Fi, start it with `HOST=0.0.0.0` before the start command (anyone on that Wi-Fi can then open it), and open `http://<the computer's name>.local:5555` on the phone. Away from home, use the Railway address ([DEPLOYMENT.md](DEPLOYMENT.md)). Then add it to the home screen: Share › Add to Home Screen (iPhone, Safari) or ⋮ › Install app (Android, Chrome); it opens like an app. It works offline only on https, which the Railway address has.

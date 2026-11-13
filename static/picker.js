@@ -13,7 +13,9 @@
   const GEO_TIMEOUT_MS = 10000;     // how long "Near me" waits for the browser's location before saying it's off
   const GEO_MAX_AGE_MS = 600000;    // a location the browser found in the last 10 minutes is good enough
   const REPO_URL = 'https://github.com/sguyon/home-air-quality';
-  const SOURCE_URL = `${REPO_URL}#installation`;   // the README's setup steps: "Setup guide"
+  const SOURCE_URL = `${REPO_URL}#installation`;   // the README's setup steps: the "Setup" button
+  // GitHub's mark (Octicons mark-github, MIT), drawn before "Setup" so the button says where it goes
+  const GH_MARK = '<svg class="dt-gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>';
   const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
   const DEFAULT_PLACE = 'New York';   // demo/public.py DEFAULT_LIST: the list before anyone gives a location
   const PICKER_PARTS = '#db-pickwrap, [aria-controls="db-pop"]';   // the picker and every button that opens it
@@ -51,11 +53,15 @@
     monitor: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6"/></svg>',
   };
   const OUT_ICON = '<svg class="dt-bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>';
+  const FOLD_KEY = 'aq-demo-top';   // localStorage: 'folded' once the visitor hid the top area
+  // The fold button's words: Hide with a chevron up while open, Show with a chevron down once folded
+  const foldLabel = folded => `${folded ? 'Show' : 'Hide'}<svg class="dt-fi" viewBox="0 0 24 24" aria-hidden="true"><path d="${folded ? 'm6 9 6 6 6-6' : 'm18 15-6-6-6 6'}"/></svg>`;
 
   // The demo's top area (mock 93, E): the name and pitch, then the three ways in, each a title, one line and its control.
   // See a demo: the samples (the shown one marked and named; none on a monitor's page). See a live monitor near you: the
   // picker's button (the chosen monitor's name, or "Select a monitor"). Set up your own monitor: the README's setup steps.
-  function topHTML(app) {
+  // Folded ({folded: true}, Sacha, 2026-11-13): one slim line, the logo, the name, DEMO and Show (app.css, .is-folded).
+  function topHTML(app, { folded = false } = {}) {
     const pub = app.public || null;
     const listed = (app.now && app.now.moments) || [];
     const samples = listed.length ? listed : SAMPLES.map(n => ({ n }));
@@ -65,15 +71,16 @@
     const way = (cls, tone, icon, title, line, control) => `<div class="dt-way${cls}"><p class="dt-t"><span class="dt-ico dt-${tone}">${WAY_ICON[icon]}</span>${title}</p>` +
       `<p class="dt-s">${line}</p><div class="dt-ctl">${control}</div></div>`;
     return `<div class="dt-in">
+  <button type="button" class="dt-fold" id="dt-fold" aria-expanded="${!folded}" aria-label="${folded ? 'Show the demo\'s top area' : 'Hide the demo\'s top area'}">${foldLabel(folded)}</button>
   <div class="dt-brand"><h1 class="dt-name">${MARK}Home Air Quality <span class="dt-tag">Demo</span></h1>
-    <p class="dt-pitch">Your AirGradient monitor's readings and the forecast, turned into timed actions, each with a why. <span>Free and <a href="${REPO_URL}">open source</a>. You run it for your home.</span></p></div>
+    <p class="dt-pitch">An <a href="${REPO_URL}">open-source</a> app for your AirGradient monitors. <span>It adds the weather forecast, pollen and more, and tells you what to do for profiles like young kids, allergies or running.</span></p></div>
   ${way(' dt-w1', 'ink', 'home', 'See a demo',
     '<span class="dt-gen">Sample data from a made-up home.</span>',
     `<span class="dt-lab" id="dt-lab">Sample</span><nav class="dt-seg" aria-labelledby="dt-lab">${links}</nav>`)}
   ${way('', 'sky', 'pin', 'See a live monitor near you', 'Real readings from a public AirGradient monitor.',
     `<span class="dt-pickwrap" id="db-pickwrap"><button type="button" class="dt-pick${name ? ' is-chosen' : ''}" id="db-pick"${name ? ` aria-label="Monitor: ${name}. Change monitor"` : ''} aria-haspopup="dialog" aria-expanded="false" aria-controls="db-pop"><i class="live" aria-hidden="true"></i><span class="dt-pick-t">${name || 'Select a monitor'}</span>${ICON.chev}</button></span>`)}
   ${way('', 'good', 'monitor', 'Set up your own monitor', 'You install it, with a coding agent or Docker.',
-    `<a class="dt-btn" href="${SOURCE_URL}" target="_blank" rel="noopener">Setup guide${OUT_ICON}</a>`)}
+    `<a class="dt-btn" href="${SOURCE_URL}" target="_blank" rel="noopener" aria-label="Setup, on GitHub">${GH_MARK}Setup${OUT_ICON}</a>`)}
 </div>`;
   }
 
@@ -228,8 +235,21 @@
   // Draw the top area (index.html #demo-top) and wire the picker: it opens under the top area, from its button.
   function mount(top, app) {
     st.app = app;
-    top.innerHTML = topHTML(app);
+    let folded = false;
+    try { folded = localStorage.getItem(FOLD_KEY) === 'folded'; } catch {}
+    top.innerHTML = topHTML(app, { folded });
+    top.classList.toggle('is-folded', folded);
     top.hidden = false;
+    $('dt-fold').addEventListener('click', () => {
+      folded = !folded;
+      if (folded && isOpen()) close({ focus: false });
+      top.classList.toggle('is-folded', folded);
+      const b = $('dt-fold');
+      b.setAttribute('aria-expanded', String(!folded));
+      b.setAttribute('aria-label', folded ? "Show the demo's top area" : "Hide the demo's top area");
+      b.innerHTML = foldLabel(folded);
+      try { folded ? localStorage.setItem(FOLD_KEY, 'folded') : localStorage.removeItem(FOLD_KEY); } catch {}
+    });
     $('db-pickwrap').insertAdjacentHTML('beforeend', panelHTML());
     $('db-pick').addEventListener('click', () => (isOpen() ? close() : open()));
     $('pm-close').addEventListener('click', () => close());

@@ -19,18 +19,22 @@ test('top on sample 2: only 2 is marked, no sample name, the three ways in order
   for (const n of [1, 2, 3]) assert.match(html, new RegExp(`<a href="\\?sample=${n}"`));
   assert.doesNotMatch(html, /dt-now|>All clear</);   // no sample name under See a demo (Sacha, 2026-11-12: remove it)
   assert.match(html, /<h1 class="dt-name"><svg class="dt-mark"[^>]*>.*?<\/svg>Home Air Quality <span class="dt-tag">Demo<\/span><\/h1>/);
-  assert.match(html, /Your AirGradient monitor's readings and the forecast, turned into timed actions, each with a why\. <span>Free and <a href="https:\/\/github\.com\/sguyon\/home-air-quality">open source<\/a>\. You run it for your home\.<\/span>/);
+  // the pitch, in Sacha's words (2026-11-12); "open-source" links to the repo
+  assert.match(html, /<p class="dt-pitch">An <a href="https:\/\/github\.com\/sguyon\/home-air-quality">open-source<\/a> app for your AirGradient monitors\. <span>It adds the weather forecast, pollen and more, and tells you what to do for profiles like young kids, allergies or running\.<\/span><\/p>/);   // the second sentence in regular weight
+  assert.doesNotMatch(html, /Free and|timed actions/);
   const at = TITLES.map(t => html.indexOf(`</span>${t}</p>`));
   assert.ok(at[0] > 0 && at[0] < at[1] && at[1] < at[2], String(at));
   assert.match(html, /Sample data from a made-up home\./);
   assert.match(html, /Real readings from a public AirGradient monitor\./);
   assert.match(html, /You install it, with a coding agent or Docker\./);
-  // each way's control, last: SAMPLE 1 2 3; Select a monitor (the live dot, the drawn chevron); Setup guide (the drawn arrow)
+  // each way's control, last: SAMPLE 1 2 3; Select a monitor (the live dot, the drawn chevron); Setup (GitHub's mark, the drawn arrow)
   assert.match(html, /<span class="dt-lab" id="dt-lab">Sample<\/span><nav class="dt-seg" aria-labelledby="dt-lab">/);
   assert.match(html, /<button type="button" class="dt-pick" id="db-pick" aria-haspopup="dialog" aria-expanded="false" aria-controls="db-pop"><i class="live" aria-hidden="true"><\/i><span class="dt-pick-t">Select a monitor<\/span><svg class="i"[^>]*>.*?<\/svg><\/button>/);
   assert.match(html, /<span class="dt-pickwrap" id="db-pickwrap">/);
-  assert.match(html, /<a class="dt-btn" href="https:\/\/github\.com\/sguyon\/home-air-quality#installation" target="_blank" rel="noopener">Setup guide<svg class="dt-bi"[^>]*>.*?<\/svg><\/a>/);
-  assert.equal((html.match(/<svg /g) || []).length, 6);   // the logo, three way icons, the chevron, the arrow
+  // Setup: GitHub's mark on the left, the word, the drawn ↗ (it opens a new tab)
+  assert.match(html, /<a class="dt-btn" href="https:\/\/github\.com\/sguyon\/home-air-quality#installation" target="_blank" rel="noopener" aria-label="Setup, on GitHub"><svg class="dt-gh"[^>]*>.*?<\/svg>Setup<svg class="dt-bi"[^>]*>.*?<\/svg><\/a>/);
+  assert.doesNotMatch(html, /Setup guide/);
+  assert.equal((html.match(/<svg /g) || []).length, 8);   // the logo, three way icons, the chevron, GitHub's mark, the arrow, the fold's chevron
   // every arrow and chevron drawn: a text arrow shows as an emoji on iOS (Sacha, 2026-11-12); the old bar's parts are gone
   assert.doesNotMatch(html, /[↗↓▾→]/);
   assert.doesNotMatch(html, /Show me|Or live|GitHub<|db-gh|aria-label="Source and setup/);
@@ -145,12 +149,13 @@ test("location off: the note says the list is around the default place, not the 
 
 // The page part of picker.js, run against a small stand-in for the page: each element the picker looks up by id, the
 // document's listeners and the focused element. Enough to follow the picker's behaviour without a browser.
-function page() {
-  const els = new Map(), doc = {};
+function page(stored = {}) {
+  const els = new Map(), doc = {}, store = { ...stored };
   let active = null;
   const el = id => {
     if (!els.has(id)) els.set(id, { id, hidden: id === 'db-pop', attrs: {}, on: {}, isConnected: true, innerHTML: '', textContent: '', value: '',
       inPicker: id === 'db-pick' || id === 'db-pickwrap' || id.startsWith('pm-'), parentElement: { hidden: false },
+      cls: new Set(), get classList() { const c = this.cls; return { contains: k => c.has(k), toggle: (k, on) => (on ?? !c.has(k)) ? c.add(k) : c.delete(k) }; },
       setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k] ?? null; },
       addEventListener(t, f) { (this.on[t] ||= []).push(f); }, insertAdjacentHTML() {}, focus() { active = this; },
       closest() { return this.inPicker ? this : null; } });
@@ -161,11 +166,12 @@ function page() {
   const click = target => { (target.on.click || []).forEach(f => f({ target })); fire('click', { target }); };
   const document = { getElementById: el, addEventListener: (t, f) => (doc[t] ||= []).push(f), get activeElement() { return active; },
     querySelectorAll: sel => (sel === '[aria-controls="db-pop"]' ? [el('db-pick')] : []) };
-  const sandbox = { document, navigator: {}, URLSearchParams, console,
+  const localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+  const sandbox = { document, localStorage, navigator: {}, URLSearchParams, console,
     fetch: async () => ({ ok: true, json: async () => ({ monitors: [] }) }) };
   sandbox.window = sandbox;
   vm.runInNewContext(readFileSync(new URL('../static/picker.js', import.meta.url), 'utf8'), sandbox);
-  return { Picker: sandbox.Picker, el, click, key: key => fire('keydown', { key }), get active() { return active; } };
+  return { Picker: sandbox.Picker, el, click, store, key: key => fire('keydown', { key }), get active() { return active; } };
 }
 
 test('the picker opens from its button and moves focus into it; Esc closes it and focus returns to the button', () => {
@@ -204,4 +210,43 @@ test("an unknown monitor's page opens the picker with the reason, without taking
   assert.equal(pg.el('db-pop').hidden, false);
   assert.equal(pg.el('pm-error').textContent, "Monitor 99 isn't on AirGradient's public map");
   assert.equal(pg.active, null);
+});
+
+// The top area folds to a slim bar (Sacha, 2026-11-13: "fold it to a slim bar"): Hide at its top-right, then one line with the
+// logo, the name, DEMO and Show; the browser remembers the choice.
+test('top: a Hide button that says the area is open; folded, it says Show', () => {
+  const open = picker.topHTML(DEMO_APP), folded = picker.topHTML(DEMO_APP, { folded: true });
+  assert.match(open, /<button type="button" class="dt-fold" id="dt-fold" aria-expanded="true"[^>]*>Hide<svg/);
+  assert.match(folded, /<button type="button" class="dt-fold" id="dt-fold" aria-expanded="false"[^>]*>Show<svg/);
+  assert.doesNotMatch(open + folded, /[⌃⌄▾▴]/);   // the chevron is drawn, never a text arrow
+});
+
+test('Hide folds the top area and remembers it; Show opens it again and forgets', () => {
+  const pg = page();
+  pg.Picker.mount(pg.el('demo-top'), DEMO_APP);
+  assert.equal(pg.el('demo-top').classList.contains('is-folded'), false);
+  pg.click(pg.el('dt-fold'));
+  assert.equal(pg.el('demo-top').classList.contains('is-folded'), true);
+  assert.equal(pg.el('dt-fold').getAttribute('aria-expanded'), 'false');
+  assert.match(pg.el('dt-fold').innerHTML, /^Show<svg/);
+  assert.equal(pg.store['aq-demo-top'], 'folded');
+  pg.click(pg.el('dt-fold'));
+  assert.equal(pg.el('demo-top').classList.contains('is-folded'), false);
+  assert.match(pg.el('dt-fold').innerHTML, /^Hide<svg/);
+  assert.equal(pg.store['aq-demo-top'], undefined);
+});
+
+test('a visitor who folded it before finds it folded', () => {
+  const pg = page({ 'aq-demo-top': 'folded' });
+  pg.Picker.mount(pg.el('demo-top'), DEMO_APP);
+  assert.equal(pg.el('demo-top').classList.contains('is-folded'), true);
+  assert.match(pg.el('demo-top').innerHTML, /id="dt-fold" aria-expanded="false"/);
+});
+
+test('folding while the picker is open closes the picker', () => {
+  const pg = page();
+  pg.Picker.mount(pg.el('demo-top'), DEMO_APP);
+  pg.click(pg.el('db-pick'));
+  pg.click(pg.el('dt-fold'));
+  assert.equal(pg.el('db-pop').hidden, true);
 });

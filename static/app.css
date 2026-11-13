@@ -559,6 +559,7 @@ input[role="switch"]:focus-visible { outline: 2px solid var(--accent); outline-o
 .sky-cap { margin: 0 0 0 40px; font-size: 13px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; transition: color 1.2s ease;
   display: flex; align-items: center; gap: 4px 14px; line-height: 22px; height: 22px; flex-wrap: nowrap; overflow: hidden; column-gap: 12px;
   row-gap: 0; }
+.sky-cap > .cap-i { flex: none; }   /* an item never shrinks: the line overflows and fitCap drops whole items (never "Hazy ai") */
 .sky-cap:empty { display: none; }
 html.sky-dark .sky-cap { color: rgba(236, 242, 250, .82); }
 html.sky-on:not(.sky-dark) .sky-cap { color: #23384d; }
@@ -838,6 +839,11 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
   position: relative; z-index: 45; background: linear-gradient(180deg, var(--tile), var(--card)); border-bottom: 1px solid var(--line);
   color: var(--ink); font: 400 13px/1.4 Inter, sans-serif; }
 .demo-top[hidden] { display: none; }
+/* in dark mode it stays light, with a clear edge so it reads as its own band over the dark page (Sacha, 2026-11-13: B) */
+:root[data-theme="dark"] .demo-top { border-bottom-color: rgba(0, 0, 0, .35); box-shadow: 0 1px 0 rgba(255, 255, 255, .06), 0 10px 28px -10px rgba(0, 0, 0, .75); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .demo-top { border-bottom-color: rgba(0, 0, 0, .35); box-shadow: 0 1px 0 rgba(255, 255, 255, .06), 0 10px 28px -10px rgba(0, 0, 0, .75); }
+}
 .dt-in { position: relative; max-width: 1240px; margin: 0 auto; padding: var(--dt-pad) 44px; box-sizing: border-box; display: grid;
   grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr)); align-items: stretch; }
 .dt-brand { padding-right: 24px; }
@@ -887,10 +893,29 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
   border: 1px solid var(--line-strong); border-radius: 9px; background: var(--card); color: var(--ink); font: 600 12.5px/1.1 Inter, sans-serif;
   text-decoration: none; white-space: nowrap; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
 .dt-btn:hover { background: var(--q-hover); }
+.dt-gh { width: 15px; height: 15px; flex: none; fill: currentColor; }   /* GitHub's mark on the Setup button */
 .dt-bi { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .demo-top a:focus-visible, .demo-top button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Hide / Show (Sacha, 2026-11-13: "fold it to a slim bar"): a quiet button at the top-right corner, on the name's row; folded, the
+   area is one slim line with the logo, the name, DEMO and Show at its end, where Hide was, so the page still says it's a demo and
+   the way back stays under the pointer. On a computer the last column's title leaves it room (it wraps rather than touch it) */
+.dt-fold { position: absolute; top: var(--dt-pad); right: 36px; z-index: 1; display: inline-flex; align-items: center; gap: 4px;
+  height: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: 500 12px/1 Inter, sans-serif;
+  cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+@media (hover: hover) { .dt-fold:hover { background: var(--seg-hover); color: var(--ink); } }   /* a tap on a phone leaves no tint */
+@media (min-width: 1061px) {
+  .demo-top:not(.is-folded) .dt-way:last-child { padding-right: 0; }   /* the button's corner: no gutter needed at the content edge */
+  .demo-top:not(.is-folded) .dt-way:last-child .dt-t { padding-right: 56px; }   /* px: the button's width less its 8 px overhang, plus air */
+}
+.dt-fi { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.demo-top.is-folded .dt-pitch, .demo-top.is-folded .dt-way { display: none; }
+.demo-top.is-folded .dt-in { display: flex; align-items: center; padding-top: 8px; padding-bottom: 8px; }
+.demo-top.is-folded .dt-brand { padding: 0; }
+.demo-top.is-folded .dt-name { font-size: 17px; gap: 8px; }   /* a small step down from 19 px, so folding reads as the same header */
+.demo-top.is-folded .dt-mark { width: 24px; height: 24px; }
+.demo-top.is-folded .dt-fold { position: static; order: 1; margin: -2px -8px -2px auto; }   /* the row's own height; the text lines up with the page's right edge */
 @media (prefers-reduced-motion: reduce) {
-  .demo-top, .dt-seg a, .dt-pick, .dt-pick svg.i, .dt-btn { transition: none; }
+  .demo-top, .dt-seg a, .dt-pick, .dt-pick svg.i, .dt-btn, .dt-fold { transition: none; }
 }
 @media (max-width: 1060px) and (min-width: 701px) {   /* a tablet: the name and pitch above, the three ways in a row under them */
   .dt-in { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
@@ -899,6 +924,7 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
 }
 @media (max-width: 900px) {
   .dt-in { padding: var(--dt-pad); }
+  .dt-fold { right: 8px; }
 }
 @media (max-width: 700px) {   /* a phone: one row per way, its title left and its control right; only the sample's name stays under its title */
   .dt-in { grid-template-columns: 1fr; padding: 12px 16px 4px; }
@@ -919,35 +945,50 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
   .dt-pick-t { max-width: 104px; }   /* a picked name stays as wide as "Select a monitor", so the title keeps its two lines */
   .dt-pickwrap { position: static; }
   .demo-top .pm-pop { left: 16px; right: 16px; width: auto; top: calc(100% + 1px + var(--dt-pop-air)); }   /* under the top area's border, with a little air */
+  .dt-fold { top: 2px; bottom: auto; height: 44px; }   /* 44 px to tap, centred on the name's row */
+  .demo-top.is-folded .dt-in { padding: 0 16px; }
+  .demo-top.is-folded .dt-fold { height: 44px; margin: 0 -8px 0 auto; }
 }
 
-/* The header on the demo's pages (html.has-demo-top, set by app.js): the top area holds the name, so the logo row goes, and the
-   home menu's row (.bar) sits in the now bar after the weather (app.js): at the right end of the TODAY line, which leaves it room
-   (a computer), or of the time row, with the weather under it (a phone). Not in the weather view (below). */
-html.has-demo-top .bar .site-wrap { display: none; }
-html.has-demo-top .now-bar > .bar { margin: 0; padding: 0; }
+/* The header, one line on every page (Sacha, 2026-11-13: the real home takes the demo's header, so there's one layout): the logo,
+   TODAY and the weather, then the home menu's row (.bar, after the weather in index.html, so the tab order follows what you see) at
+   the right end (a computer), or at the right end of the time row with the weather under it (a phone). The name is read out from
+   the logo's hidden text; on the demo the top area shows the logo and name, so the line leaves its logo out. Not in the weather view. */
+.now-bar > .bar { margin: 0; padding: 0; }
+.now-mark svg.mark { display: block; }   /* 32 px, 28 px on a phone: the logo's own sizes (.site svg.mark, below) */
+html.has-demo-top .now-mark, html.wx-full .now-mark { display: none; }
+html:not(.has-demo-top) .now-bar { margin-top: 0 !important; }   /* no top area above: the line starts where the logo row did */
 @media (min-width: 701px) {
-  html.has-demo-top:not(.wx-full) .now-bar { display: flex; align-items: center; margin-top: 12px !important; margin-bottom: 16px !important; }
-  /* the menu's 46 px row is 12 px taller than the TODAY line, so the top margin gives back 6 px (the line stays where it was); the menu
-     is the row's tallest, so the bottom margin is its clearance from the summary */
-  html.has-demo-top .now-bar > .bar { flex: none; }
+  html:not(.wx-full) .now-bar { display: flex; align-items: center; margin-bottom: 16px !important; }
+  html.has-demo-top:not(.wx-full) .now-bar { margin-top: 12px !important; }
+  /* the menu's 46 px row is 12 px taller than the TODAY line, so the demo's top margin gives back 6 px; the menu is the row's
+     tallest, so the bottom margin is its clearance from the summary */
+  .now-bar > .bar { flex: none; }
 }
 @media (max-width: 1060px) and (min-width: 701px) {   /* a tablet: the menu without the home's name (as on a phone), so the weather keeps its room */
-  html.has-demo-top .bar .home { display: none; }
+  .now-bar .bar .home { display: none; }
 }
 @media (max-width: 700px) {
-  html.has-demo-top { --dt-row: 40px; }   /* px: the time row, as tall as the menu */
-  html.has-demo-top:not(.wx-full) .now-bar > .bar { position: absolute; top: 0; right: 0; }
-  html.has-demo-top:not(.wx-full) .now-line { padding-top: calc(var(--dt-row) + 22px); }   /* 22 px from the menu down to the Weather pill, as drawn */
-  html.has-demo-top:not(.wx-full) .now-bar .sky-cap .cap-live { position: absolute; left: 0; top: 0; height: var(--dt-row); }
-  html.has-demo-top:not(.wx-full) .now-line .dsp { margin-left: auto; }   /* the Weather pill at the right end of the weather row, under the menu */
-  html.has-demo-top:not(.wx-full) .now-bar { margin-bottom: 12px !important; }
+  :root { --dt-row: 40px; --dt-mark: 28px; }   /* px: the time row, as tall as the menu; the logo on it */
+  html:not(.wx-full) .now-bar > .bar { position: absolute; top: 0; right: 0; }
+  html:not(.wx-full) .now-line { padding-top: calc(var(--dt-row) + 22px); }   /* 22 px from the menu down to the Weather pill, as drawn */
+  html:not(.wx-full) .now-bar .sky-cap .cap-live { position: absolute; left: 0; top: 0; height: var(--dt-row); }
+  html:not(.has-demo-top):not(.wx-full) .now-bar .sky-cap .cap-live { left: calc(var(--dt-mark) + 12px); }   /* after the logo */
+  .now-text .now-mark { position: absolute; left: 0; top: calc((var(--dt-row) - var(--dt-mark)) / 2); }
+  .now-mark svg.mark { width: var(--dt-mark) !important; height: var(--dt-mark) !important; }   /* also from 641 to 700 px, where .site's is 32 */
+  html:not(.wx-full) .now-line .dsp { margin-left: auto; }   /* the Weather pill at the right end of the weather row, under the menu */
+  html:not(.wx-full) .now-bar { margin-bottom: 12px !important; }
 }
 /* The weather view: the top area fades with the page, and the menu leaves the pill */
 .demo-top { transition: opacity .5s ease, visibility .5s; }
 @media (prefers-reduced-motion: reduce) { .demo-top { transition: none; } }   /* after the fade, so it wins */
 html.wx-full .demo-top { opacity: 0; visibility: hidden; pointer-events: none; }
 html.wx-full .now-bar > .bar { display: none; }
+/* the demo: a bigger weather & theme control on the TODAY line, so visitors find it (Sacha, 2026-11-12); a real home keeps the small one */
+html.has-demo-top .now-line .dsp-top { height: 44px !important; padding: 3px 4px 3px 3px; gap: 4px !important; }   /* the line's own rule sets 34 px with !important */
+html.has-demo-top .now-line .dsp-top .sky-quick, html.has-demo-top .now-line .dsp-open { width: 38px !important; height: 38px !important; }
+html.has-demo-top .now-line .dsp-top svg.i { width: 20px; height: 20px; }
+html.has-demo-top .now-line .dsp-top .chev { width: 17px; height: 17px; }
 .pm-pop { position: absolute; left: 0; top: calc(100% + 12px); z-index: 50; width: min(440px, calc(100vw - 32px)); box-sizing: border-box;
   text-align: left; white-space: normal; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 16px 12px;
   box-shadow: 0 18px 44px rgba(16, 24, 40, .16); color: var(--ink); font: 400 14px/1.4 Inter, sans-serif; }
