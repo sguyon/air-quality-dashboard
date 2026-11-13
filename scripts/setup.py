@@ -2,6 +2,7 @@
 
 Run with no answers to prepare .env; with --address and --profiles to finish setup.
 The railway command transfers saved settings through stdin. --live checks a running page.
+--status lists what's done and the next command; it changes nothing.
 """
 import argparse
 import json
@@ -44,6 +45,12 @@ NORTHEAST = {"CT": "Connecticut", "ME": "Maine", "MA": "Massachusetts", "NH": "N
              "VT": "Vermont", "NY": "New York", "NJ": "New Jersey", "PA": "Pennsylvania"}  # normalize known state codes.
 NOT_FOUND = "Couldn't find it. Try a nearby landmark with its city, or pass --lat and --lon from a map app."
 KEY_NAMES = ("AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY")  # the only keys transferred to Railway.
+STATUS_TIMEOUT = 5  # seconds for --status's one readings request: a status check should answer quickly.
+UV = "uv run --python 3.12 --with-requirements requirements.txt"  # how SETUP.md runs every command.
+SETUP_CMD = f"{UV} scripts/setup.py"
+SERVER_CMD = f"{UV} server.py"
+HOME_CMD = f'{SETUP_CMD} --address "<neighborhood or address>" --profiles <toddler,sinus,runner or none>'
+STATUS_CMD = f"{SETUP_CMD} --status"
 
 
 class SetupError(Exception):
@@ -262,10 +269,10 @@ def prepare_env(root):
     path.chmod(ENV_FILE_MODE)
 
 
-def account_rows(token):
+def account_rows(token, timeout=LOOKUP_TIMEOUT):
     try:
         response = requests.get(f"{sources.API_BASE}/locations/measures/current", params={"token": token},
-                                timeout=LOOKUP_TIMEOUT, allow_redirects=False)
+                                timeout=timeout, allow_redirects=False)
         response.raise_for_status()
         rows = response.json()
         if response.status_code != 200 or not isinstance(rows, list):
@@ -403,11 +410,14 @@ def railway(service, root):
     values.update((name, env_key(name, keys)) for name in KEY_NAMES if env_key(name, keys))
     for name, value in values.items():
         try:
-            subprocess.run(["railway", "variable", "set", name, "--stdin", "--service", service],
+            # --skip-deploys: each variable would otherwise start its own deploy, empty or failing before the code is up.
+            subprocess.run(["railway", "variable", "set", name, "--stdin", "--service", service, "--skip-deploys"],
                            input=value, text=True, capture_output=True, check=True)
         except (OSError, subprocess.CalledProcessError):
             raise SetupError(f"Railway did not accept {name}. Check the service name and CLI login, then try again.") from None
         print(f"Sent {name}")
+    print(f"Variables set. Deploy with (ask the user first): railway up --service {service} --detach (first deploy), "
+          f"or railway redeploy --service {service} --yes (a service already running)")
     return 0
 
 
@@ -562,6 +572,95 @@ def current_check(get, base, cfg, now, problem):
                   "shows the estimate for your area until it's back.")
 
 
+def status(env, root):
+    """What's done and the one next command, as SETUP.md names it. Read-only: writes nothing, asks nothing; its one
+    network request (the account's latest readings) is a GET. Keys are reported as set or not, never their values."""
+    env = {k: v for k, v in env.items() if k != "DEMO"}
+    rows, next_cmd = [], None
+
+    def step(name, done, words, cmd):
+        nonlocal next_cmd
+        rows.append(f"  {name}: {'done' if done else 'not yet'}" + (f": {words}" if words else ""))
+        if not done and next_cmd is None:
+            next_cmd = cmd
+
+    try:
+        text = (root / ".env").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        text = ""
+    token_set = check_config.keys_present(env, root)["AIRGRADIENT_TOKEN"]
+    prepared = token_set or any(defines(line, "AIRGRADIENT_TOKEN") for line in text.splitlines())
+    step("1. Token entry (.env)", prepared, "" if prepared else "no AIRGRADIENT_TOKEN line yet", SETUP_CMD)
+    step("2. AirGradient connected", token_set, "" if token_set else "no token yet",
+         f"{SERVER_CMD} (then open the ?setup= link it prints; the user enters the token on that page)")
+
+    cfg, problem = None, None
+    # where load_config reads the home from, in its order: the variables win over the file
+    source = next((k for k in ("CONFIG_TOML", "CONFIG_FILE") if env.get(k, "").strip()), "config.toml")
+    try:
+        cfg = load_config(env, root)
+    except ConfigError as e:
+        problem = str(e)
+    if cfg is not None:
+        p = cfg.place
+        monitors = [f'{kind} "{getattr(p, kind)}"' for kind in ("indoor", "outdoor") if getattr(p, kind) is not None]
+        profiles = ", ".join(k for k, v in cfg.profiles.items() if v) or "none"
+        words = f"{p.name}; monitors: {', '.join(monitors)}; profiles: {profiles}"
+    elif problem and source == "config.toml":
+        words = f"{problem}. Running setup again replaces it and keeps a copy"
+    elif problem:
+        words = f"{problem}. Fix the {source} variable: it wins over config.toml"
+    else:
+        words = "no config.toml yet"
+    fix = HOME_CMD if source == "config.toml" else f"{UV} scripts/check_config.py"
+    step(f"3. Home and monitors ({source})", cfg is not None, words, fix)
+
+    if not (token_set and cfg is not None):
+        rows.append("  4. Readings come in: not checked yet (needs the steps above)")
+    else:
+        token = env_key("AIRGRADIENT_TOKEN", env) or env_key("AIRGRADIENT_TOKEN", saved_keys(root))
+        try:
+            account = account_rows(token, timeout=STATUS_TIMEOUT)
+        except SetupError:
+            step("4. Readings come in", False, "couldn't check: AirGradient didn't answer, or refused the token", STATUS_CMD)
+        else:
+            seen, missing, stale = [], [], []
+            for kind in ("indoor", "outdoor"):
+                name, wanted = getattr(cfg.place, kind), getattr(cfg.place, kind + "_id")
+                if name is None:
+                    continue
+                row = next((r for r in account if (r.get("locationId") == wanted if wanted is not None
+                                                   else r.get("locationType") == kind)), None)
+                if row is None:
+                    missing.append(f'the {kind} monitor "{name}" isn\'t in this account')
+                    continue
+                age, when = age_words(row.get("timestamp"), datetime.now(timezone.utc))
+                seen.append(f'{kind} "{name}", {when}')
+                if age is None or age > publicmap.STALE_READING:
+                    stale.append(f'the {kind} monitor "{name}" has no recent reading')
+            if missing:
+                step("4. Readings come in", False, "; ".join(missing + stale),
+                     f"run setup again to choose from this account's monitors: {HOME_CMD}")
+            else:
+                step("4. Readings come in", not stale, "; ".join(stale or seen),
+                     f"check the monitor is plugged in and shows readings in the AirGradient app, then run {STATUS_CMD}")
+
+    print("Setup status:")
+    for row in rows:
+        print(row)
+    if next_cmd is not None:
+        print(f"Next: {next_cmd}")
+        return 0
+    # Done is SETUP.md's "Done when": the running page's --live check ends with Live OK, which needs the page started.
+    port = port_from(env)
+    start = f"cd {root} && {'PORT=' + str(port) + ' ' if port != DEFAULT_PORT else ''}{SERVER_CMD}"
+    print("Steps 1–4 done. Last, check the running page: it should end with Live OK.")
+    print(f"Page: http://localhost:{port}")
+    print(f"Next: {start}, then {SETUP_CMD} --live http://localhost:{port} "
+          "(Railway or Docker: --live <the page's address>)")
+    return 0
+
+
 def parser():
     ap = argparse.ArgumentParser(description="Set up a home from its location and profiles. With no answers, prepare .env.")
     ap.add_argument("--address", help="an address, neighborhood or nearby landmark with its city")
@@ -575,6 +674,7 @@ def parser():
     ap.add_argument("--region", help="a correction to the city or region")
     ap.add_argument("--timezone", help="a correction using an IANA timezone name")
     ap.add_argument("--live", nargs="?", const="", metavar="URL", help="check the running page with GET requests")
+    ap.add_argument("--status", action="store_true", help="list what's done and the next command; changes nothing")
     return ap
 
 
@@ -588,6 +688,8 @@ def main(argv, env, root=ROOT):
     try:
         if argv[:1] == ["railway"]:
             return railway(args.service, root)
+        if args.status:
+            return status(env, root)
         if args.live is not None:
             return live(args.live or f"http://localhost:{port_from(env)}", env, root)
         if not args.address and args.lat is None and args.lon is None:

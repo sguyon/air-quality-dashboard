@@ -56,7 +56,7 @@ OUTDOOR = {"locationId": 7002, "locationType": "outdoor", "locationName": "Porch
 @pytest.fixture
 def root(tmp_path, monkeypatch):
     monkeypatch.setattr(setup.requests, "get", lambda *a, **k: pytest.fail("Unexpected network request"))
-    monkeypatch.setattr(setup, "account_rows", lambda token: [dict(INDOOR)])
+    monkeypatch.setattr(setup, "account_rows", lambda token, **k: [dict(INDOOR)])
     monkeypatch.setattr(setup.publicmap, "fetch_world", lambda: [])
     monkeypatch.setattr(setup.check_config.publicmap, "fetch_world", lambda: [])
     def geo(url, params):
@@ -252,9 +252,13 @@ def test_railway_uses_stdin_and_prints_only_names(root, monkeypatch, capsys):
     assert code == 0, out
     sent = [json.loads(line) for line in capture.read_text().splitlines()]
     assert [s['value'] for s in sent] == [config, TOKEN, "invented-pollen-key"]
-    assert [s['args'] for s in sent] == [["variable", "set", name, "--stdin", "--service", "home-air"] for name in ("CONFIG_TOML", "AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY")]
+    assert [s['args'] for s in sent] == [["variable", "set", name, "--stdin", "--service", "home-air", "--skip-deploys"]
+                                         for name in ("CONFIG_TOML", "AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY")]
     assert TOKEN not in out and "invented-pollen-key" not in out and "Private home" not in out and "should never appear" not in out
     assert all(name in out for name in ("CONFIG_TOML", "AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY"))
+    # No deploy starts per variable: the last line says how to deploy with all of them.
+    assert "railway up --service home-air --detach" in out and "railway redeploy --service home-air" in out
+    assert "ask the user first" in out
 
 
 def test_railway_omits_empty_keys_and_suppresses_cli_errors(root, monkeypatch, capsys):
@@ -359,3 +363,102 @@ def test_after_the_page_connects_the_default_command_names_the_monitors(root, mo
     code, out = run(root, capsys)
     assert code == 0 and TOKEN not in out
     assert "Connected to AirGradient: 2 monitors: Living room (indoor), Back porch (outdoor)." in out
+
+
+# --status: what's done and the one next command. Read-only: no file written, no question, exit code 0.
+
+def files(root):
+    return {p.relative_to(root): (p.read_bytes(), p.stat().st_mode) for p in root.rglob("*") if p.is_file()}
+
+
+def status(root, capsys, env=None):
+    before = files(root)
+    code, out = run(root, capsys, "--status", env=env)
+    assert code == 0, out
+    assert files(root) == before, "--status must not change any file"
+    return out
+
+
+def next_line(out):
+    lines = [l for l in out.splitlines() if l.startswith("Next: ")]
+    assert len(lines) == 1, out
+    return lines[0].removeprefix("Next: ")
+
+
+def test_status_on_an_empty_folder_names_the_first_command(root, capsys):
+    out = status(root, capsys, env={})
+    assert next_line(out) == setup.SETUP_CMD
+    assert "not yet" in out and not (root / ".env").exists()
+
+
+def test_status_after_preparing_says_to_connect_on_the_page(root, capsys):
+    (root / ".env").write_text("AIRGRADIENT_TOKEN=\n")
+    out = status(root, capsys, env={})
+    assert "server.py" in next_line(out) and "?setup=" in next_line(out)
+
+
+def test_status_with_a_token_but_no_home_names_the_home_command(root, capsys):
+    (root / ".env").write_text(f"AIRGRADIENT_TOKEN={TOKEN}\n")
+    out = status(root, capsys, env={})
+    assert next_line(out).startswith(setup.SETUP_CMD + " --address")
+    assert TOKEN not in out
+
+
+def test_status_on_a_complete_setup_is_done_with_the_address(root, capsys):
+    code, out = run(root, capsys, "--address", "Denver")
+    assert code == 0, out
+    (root / ".env").write_text(f'AIRGRADIENT_TOKEN="{TOKEN}"\n')
+    out = status(root, capsys, env={"PORT": "5600"})
+    assert "Steps 1–4 done" in out and "http://localhost:5600" in out and TOKEN not in out
+    # SETUP.md's done is --live ending with Live OK: the next command starts the page and runs that check.
+    nxt = next_line(out)
+    assert setup.SERVER_CMD in nxt and str(root) in nxt and "PORT=5600" in nxt
+    assert f"{setup.SETUP_CMD} --live http://localhost:5600" in nxt and "the page's address" in nxt
+
+
+def test_status_reports_a_broken_config_in_plain_words(root, capsys):
+    (root / "config.toml").write_text('[place]\nname = "Home"\n')
+    out = status(root, capsys)
+    assert "config.toml" in out and "lat" in out
+    assert next_line(out).startswith(setup.SETUP_CMD + " --address")
+
+
+def test_status_says_when_a_monitor_has_no_recent_reading(root, monkeypatch, capsys):
+    run(root, capsys, "--address", "Denver")
+    old = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    monkeypatch.setattr(setup, "account_rows", lambda token, **k: [{**INDOOR, "timestamp": old}])
+    out = status(root, capsys)
+    assert "no recent reading" in out and "Steps 1–4 done" not in out
+    assert setup.STATUS_CMD in next_line(out)
+
+
+def test_status_when_airgradient_cannot_be_reached_is_plain_and_quick(root, monkeypatch, capsys):
+    run(root, capsys, "--address", "Denver")
+    monkeypatch.setattr(setup, "account_rows", ORIGINAL_ACCOUNT_ROWS)
+    seen = []
+    def get(url, **kwargs):
+        seen.append(kwargs)
+        raise requests.ConnectionError(TOKEN)
+    monkeypatch.setattr(setup.requests, "get", get)
+    for verb in ("post", "put", "patch", "delete"):
+        monkeypatch.setattr(setup.requests, verb, lambda *a, **k: pytest.fail("Only GET is allowed"))
+    out = status(root, capsys)
+    assert "couldn't check" in out and TOKEN not in out and "Steps 1–4 done" not in out
+    assert len(seen) == 1 and seen[0]["timeout"] == setup.STATUS_TIMEOUT
+    assert next_line(out) == setup.STATUS_CMD
+    step4 = next(l for l in out.splitlines() if "4. Readings" in l)
+    assert ".env" not in step4 and step4.count(".") <= 2   # one short sentence, not where the token isn't
+
+
+def test_status_never_prints_key_values_even_when_set_in_the_environment(root, capsys):
+    (root / ".env").write_text("GOOGLE_POLLEN_API_KEY=invented-pollen-key\n")
+    out = status(root, capsys, env={"AIRGRADIENT_TOKEN": TOKEN, "GOOGLE_POLLEN_API_KEY": "invented-pollen-key"})
+    assert TOKEN not in out and "invented-pollen-key" not in out
+
+
+def test_status_names_where_the_config_was_read_from(root, capsys):
+    text = ('[place]\nname = "Denver"\nlat = 39.74\nlon = -104.98\ntimezone = "America/Denver"\n'
+            'indoor = "Bedroom"\nindoor_id = 7001\n[sources]\noutdoor_from = "model"\n')
+    out = status(root, capsys, env={"CONFIG_TOML": text})
+    step3 = next(l for l in out.splitlines() if "3. Home" in l)
+    assert "CONFIG_TOML" in step3 and "config.toml" not in step3

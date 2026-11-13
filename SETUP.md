@@ -1,5 +1,7 @@
 # Setup
 
+**Done when** `uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py --live <the page's address>` ends with `Live OK`: the page answers with the home's settings, and each monitor has a recent reading.
+
 For a coding agent setting this up for someone's home. Do the steps yourself when a command can. Ask one question per message, in plain words, then wait for the answer: no question tool with several questions, and don't queue the next question while you work. Skip answers the user already gave. Don't change the app's code during setup: if the token is refused twice, stop and say what the page said. Never ask for a key in chat, read or print `.env`, or commit private settings. Ask before changing a live service or account.
 
 ## Get ready
@@ -13,7 +15,7 @@ git clone https://github.com/sguyon/home-air-quality
 cd home-air-quality
 ```
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if missing; use Python 3.12: `uv python install 3.12`. All commands below run from this folder. For Docker or a home server, follow [DEPLOYMENT.md](DEPLOYMENT.md#docker) first.
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if missing; use Python 3.12: `uv python install 3.12`. All commands below run from this folder. To see what's done and the next command at any point, run `uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py --status`; it changes nothing. For Docker or a home server, follow [DEPLOYMENT.md](DEPLOYMENT.md#docker) first.
 
 ## Connect AirGradient
 
