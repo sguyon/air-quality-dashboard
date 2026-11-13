@@ -450,6 +450,36 @@ def test_status_when_airgradient_cannot_be_reached_is_plain_and_quick(root, monk
     assert ".env" not in step4 and step4.count(".") <= 2   # one short sentence, not where the token isn't
 
 
+def _status_with_get(root, monkeypatch, capsys, get):
+    run(root, capsys, "--address", "Denver")
+    monkeypatch.setattr(setup, "account_rows", ORIGINAL_ACCOUNT_ROWS)
+    monkeypatch.setattr(setup.requests, "get", get)
+    out = status(root, capsys)
+    return out, next(l for l in out.splitlines() if "4. Readings" in l)
+
+
+def test_status_when_airgradient_is_slow_says_so_and_to_try_again(root, monkeypatch, capsys):
+    # 2026-11-13: AirGradient took 7 s to connect; a 5 s limit read that as "didn't answer, or refused the token"
+    def get(url, **kwargs):
+        raise requests.ConnectTimeout(TOKEN)
+    out, step4 = _status_with_get(root, monkeypatch, capsys, get)
+    assert f"didn't answer within {setup.STATUS_TIMEOUT} s" in step4 and "refused" not in step4 and TOKEN not in out
+    assert next_line(out) == setup.STATUS_CMD
+    assert setup.STATUS_TIMEOUT >= 15
+
+
+def test_status_when_airgradient_refuses_the_token_says_to_enter_it_again(root, monkeypatch, capsys):
+    class Refused:
+        status_code = 401
+        def raise_for_status(self):
+            raise requests.HTTPError("401", response=self)
+        def json(self):
+            return {"message": TOKEN}
+    out, step4 = _status_with_get(root, monkeypatch, capsys, lambda url, **k: Refused())
+    assert "refused the token" in step4 and "didn't answer" not in step4 and TOKEN not in out
+    assert setup.SERVER_CMD in next_line(out)
+
+
 def test_status_never_prints_key_values_even_when_set_in_the_environment(root, capsys):
     (root / ".env").write_text("GOOGLE_POLLEN_API_KEY=invented-pollen-key\n")
     out = status(root, capsys, env={"AIRGRADIENT_TOKEN": TOKEN, "GOOGLE_POLLEN_API_KEY": "invented-pollen-key"})

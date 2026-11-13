@@ -45,7 +45,7 @@ NORTHEAST = {"CT": "Connecticut", "ME": "Maine", "MA": "Massachusetts", "NH": "N
              "VT": "Vermont", "NY": "New York", "NJ": "New Jersey", "PA": "Pennsylvania"}  # normalize known state codes.
 NOT_FOUND = "Couldn't find it. Try a nearby landmark with its city, or pass --lat and --lon from a map app."
 KEY_NAMES = ("AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY")  # the only keys transferred to Railway.
-STATUS_TIMEOUT = 5  # seconds for --status's one readings request: a status check should answer quickly.
+STATUS_TIMEOUT = 15  # seconds for --status's one readings request: AirGradient took 7 s to connect on 2026-11-13, and 5 s read that as a refused token.
 UV = "uv run --python 3.12 --with-requirements requirements.txt"  # how SETUP.md runs every command.
 SETUP_CMD = f"{UV} scripts/setup.py"
 SERVER_CMD = f"{UV} server.py"
@@ -269,15 +269,27 @@ def prepare_env(root):
     path.chmod(ENV_FILE_MODE)
 
 
+class AirGradientSlow(SetupError):
+    """AirGradient didn't answer in time (or couldn't be reached): trying again is the fix."""
+
+
+class TokenRefused(SetupError):
+    """AirGradient answered and refused the token: entering it again is the fix."""
+
+
 def account_rows(token, timeout=LOOKUP_TIMEOUT):
     try:
         response = requests.get(f"{sources.API_BASE}/locations/measures/current", params={"token": token},
                                 timeout=timeout, allow_redirects=False)
+        if response.status_code in (401, 403):
+            raise TokenRefused("AirGradient refused the token. Enter it again on the token page, then try again.")
         response.raise_for_status()
         rows = response.json()
         if response.status_code != 200 or not isinstance(rows, list):
             raise ValueError("Unexpected response")
         return [row for row in rows if isinstance(row, dict)]
+    except (requests.Timeout, requests.ConnectionError):
+        raise AirGradientSlow(f"AirGradient didn't answer within {timeout} s. Check the internet connection, then try again.") from None
     except (requests.RequestException, ValueError):
         raise SetupError("Couldn't read the monitors from AirGradient. Check the token in .env and API access, then try again.") from None
 
@@ -621,8 +633,13 @@ def status(env, root):
         token = env_key("AIRGRADIENT_TOKEN", env) or env_key("AIRGRADIENT_TOKEN", saved_keys(root))
         try:
             account = account_rows(token, timeout=STATUS_TIMEOUT)
+        except AirGradientSlow:
+            step("4. Readings come in", False, f"couldn't check: AirGradient didn't answer within {STATUS_TIMEOUT} s; try again in a minute", STATUS_CMD)
+        except TokenRefused:
+            step("4. Readings come in", False, "AirGradient refused the token",
+                 f"{SERVER_CMD} (then open the ?setup= link it prints and enter the token again)")
         except SetupError:
-            step("4. Readings come in", False, "couldn't check: AirGradient didn't answer, or refused the token", STATUS_CMD)
+            step("4. Readings come in", False, "couldn't check: AirGradient's answer couldn't be read; try again in a minute", STATUS_CMD)
         else:
             seen, missing, stale = [], [], []
             for kind in ("indoor", "outdoor"):

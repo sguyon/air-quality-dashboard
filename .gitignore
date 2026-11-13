@@ -23,6 +23,7 @@ public/
 # Local agent and design tools
 .claude/sessions/
 .claude/worktrees/
+.claude/settings.local.json
 .superpowers/
 .gstack/
 .impeccable/
