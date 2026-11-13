@@ -1,21 +1,18 @@
-# <img src="static/icons/icon.svg" alt="" width="36" height="36" align="middle"> Home Air Quality
+# <img src="static/icons/icon.svg" alt="" width="28" height="28"> Home Air Quality
 
 A page for your AirGradient monitors that tells you what to do about your air: when to open the window, when to keep it shut, when to go for a run. It combines your readings with the forecast, pollen, wildfire smoke and the public monitors around you.
 
 **[Try the demo](https://homeair.guyon.dev)** · [Installation](#installation) · [Features](#features) · [How it works](#how-it-works)
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dark.png">
-    <img src="docs/hero-light.png" alt="Home Air Quality on a laptop and a phone" width="800">
-  </picture>
+  <img src="docs/hero-light.png" alt="Home Air Quality on a laptop and a phone" width="800">
 </p>
 
 <sub>Screenshots from the demo, with sample data.</sub>
 
 ## Demo
 
-[The demo](https://homeair.guyon.dev) shows an example home in Brooklyn with made-up data, at three moments (a morning rush, an all-clear afternoon, a humid evening), or the live readings of any public AirGradient monitor.
+[The demo](https://homeair.guyon.dev) shows an example home or the live readings of any public AirGradient monitor.
 
 ## Installation
 
