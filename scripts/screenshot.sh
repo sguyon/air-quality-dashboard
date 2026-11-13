@@ -40,6 +40,10 @@ if [ -z "${URL:-}" ]; then
   for _ in $(seq 1 40); do curl -sf -o /dev/null --max-time 2 "$URL" && break; sleep 0.5; done
 fi
 curl -sf -o /dev/null --max-time 10 "$URL" || { echo "The demo isn't answering at $URL."; [ -f "$TMP/server.log" ] && tail -5 "$TMP/server.log"; exit 1; }
+# a local dev server adds its own tools to the page (a script under /_dev/): they must never reach the README's pictures
+if curl -sf --max-time 10 "$URL" | grep -q '/_dev/'; then
+  echo "$URL adds local dev tools to the page. Use a plain demo: run this script without URL, or start DEMO=1 flask on a free port."; exit 1
+fi
 case "$URL" in *\?*) Q="&";; *) Q="?";; esac
 PAGE="${URL}${Q}moment=rush&shot"     # the laptop and the full page: the morning rush, with things to do
 CLEAR="${URL}${Q}moment=clear&shot"   # the phone: all clear

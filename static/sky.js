@@ -94,8 +94,8 @@ var SKY = (() => {
     // drop: the order items hide in when the line is too narrow (1 first). The sky itself already shows time of day and clouds.
     const seg = (icon, text, cls = '', drop = 0, title = '') => `<span class="cap-i ${cls}"${drop ? ` data-drop="${drop}"` : ''}${title ? ` title="${title}"` : ''}>${icon}${text}</span>`;
     const out = [];
+    // no time and no live dot (Sacha, 2026-11-13: "we don't need to show the time in this app, only the weather")
     if (preview) out.push('<span class="cap-tag">Preview</span>');
-    else out.push(`<span class="cap-i cap-live${live.fresh ? '' : ' cached'}" title="${live.fresh ? 'Live: weather from Open-Meteo, updated now' : 'Last known weather; live data is loading'}"><i></i>${live.fresh ? '' : 'Last known · '}${label(nyMinutes())}</span>`);
     out.push(seg(ic(elev > 6 ? ICO.sun : elev > -6 ? (morning ? ICO.rise : ICO.set) : ICO.moon), phase, elev > 6 ? 'sun' : elev > -6 ? 'dusk' : 'night', 1));
     out.push(v.thunder ? seg(ic(ICO.bolt), 'Thunderstorm', 'storm') : (v.rain || 0) > .05 ? seg(ic(ICO.rain), (v.rain > .65 ? 'Heavy rain' : v.rain > .4 ? 'Rain' : 'Drizzle'), 'rainy') : seg(ic(ICO.cloud), skyW, '', 2));
     if (!preview && has(live.temp)) out.push(seg(ic(ICO.therm), fmtTemp(live.temp, { tight: true }), '', 3));   // the viewer's unit (fmtTemp is in app.js)
@@ -130,7 +130,6 @@ var SKY = (() => {
     rs.setProperty('--sky-tint', pastel(top, 90)); rs.setProperty('--sky-tint2', pastel(hor, 93));
     // the header scenes follow the sky in the page's soft palette: same hue, lighter; a little deeper at night
     rs.setProperty('--scene-top', pastel(top, elev > -2 ? 84 : 72)); rs.setProperty('--scene-hor', pastel(hor, elev > -2 ? 90 : 80));
-    rs.setProperty('--mark-top', pastel(top, elev > -2 ? 70 : 62)); rs.setProperty('--mark-hor', pastel(hor, elev > -2 ? 74 : 66));   // the logo's panes: same sky, richer
     document.documentElement.classList.toggle('outside-dark', outLum < 140);
     document.documentElement.classList.toggle('outside-night', elev < -6);
     // the header scenes follow the weather too (rain on the glass, clouds, light behind the doors at night)
@@ -159,6 +158,7 @@ var SKY = (() => {
     starsOn = on.sky && elev < -4;
     $('needle') && ($('needle').style.transform = `rotate(${(live.dir + 180) % 360}deg)`);
     $('sky-cap').innerHTML = preview || live.loaded ? words(v) : '<span class="cap-i">Loading the weather…</span>';
+    $('sky-cap').title = !preview && live.loaded && !live.fresh ? 'Last known weather; live data is loading' : '';   // the time's old hover, kept
     fitCap();   // the weather line stays when the effects are off, so the layout never shifts
     syncPanel();
     kick();
@@ -382,9 +382,9 @@ var SKY = (() => {
     if (!on.sky && !hazeA) { html.classList.remove('sky-ink', 'sky-dark'); inkLight = null; return; }
     const bodyBg = !on.sky && (getComputedStyle(document.body).backgroundColor.match(/\d+/g) || []).slice(0, 3).map(Number);
     const dpr = cc.width / (W || 1), R = SUN_R * Math.max(W, H), lums = [];
-    for (const el of document.querySelectorAll('.now-bar .now-mark, .now-bar .now-h, .now-bar .sky-cap, .now-line .dsp-top')) {
+    for (const el of document.querySelectorAll('.now-bar .now-mark, .now-bar .sky-cap, .now-line .dsp-top')) {
       const r = el.getBoundingClientRect();
-      if (r.width < 2 || r.height < 2) continue;   // the phone's visually hidden "Today"
+      if (r.width < 2 || r.height < 2) continue;   // a hidden element
       const x0 = Math.max(0, r.left), x1 = Math.min(W, r.right), y0 = Math.max(0, Math.min(H - 2, r.top)), y1 = Math.max(y0 + 1, Math.min(H, r.bottom));
       if (x1 - x0 < 1) continue;
       let px = null;

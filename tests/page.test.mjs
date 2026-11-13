@@ -610,16 +610,6 @@ test("a public monitor's empty week isn't kept, so a slow first answer from the 
 });
 
 
-test('on a phone the "Today" heading is for screen readers only; on a desktop it shows', () => {
-  const css = readFileSync(new URL('static/app.css', root), 'utf8');
-  const html = readFileSync(new URL('index.html', root), 'utf8');
-  assert.match(html, /<h2 class="now-h" id="now-title">Today<\/h2>/);   // still in the page, so still read out
-  const phone = css.match(/@media \(max-width: 700px\) \{\s*\.now-text \{ flex-wrap: wrap;[^@]*?\n\}/)[0];
-  assert.match(phone, /\.now-text \.now-h \{ position: absolute !important; width: 1px; height: 1px;[^}]*clip: rect\(0 0 0 0\)/);
-  assert.doesNotMatch(phone, /\.now-h \{[^}]*display: none/);   // not display:none, which would hide it from screen readers too
-  const outside = css.replace(phone, '');   // desktop: unchanged (html.wx-full's own rule aside, as before)
-  assert.doesNotMatch(outside.replace('html.wx-full .now-bar .now-h { display: none !important; }', ''), /\.now-h[^{]*\{[^}]*(?:clip: rect|display: none)/);
-});
 
 
 // ── A home with one monitor: where an indoor-only home's outdoor PM2.5 comes from (/api/current's "source") ──
@@ -795,4 +785,87 @@ test('the demo has one top area above the page, empty and hidden until the demo 
   assert.match(html, /<header class="demo-top" id="demo-top" hidden><\/header>/);
   assert.ok(html.indexOf('id="demo-top"') < html.indexOf('<div class="page">'));
   assert.doesNotMatch(html, /entry-band|demo-bar/);
+});
+
+
+// ── The logo (mock 94, round 8 a): its dot says whether the readings are fresh, green while they are, grey otherwise ──
+test('readingsState: fresh up to 10 min, otherwise when the readings are from, in words for the logo and the summary', () => {
+  const NOW = new Date('2026-11-13T12:20:00Z'), at = m => new Date(NOW - m * 60000).toISOString();
+  assert.deepEqual(home.readingsState(at(4), NOW, { tz: 'UTC' }), { fresh: true, status: 'Live readings', meta: '' });
+  assert.deepEqual(home.readingsState(at(10), NOW, { tz: 'UTC' }).fresh, true);
+  assert.deepEqual(home.readingsState(at(25), NOW, { tz: 'UTC' }), { fresh: false, status: 'Readings as of 11:55 AM', meta: '25 min old' });
+  assert.deepEqual(home.readingsState(at(180), NOW, { tz: 'UTC' }), { fresh: false, status: 'Readings as of 9:20 AM', meta: '3 h old' });
+  assert.deepEqual(home.readingsState(at(3000), NOW, { tz: 'UTC' }), { fresh: false, status: 'Readings as of Nov 11, 10:20 AM', meta: '2 days old' });
+  assert.deepEqual(home.readingsState(at(4), NOW, { tz: 'UTC', offline: true }), { fresh: false, status: 'Offline · last reading 12:16 PM', meta: 'Last reading 12:16 PM' });
+  assert.deepEqual(home.readingsState(null, NOW, { tz: 'UTC' }), { fresh: false, status: 'Loading readings', meta: '' });
+  assert.deepEqual(home.readingsState(null, NOW, { tz: 'UTC', failed: true }), { fresh: false, status: 'Readings did not load', meta: 'Readings did not load' });
+  assert.deepEqual(home.readingsState(null, NOW, { tz: 'UTC', offline: true }), { fresh: false, status: 'Offline', meta: 'Offline' });   // in words on screen, not only the grey dot
+});
+
+test('the logo follows freshness: green while fresh, grey when stale, offline or not loaded; never amber or red', () => {
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  const css = readFileSync(new URL('static/app.css', root), 'utf8');
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  const show = app.slice(app.indexOf('function showUpdated'), app.indexOf('function startSpin'));
+  assert.match(show, /readingsState\(lastStamp, readingsNow\(\), \{ offline, failed: loadFailed, tz: TZ \}\)/);
+  assert.match(show, /mark\.classList\.toggle\('is-stale', !s\.fresh\)/);
+  assert.match(show, /mark\.title = name/);
+  assert.match(show, /\$\('mark-name'\)\.textContent = name/);
+  assert.doesNotMatch(show, /title\.textContent = (?!fresh)/);   // the hidden heading stays Today or Tonight
+  // the dot and its glow take --logo-dot: green by default, grey on .is-stale
+  assert.match(css, /--logo-live: #4fd68f;/);
+  assert.match(css, /--logo-idle: #a7adb6;/);
+  assert.match(css, /svg\.mark, svg\.dt-mark \{[^}]*--logo-dot: var\(--logo-live\);/);
+  assert.match(css, /\.now-mark\.is-stale svg\.mark \{ --logo-dot: var\(--logo-idle\); --logo-glow-a: 0; \}/);   // stale: flat grey, no glow (not hue alone)
+  assert.match(css, /\.lg-dot, svg\.mark \.lg-glow[^{]*\{ fill: var\(--logo-dot\); \}/);
+  const marks = css.slice(css.indexOf('/* The logo'), css.indexOf('/* The logo') + 3000);
+  assert.doesNotMatch(marks, /--(?:warn|bad)/);
+  // the logo on the page: the house, the window bar, the roof's sky, the glow and the dot; no moon, no live sky gradient
+  const svg = html.match(/<div class="site now-mark[^"]*"[^>]*>(<svg class="mark".*?<\/svg>)/)[1];
+  assert.match(svg, /<path d="M13\.8 3\.2Q16 1\.4 18\.2 3\.2L30\.1 12\.8Q31 13\.5 31 14\.7V25Q31 31 25 31H7Q1 31 1 25V14\.7Q1 13\.5 1\.9 12\.8Z" fill="#fff"\/>/);
+  assert.match(svg, /<path d="M0 17\.5h32M16 17\.5v15" stroke="#000" stroke-width="2\.6"\/>/);
+  assert.match(svg, /<path class="lg-glow" d="M8\.6 16\.2A7\.4 7\.4 0 0 1 23\.4 16\.2Z"\/><path class="lg-dot" d="M11\.6 16\.2A4\.4 4\.4 0 0 1 20\.4 16\.2Z"\/>/);
+  assert.doesNotMatch(html + app + css, /mk-g|mk-sky|mk-fr|mk-br|mk-dot|--mark-top|--mark-hor/);
+  assert.match(html, /<span class="vh" id="mark-name">Home Air Quality<\/span>/);
+});
+
+test('the weather line has no time and no live dot; the "Today" heading is hidden but still read out', () => {
+  const sky = readFileSync(new URL('static/sky.js', root), 'utf8');
+  const css = readFileSync(new URL('static/app.css', root), 'utf8');
+  assert.doesNotMatch(sky, /cap-live/);
+  assert.doesNotMatch(css, /cap-live/);
+  assert.match(css, /\.now-h \{ position: absolute !important; width: 1px; height: 1px;[^}]*clip: rect\(0 0 0 0\)/);
+  assert.doesNotMatch(css, /\.now-h \{[^}]*display: none/);
+});
+
+test('the summary line shows one status: the readings\' age or "Updated …", never both, on one line on a phone', () => {
+  const css = readFileSync(new URL('static/app.css', root), 'utf8');
+  // stale or offline: the age ("40 min old", "Last reading 3:16 PM", "Offline") replaces "Updated just now", which would contradict it
+  assert.match(css, /#updated:not\(:empty\) ~ #s-ago \{ display: none !important; \}/);
+  // the dot before the age only where the line goes on after "from 6 sources" (a computer); a phone starts a new row with it
+  assert.match(css, /@media \(min-width: 481px\) \{\s*:root \.sum-card > \.s-bar #updated:not\(:empty\)::before \{ content: "· "; color: var\(--muted\); \}/);
+  assert.doesNotMatch(css, /^:root \.sum-card > \.s-bar #updated:not\(:empty\)::before/m);
+  // the status never wraps inside itself (Sacha's phone, offline: "Updated / just now" on two lines)
+  assert.match(css, /:root \.sum-card > \.s-bar #updated, :root \.sum-card > \.s-bar #s-ago \{ white-space: nowrap; \}/);
+  // the age sits on the same baseline as "Updated just now" and "from 6 sources": the same font box (design check, 1 px high before)
+  assert.match(css, /:root \.sum-card > \.s-bar #updated \{ font: 400 13px\/1\.2 Inter, sans-serif; line-height: 20px !important; display: inline-block; margin: 0 !important; padding: 0 !important; \}/);
+  assert.match(css, /:root \.sum-card > \.s-bar #updated:empty \{ display: none; \}/);   // fresh: takes no slot in the row
+});
+
+test('on a phone the summary header is two rows: title and profile icons, then the status across the full width', () => {
+  const css = readFileSync(new URL('static/app.css', root), 'utf8');
+  // the longest status ("Last reading Nov 12, 1:23 PM") pushed the refresh button under the icons when row 2 shared their column
+  const phone = css.slice(css.indexOf('/* Summary profile icons and phone byline layout */'));
+  const block = phone.slice(phone.indexOf('@media (max-width: 480px)'), phone.indexOf('.blocks .pop-head'));
+  assert.match(block, /:root \.sum-card > \.s-bar \{ display: grid !important; grid-template-columns: minmax\(0, 1fr\) auto;/);
+  assert.match(block, /\.s-meta \{ display: contents; \}/);
+  assert.match(block, /:root \.sum-card > \.s-bar \.s-tools \{ grid-row: 2; grid-column: 1 \/ -1;/);
+  assert.match(block, /\.s-profiles \{ grid-row: 1; grid-column: 2;/);
+});
+
+test('the header logo is 40 px on a computer and 32 on a phone, as tall as the menu beside it (mock 94, round 21)', () => {
+  const css = readFileSync(new URL('static/app.css', root), 'utf8');
+  assert.match(css, /\n\.site svg\.mark \{ flex: none; width: 40px !important; height: 40px !important; \}/);
+  assert.match(css, /@media \(max-width: 640px\) \{\s*\.bar \.site svg\.mark, \.site svg\.mark \{ width: 32px !important; height: 32px !important; \}/);
+  assert.match(css, /:root \{ --dt-row: 40px; --dt-mark: 32px; \}/);
 });

@@ -421,7 +421,25 @@
     return { word: 'Unhealthy', tone: 'bad' };
   }
 
-  const api = { nbCountText, MAP_PAGE, NB_USED, NO_OUT_YET, pickEntries, rowOff, nbSplit, sourceLine, sourceStatus, histUrl, estimateNow, estimateNote, profileOff, ghostWords, pmOver, pmLevel, pollenHigh, creditHtml, freshness, monitorPill, monitorsLive, monitorRow, safeUrl, monitorCredit, noHistoryHTML, selfWords, nbPm, nbYou, nbLead, nbMoreText, nbRowHTML, nbDetailHTML, lastReadingText, pollenSeasonHTML, sourceOff, sourcesOn, sourcesLabel, smokeText, smokeMapText, pollenBarsTitle, profilesFor, bearingIn, compassIn, compassAway, hourRange, cap, roadClockText, roadWindText, roadWhyText, roadLabel };
+  const READINGS_FRESH_MIN = 10;   // minutes: readings at most this old count as live (the logo's dot is green)
+  // Whether the home's readings are fresh, for the logo (its dot, its name and hover: `status`) and the summary's age line
+  // (`meta`). `stamp` is the last reading's time (null before any loaded), `now` the readings' clock, `tz` the home's timezone.
+  function readingsState(stamp, now, { offline = false, failed = false, tz } = {}) {
+    if (stamp == null) {
+      if (offline) return { fresh: false, status: 'Offline', meta: failed ? 'Readings did not load' : 'Offline' };
+      return failed ? { fresh: false, status: 'Readings did not load', meta: 'Readings did not load' } : { fresh: false, status: 'Loading readings', meta: '' };
+    }
+    const d = new Date(stamp), day = t => new Date(t).toLocaleDateString('en-US', { timeZone: tz });
+    const at = day(d) === day(now) ? d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })
+      : d.toLocaleString('en-US', { timeZone: tz, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const mins = Math.round((now - d) / 60000);
+    const age = mins < MIN_PER_H ? `${mins} min old` : mins < 48 * MIN_PER_H ? `${Math.round(mins / MIN_PER_H)} h old` : `${Math.round(mins / 1440)} days old`;
+    if (offline) return { fresh: false, status: `Offline · last reading ${at}`, meta: `Last reading ${at}` };
+    if (mins > READINGS_FRESH_MIN) return { fresh: false, status: `Readings as of ${at}`, meta: age };
+    return { fresh: true, status: 'Live readings', meta: '' };
+  }
+
+  const api = { readingsState, nbCountText, MAP_PAGE, NB_USED, NO_OUT_YET, pickEntries, rowOff, nbSplit, sourceLine, sourceStatus, histUrl, estimateNow, estimateNote, profileOff, ghostWords, pmOver, pmLevel, pollenHigh, creditHtml, freshness, monitorPill, monitorsLive, monitorRow, safeUrl, monitorCredit, noHistoryHTML, selfWords, nbPm, nbYou, nbLead, nbMoreText, nbRowHTML, nbDetailHTML, lastReadingText, pollenSeasonHTML, sourceOff, sourcesOn, sourcesLabel, smokeText, smokeMapText, pollenBarsTitle, profilesFor, bearingIn, compassIn, compassAway, hourRange, cap, roadClockText, roadWindText, roadWhyText, roadLabel };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   Object.assign(root, api);
 })(typeof window !== 'undefined' ? window : globalThis);

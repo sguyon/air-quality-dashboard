@@ -24,7 +24,7 @@ test('top on sample 2: only 2 is marked, no sample name, the three ways in order
   assert.doesNotMatch(html, /Free and|timed actions/);
   const at = TITLES.map(t => html.indexOf(`</span>${t}</p>`));
   assert.ok(at[0] > 0 && at[0] < at[1] && at[1] < at[2], String(at));
-  assert.match(html, /Sample data from a made-up home\./);
+  assert.match(html, /Sample data from a made\u2011up home\./);   // a non-breaking hyphen: "made-" never ends a line
   assert.match(html, /Real readings from a public AirGradient monitor\./);
   assert.match(html, /You install it, with a coding agent or Docker\./);
   // each way's control, last: SAMPLE 1 2 3; Select a monitor (the live dot, the drawn chevron); Setup (GitHub's mark, the drawn arrow)
@@ -249,4 +249,33 @@ test('folding while the picker is open closes the picker', () => {
   pg.click(pg.el('db-pick'));
   pg.click(pg.el('dt-fold'));
   assert.equal(pg.el('db-pop').hidden, true);
+});
+
+test("the demo's top area draws the new logo (mock 94, round 8 a): the house, the window bar, the green dot; its own mask id", () => {
+  const html = picker.topHTML({ now: { moment: 'clear', moments: MOMENTS } });
+  const svg = html.match(/<svg class="dt-mark"[^>]*>.*?<\/svg>/)[0];
+  assert.match(svg, /<mask id="dt-lg-m"><path d="M13\.8 3\.2Q16 1\.4 18\.2 3\.2L30\.1 12\.8Q31 13\.5 31 14\.7V25Q31 31 25 31H7Q1 31 1 25V14\.7Q1 13\.5 1\.9 12\.8Z" fill="#fff"\/>/);
+  assert.match(svg, /<g mask="url\(#dt-lg-m\)"><rect class="lg-house" width="32" height="32"\/><rect class="lg-roof" width="32" height="17\.5"\/>/);
+  assert.match(svg, /<path class="lg-glow" d="M8\.6 16\.2A7\.4 7\.4 0 0 1 23\.4 16\.2Z"\/><path class="lg-dot" d="M11\.6 16\.2A4\.4 4\.4 0 0 1 20\.4 16\.2Z"\/>/);
+  assert.doesNotMatch(svg, /mk-|is-stale/);   // no old parts; the demo's logo is always the live, green one
+});
+
+test('the demo top area keeps its last title on one line beside Hide: four equal columns from 1241 px, the tablet layout below', () => {
+  const css = readFileSync(new URL('../static/app.css', import.meta.url), 'utf8');
+  // Sacha, 2026-11-13: "the hide button makes the title goes on 2 lines" ("Set up your own monitor" needs 197 px, Hide 60)
+  assert.match(css, /\.dt-in \{[^}]*grid-template-columns: minmax\(0, 1\.1fr\) repeat\(3, minmax\(0, 1fr\)\);/);
+  assert.match(css, /@media \(min-width: 1241px\) \{\s*\.demo-top:not\(\.is-folded\) \.dt-way:last-child \{ padding-right: 0; \}/);
+  assert.match(css, /@media \(max-width: 1240px\) and \(min-width: 701px\) \{   \/\* a tablet or a small laptop: the name and pitch above/);
+});
+
+test('in the tablet layout the pitch spans two of the three columns, two lines (Sacha, 2026-11-13: "the description is too long, we should wrap up at a point"; "make the description text 2 columns wide so it takes only 2 lines")', () => {
+  const css = readFileSync(new URL('../static/app.css', import.meta.url), 'utf8');
+  const tablet = css.slice(css.indexOf('@media (max-width: 1240px) and (min-width: 701px) {   /* a tablet or a small laptop'));
+  assert.match(tablet.slice(0, tablet.indexOf('\n}')), /\.dt-pitch \{ max-width: calc\(100% \* 2 \/ 3 - 20px\); \}/);
+});
+
+test('the demo top area never leaves a lone last word, in the pitch or the ways’ descriptions, at any width (design check, 13 Nov)', () => {
+  const css = readFileSync(new URL('../static/app.css', import.meta.url), 'utf8');
+  assert.match(css, /\n\.dt-pitch \{ margin: 10px 0 0; font: 500 13\.5px\/1\.45 Inter, sans-serif; color: var\(--ink\); text-wrap: pretty; \}/);
+  assert.match(css, /\n\.dt-s \{ margin: 0 0 10px 32px; font-size: 12\.5px; color: var\(--soft\); text-wrap: pretty; \}/);
 });

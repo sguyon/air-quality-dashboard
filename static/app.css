@@ -5,7 +5,10 @@
   --bar-lo: #d7f3e8; --bar-hi: #4fb08f; --bubble-ink: #fff; --mark-bg: #0f2233; color-scheme: light; --bg: #f8f9fb; --ink: #18181b; --soft: #52525b;
   --muted: #71717a; --faint: #a1a1aa; --line: #e8e8ec; --line-strong: #d4d4d8; --meter: #eeeff2; --track: #eeeff2; --grid: #ececf0; --warn: #b45309;
   --warn-fill: #f59e0b; --ico-warn: #fef3e2; --good: #15803d; --good-fill: #22a55a; --ico-good: #e8f6ee; --shadow: rgba(0, 0, 0, .05);
-  --bubble-bg: #18181b; --sky-city: #9fb0c8; --win-lit: #f6efe2; --brand-ink: #0f2233; --brand-dot: #7fd3e6; --brand-dot-ink: #1f7d93; }
+  --bubble-bg: #18181b; --sky-city: #9fb0c8; --win-lit: #f6efe2; --brand-ink: #0f2233; --brand-dot: #7fd3e6; --brand-dot-ink: #1f7d93;
+  /* the logo: its day colours, its colours on a dark background, and its dot (green: fresh readings; grey: not) */
+  --logo-day-house: #0f2233; --logo-day-roof: #7fd3e6; --logo-day-roof-a: .55; --logo-night-house: #eef5fa; --logo-night-roof: #3d8ea8;
+  --logo-night-roof-a: 1; --logo-live: #4fd68f; --logo-idle: #a7adb6; --logo-glow-a: .32; }
 :root[data-theme="dark"] { --good: #52c99d; --good-fill: #2fae82; --bad: #f07a6d; --sky: #6db3e8; --accent: #7fd3e6; --accent-ink: #a9e4f1;
   --accent-soft: #12323b; --accent-line: #2a5a68; --ai-bg: #121f35; --ai-line: #25385a; --pill: rgba(18, 28, 39, .78); --q-bg: #1a2633;
   --q-line: #2d3d50; --q-ink: #c8d3de; --q-hover: #243446; --ico-sky: #15304a; --ico-good: #153a2e; --ico-ink: #1f2c3a; --ico-smoke: #33271d;
@@ -654,17 +657,6 @@ a.addr { color: inherit; text-decoration: underline; text-decoration-color: colo
   text-underline-offset: 3px; }
 a.addr:hover { color: var(--accent-ink); text-decoration-color: currentColor; }
 a.addr:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
-.cap-live { font-weight: 600; --live: var(--good); }
-html.sky-dark .cap-live { --live: #4cd69a; }
-.cap-live i { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--live); flex: none; }
-.cap-live i::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; background: var(--live); opacity: 0;
-  animation: live-ping 2.4s cubic-bezier(.2, .7, .2, 1) infinite; }
-.cap-live.cached i { background: var(--muted); }
-.cap-live.cached i::after { display: none; }
-@keyframes live-ping { 0% { transform: scale(.4); opacity: .55; } 80%, 100% { transform: scale(1.6); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .cap-live i::after { animation: none; }
-}
 .dsp-open { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 8px 0 10px; margin-left: 4px; border-radius: 99px;
   border-left: 1px solid var(--line); border-top-left-radius: 0; border-bottom-left-radius: 0; color: var(--soft);
   font: 500 13px/1 Inter, sans-serif; transition: background-color .15s ease, color .15s ease; }
@@ -698,9 +690,9 @@ html.theme-swap *::after { transition: none !important; }
 /* Today and summary header */
 .now-bar { margin: 44px 0 12px; align-items: flex-end; justify-content: space-between; gap: 16px; position: relative; z-index: 6; display: block;
   margin-top: 18px !important; margin-bottom: 10px !important; }
-.now-h { margin: 0 !important; transition: color 1.2s ease; font: 500 12.5px/1 Inter, sans-serif !important; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--muted) !important; }
-html.sky-dark .now-h { color: #f2f6fb !important; color: color-mix(in srgb, #f2f6fb 75%, transparent) !important; }
+/* Today or Tonight: for screen readers only, on every width (Sacha, 2026-11-13: the logo makes it redundant) */
+.now-h { position: absolute !important; width: 1px; height: 1px; margin: -1px !important; padding: 0; overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0; }
 .now-bar .sky-cap { margin: 4px 0 0; padding: 0; border: 0; background: none !important; -webkit-backdrop-filter: none; backdrop-filter: none;
   font-size: 14.5px !important; height: 26px !important; line-height: 26px !important; padding-left: 14px; margin-left: -14px !important; }
 .s-tools { position: absolute; top: 16px; right: 18px; display: flex; align-items: center; gap: 8px; z-index: 2; font-size: 12.5px;
@@ -791,13 +783,10 @@ html.sky-dark .now-line .dsp-top .chev { color: rgba(236, 242, 250, .8); }
 .now-line .dsp-top .sky-quick:not(.off) { color: var(--accent-ink); background: var(--accent-soft); }
 html.sky-dark .now-line .dsp-top .sky-quick:not(.off) { color: #fff; background: rgba(255, 255, 255, .2); }
 .now-line .dsp-top:hover .dsp-b:hover ~ .dsp-open { border: 0; background: transparent !important; }
-.now-text .now-h { flex: none; }
 .now-text .now-line { margin-top: 0; flex: 1 1 auto; min-width: 0; }
 @media (max-width: 700px) {
   .now-text { flex-wrap: wrap; gap: 6px 12px; }
   .now-text .now-line { flex-basis: 100%; }
-  .now-text .now-h { position: absolute !important; width: 1px; height: 1px; margin: -1px !important; padding: 0; overflow: hidden;
-    clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 }
 .now-line .dsp-open .chev { color: var(--soft) !important; width: 15px !important; height: 15px !important; }
 html.sky-on:not(.sky-dark) .now-line .dsp-open, html.sky-on:not(.sky-dark) .now-line .dsp-open .chev { color: #23384d !important; }
@@ -845,17 +834,13 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
   :root:not([data-theme="light"]) .demo-top { border-bottom-color: rgba(0, 0, 0, .35); box-shadow: 0 1px 0 rgba(255, 255, 255, .06), 0 10px 28px -10px rgba(0, 0, 0, .75); }
 }
 .dt-in { position: relative; max-width: 1240px; margin: 0 auto; padding: var(--dt-pad) 44px; box-sizing: border-box; display: grid;
-  grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr)); align-items: stretch; }
+  grid-template-columns: minmax(0, 1.1fr) repeat(3, minmax(0, 1fr)); align-items: stretch; }   /* the brand a little wider for its pitch; the last title still fits beside Hide (Sacha, 2026-11-13) */
 .dt-brand { padding-right: 24px; }
 .dt-name { margin: 0; display: flex; align-items: center; gap: 10px; font: 650 19px/1 Inter, sans-serif; letter-spacing: -.02em; color: var(--ink); }
 .dt-mark { width: 28px; height: 28px; flex: none; display: block; }
-.dt-mark .mk-sky { fill: var(--brand-dot); opacity: .5; }
-.dt-mark .mk-fr { fill: none; stroke: var(--brand-ink); stroke-width: 2.4; }
-.dt-mark .mk-br { fill: none; stroke: var(--brand-ink); stroke-width: 2; }
-.dt-mark .mk-dot { fill: var(--brand-dot-ink); }
 .dt-tag { font: 700 10.5px/1 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--tag-ink); background: var(--tag-bg);
   padding: 5px 7px; border-radius: 5px; }
-.dt-pitch { margin: 10px 0 0; font: 500 13.5px/1.45 Inter, sans-serif; color: var(--ink); }
+.dt-pitch { margin: 10px 0 0; font: 500 13.5px/1.45 Inter, sans-serif; color: var(--ink); text-wrap: pretty; }   /* no lone last word */
 .dt-pitch span { color: var(--soft); font-weight: 400; }
 .dt-pitch a { color: var(--accent-ink); text-underline-offset: 2px; }
 .dt-way { display: flex; flex-direction: column; gap: 3px; padding: 0 20px; border-left: 1px solid var(--line); min-width: 0; }
@@ -865,7 +850,7 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
 .dt-ink { background: var(--ico-ink); color: var(--brand-ink); }
 .dt-sky { background: var(--ico-sky); color: var(--sky); }
 .dt-good { background: var(--ico-good); color: var(--good); }
-.dt-s { margin: 0 0 10px 32px; font-size: 12.5px; color: var(--soft); }
+.dt-s { margin: 0 0 10px 32px; font-size: 12.5px; color: var(--soft); text-wrap: pretty; }
 .dt-ctl { margin-top: auto; display: flex; align-items: center; gap: 8px; min-height: var(--dt-ctl-h); white-space: nowrap; min-width: 0; }
 .dt-lab { font: 600 11px/1 Inter, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 /* the samples 1 2 3 */
@@ -903,7 +888,7 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
   height: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: 500 12px/1 Inter, sans-serif;
   cursor: pointer; transition: background-color .15s ease, color .15s ease; }
 @media (hover: hover) { .dt-fold:hover { background: var(--seg-hover); color: var(--ink); } }   /* a tap on a phone leaves no tint */
-@media (min-width: 1061px) {
+@media (min-width: 1241px) {
   .demo-top:not(.is-folded) .dt-way:last-child { padding-right: 0; }   /* the button's corner: no gutter needed at the content edge */
   .demo-top:not(.is-folded) .dt-way:last-child .dt-t { padding-right: 56px; }   /* px: the button's width less its 8 px overhang, plus air */
 }
@@ -917,9 +902,10 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
 @media (prefers-reduced-motion: reduce) {
   .demo-top, .dt-seg a, .dt-pick, .dt-pick svg.i, .dt-btn, .dt-fold { transition: none; }
 }
-@media (max-width: 1060px) and (min-width: 701px) {   /* a tablet: the name and pitch above, the three ways in a row under them */
+@media (max-width: 1240px) and (min-width: 701px) {   /* a tablet or a small laptop: the name and pitch above, the three ways in a row under them (below 1241 px the last title wouldn't fit beside Hide) */
   .dt-in { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
   .dt-brand { grid-column: 1 / -1; padding: 0; }
+  .dt-pitch { max-width: calc(100% * 2 / 3 - 20px); }   /* two of the three columns, short of the second's divider: two lines (Sacha, 2026-11-13) */
   .dt-w1 { border-left: 0; padding-left: 0; }
 }
 @media (max-width: 900px) {
@@ -950,18 +936,18 @@ svg.ts .ts-sw-over { fill: var(--warn-fill); opacity: .35; }
   .demo-top.is-folded .dt-fold { height: 44px; margin: 0 -8px 0 auto; }
 }
 
-/* The header, one line on every page (Sacha, 2026-11-13: the real home takes the demo's header, so there's one layout): the logo,
-   TODAY and the weather, then the home menu's row (.bar, after the weather in index.html, so the tab order follows what you see) at
-   the right end (a computer), or at the right end of the time row with the weather under it (a phone). The name is read out from
+/* The header, one line on every page (Sacha, 2026-11-13: the real home takes the demo's header, so there's one layout): the logo
+   and the weather (Today is read out only), then the home menu's row (.bar, after the weather in index.html, so the tab order follows what
+   you see) at the right end (a computer), or at the right end of the logo's row with the weather under it (a phone). The name is read out from
    the logo's hidden text; on the demo the top area shows the logo and name, so the line leaves its logo out. Not in the weather view. */
 .now-bar > .bar { margin: 0; padding: 0; }
-.now-mark svg.mark { display: block; }   /* 32 px, 28 px on a phone: the logo's own sizes (.site svg.mark, below) */
+.now-mark svg.mark { display: block; }   /* 40 px, 32 px on a phone: the logo's own sizes (.site svg.mark, below) */
 html.has-demo-top .now-mark, html.wx-full .now-mark { display: none; }
 html:not(.has-demo-top) .now-bar { margin-top: 0 !important; }   /* no top area above: the line starts where the logo row did */
 @media (min-width: 701px) {
   html:not(.wx-full) .now-bar { display: flex; align-items: center; margin-bottom: 16px !important; }
   html.has-demo-top:not(.wx-full) .now-bar { margin-top: 12px !important; }
-  /* the menu's 46 px row is 12 px taller than the TODAY line, so the demo's top margin gives back 6 px; the menu is the row's
+  /* the menu's 46 px row is 12 px taller than the weather line, so the demo's top margin gives back 6 px; the menu is the row's
      tallest, so the bottom margin is its clearance from the summary */
   .now-bar > .bar { flex: none; }
 }
@@ -969,13 +955,11 @@ html:not(.has-demo-top) .now-bar { margin-top: 0 !important; }   /* no top area 
   .now-bar .bar .home { display: none; }
 }
 @media (max-width: 700px) {
-  :root { --dt-row: 40px; --dt-mark: 28px; }   /* px: the time row, as tall as the menu; the logo on it */
+  :root { --dt-row: 40px; --dt-mark: 32px; }   /* px: the top row (the logo and the menu), as tall as the menu; the logo on it */
   html:not(.wx-full) .now-bar > .bar { position: absolute; top: 0; right: 0; }
   html:not(.wx-full) .now-line { padding-top: calc(var(--dt-row) + 22px); }   /* 22 px from the menu down to the Weather pill, as drawn */
-  html:not(.wx-full) .now-bar .sky-cap .cap-live { position: absolute; left: 0; top: 0; height: var(--dt-row); }
-  html:not(.has-demo-top):not(.wx-full) .now-bar .sky-cap .cap-live { left: calc(var(--dt-mark) + 12px); }   /* after the logo */
   .now-text .now-mark { position: absolute; left: 0; top: calc((var(--dt-row) - var(--dt-mark)) / 2); }
-  .now-mark svg.mark { width: var(--dt-mark) !important; height: var(--dt-mark) !important; }   /* also from 641 to 700 px, where .site's is 32 */
+  .now-mark svg.mark { width: var(--dt-mark) !important; height: var(--dt-mark) !important; }   /* also from 641 to 700 px, where .site's is 40 */
   html:not(.wx-full) .now-line .dsp { margin-left: auto; }   /* the Weather pill at the right end of the weather row, under the menu */
   html:not(.wx-full) .now-bar { margin-bottom: 12px !important; }
 }
@@ -984,7 +968,7 @@ html:not(.has-demo-top) .now-bar { margin-top: 0 !important; }   /* no top area 
 @media (prefers-reduced-motion: reduce) { .demo-top { transition: none; } }   /* after the fade, so it wins */
 html.wx-full .demo-top { opacity: 0; visibility: hidden; pointer-events: none; }
 html.wx-full .now-bar > .bar { display: none; }
-/* the demo: a bigger weather & theme control on the TODAY line, so visitors find it (Sacha, 2026-11-12); a real home keeps the small one */
+/* the demo: a bigger weather & theme control on the weather line, so visitors find it (Sacha, 2026-11-12); a real home keeps the small one */
 html.has-demo-top .now-line .dsp-top { height: 44px !important; padding: 3px 4px 3px 3px; gap: 4px !important; }   /* the line's own rule sets 34 px with !important */
 html.has-demo-top .now-line .dsp-top .sky-quick, html.has-demo-top .now-line .dsp-open { width: 38px !important; height: 38px !important; }
 html.has-demo-top .now-line .dsp-top svg.i { width: 20px; height: 20px; }
@@ -1127,9 +1111,8 @@ h2:not(.now-h):not(.s-do) { margin-top: 32px !important; }
   flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--edge) 18%, transparent); }
 .grid4 > .card .card-top .q .bubble { left: auto; right: -6px; transform: none; z-index: 20; }
 .grid4 > .card:hover, .grid4 > .card:focus-within { z-index: 3; position: relative; }
-html.sky-on .now-bar .sky-cap, html.sky-on .now-h { text-shadow: 0 0 6px rgba(255, 255, 255, .7), 0 0 2px rgba(255, 255, 255, .6); }
-html.sky-on.sky-dark .now-bar .sky-cap, html.sky-on.sky-dark .now-h { text-shadow: 0 0 6px rgba(10, 16, 30, .55), 0 0 2px rgba(10, 16, 30, .5); }
-.now-bar .cap-live { gap: 9px; }
+html.sky-on .now-bar .sky-cap { text-shadow: 0 0 6px rgba(255, 255, 255, .7), 0 0 2px rgba(255, 255, 255, .6); }
+html.sky-on.sky-dark .now-bar .sky-cap { text-shadow: 0 0 6px rgba(10, 16, 30, .55), 0 0 2px rgba(10, 16, 30, .5); }
 .pr-ic > svg { width: 38px !important; height: 38px !important; filter: none !important; }
 
 /* Monitor cards. All are emitted as .card.mc; the shared .card padding supplies the sides. */
@@ -1399,19 +1382,24 @@ html.wx-full .now-line .dsp-pop { position: fixed !important; width: 340px !impo
   .wx-b.wx-exit { padding: 0; width: 32px; }
 }
 .fx-preview summary > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.site svg.mark .mk-fr { fill: none; stroke: #0f2233; stroke-width: 2.4; }
-.site svg.mark .mk-br { fill: none; stroke: #0f2233; stroke-width: 2; }
-.site svg.mark .mk-dot { fill: #1f7d93; }
-.site svg.mark * { transition: fill .8s ease, stroke .8s ease; }
-html.sky-dark .site svg.mark .mk-fr, html.sky-dark .site svg.mark .mk-br, :root[data-theme="dark"] .site svg.mark .mk-fr, :root[data-theme="dark"] .site svg.mark .mk-br { stroke: #eef5fa; }
-html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .mk-dot { fill: #7fd3e6; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .site svg.mark .mk-fr, :root:not([data-theme="light"]) .site svg.mark .mk-br { stroke: #eef5fa; }
-  :root:not([data-theme="light"]) .site svg.mark .mk-dot { fill: #7fd3e6; }
-}
-.site svg.mark { flex: none; width: 32px !important; height: 32px !important; }
+/* The logo (mock 94, round 8 a): a navy house, the day's sky in its roof, a dot rising from the window bar. On a dark background
+   (the dark theme, or a dark sky behind the header: sky.js's sky-dark) the house turns pale and the roof deepens; the demo's top
+   area is always light. The dot and its glow say whether the readings are fresh: green while they are, grey when they are old, the
+   page is offline or they haven't loaded (app.js showUpdated sets .is-stale). Never the air's amber or red: the summary says that. */
+svg.mark, svg.dt-mark { --logo-house: var(--logo-day-house); --logo-roof: var(--logo-day-roof); --logo-roof-a: var(--logo-day-roof-a); --logo-dot: var(--logo-live); }
+:root[data-theme="dark"] .site svg.mark, html.sky-dark .site svg.mark { --logo-house: var(--logo-night-house); --logo-roof: var(--logo-night-roof);
+  --logo-roof-a: var(--logo-night-roof-a); }
+html.sky-ink:not(.sky-dark) .site svg.mark { --logo-house: var(--logo-day-house); --logo-roof: var(--logo-day-roof); --logo-roof-a: var(--logo-day-roof-a); }   /* a bright sky in the dark theme */
+.now-mark.is-stale svg.mark { --logo-dot: var(--logo-idle); --logo-glow-a: 0; }   /* old readings: a flat grey dot, no glow, so it differs by light and not only by hue */
+svg.mark .lg-house, svg.dt-mark .lg-house { fill: var(--logo-house); }
+svg.mark .lg-roof, svg.dt-mark .lg-roof { fill: var(--logo-roof); opacity: var(--logo-roof-a); }
+svg.mark .lg-dot, svg.mark .lg-glow, svg.dt-mark .lg-dot, svg.dt-mark .lg-glow { fill: var(--logo-dot); }
+svg.mark .lg-glow, svg.dt-mark .lg-glow { opacity: var(--logo-glow-a); }
+.site svg.mark * { transition: fill .8s ease, opacity .8s ease; }
+@media (prefers-reduced-motion: reduce) { .site svg.mark * { transition: none; } }
+.site svg.mark { flex: none; width: 40px !important; height: 40px !important; }   /* as tall as the 46 px menu's content beside it (mock 94, round 21) */
 @media (max-width: 640px) {
-  .bar .site svg.mark, .site svg.mark { width: 28px !important; height: 28px !important; }
+  .bar .site svg.mark, .site svg.mark { width: 32px !important; height: 32px !important; }
 }
 .s-by .s-tag #s-tag-t { -webkit-background-clip: text; background: none !important; color: var(--soft) !important;
   -webkit-text-fill-color: currentColor; }
@@ -1553,6 +1541,15 @@ html.sky-dark .site svg.mark .mk-dot, :root[data-theme="dark"] .site svg.mark .m
 :root .sum-card > .s-bar #s-ago { display: inline !important; font: 400 13px/1.2 Inter, sans-serif; color: var(--muted);
   line-height: 20px !important; display: inline-block; margin: 0 !important; padding: 0 !important; }
 :root .sum-card > .s-bar #s-ago:not(:empty)::before { content: "· "; }
+/* One status at a time: when the readings are old or the page is offline, their age replaces "Updated just now" (which would
+   contradict it); on a computer it follows "from 6 sources" with a dot, on a phone it starts its own row, so no dot there */
+:root .sum-card > .s-bar #updated:not(:empty) ~ #s-ago { display: none !important; }
+:root .sum-card > .s-bar #updated, :root .sum-card > .s-bar #s-ago { white-space: nowrap; }
+:root .sum-card > .s-bar #updated { font: 400 13px/1.2 Inter, sans-serif; line-height: 20px !important; display: inline-block; margin: 0 !important; padding: 0 !important; }
+:root .sum-card > .s-bar #updated:empty { display: none; }   /* fresh: no slot, so "Updated just now" starts at the title's edge */
+@media (min-width: 481px) {
+  :root .sum-card > .s-bar #updated:not(:empty)::before { content: "· "; color: var(--muted); }
+}
 :root .sum-card > .s-bar #read-refresh { padding: 0 !important; justify-content: center; border-color: transparent !important;
   border-radius: 50% !important; color: var(--soft); width: 32px !important; height: 32px !important; }
 :root .sum-card > .s-bar #read-refresh span { display: none; }
@@ -1622,7 +1619,6 @@ html.wx-full .now-bar::before { content: ""; position: absolute; inset: 0; z-ind
   box-shadow: 0 6px 24px -10px rgba(15, 23, 38, .35), inset 0 0 0 1px rgba(255, 255, 255, .5); }
 html.wx-full.sky-dark .now-bar::before { background: rgba(15, 23, 38, .42);
   box-shadow: 0 6px 24px -10px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(255, 255, 255, .12); }
-html.wx-full .now-bar .now-h { display: none !important; }
 html.wx-full .now-bar .sky-cap { text-shadow: none !important; }
 html.wx-full .now-text { gap: 0; }
 html.wx-full .now-line { gap: 10px; }
@@ -1648,8 +1644,6 @@ html.wx-full .now-bar .wx-mode::before { content: ""; width: 1px; height: 18px; 
 .dsp-pop .fx-presets .fx-rand[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink);
   box-shadow: inset 0 0 0 1px var(--accent-line); }
 .dsp-pop .fx-presets .fx-rand::before { content: none !important; }
-.site svg.mark .mk-sky { fill: url(#mk-g) !important; opacity: .85 !important; }
-html:not(.sky-on) .site svg.mark .mk-sky { fill: #7fd3e6 !important; opacity: .5 !important; }
 .mc-hw svg { filter: none !important; width: 80px !important; height: 80px !important; }
 
 /* Match the Open Air drawing to the ONE; estimates keep their smaller source mark. */
@@ -1716,12 +1710,14 @@ body.no-token .bar .custom { display: none; }   /* the token page: no home menu 
 .s-profiles:empty { display: none; }
 .s-profiles .sx-nh .sx-why p { top: calc(100% + 6px); right: 18px; left: auto; width: min(380px, calc(100% - 36px)); }
 :root .sum-card > .s-bar + .sx { padding-top: 0; }
-@media (max-width: 480px) {
-  .s-meta { display: flex; flex-wrap: wrap; align-items: center; flex: 1 1 auto; min-width: 0; }
-  :root .sum-card > .s-bar .s-tools { flex-basis: 100%; margin-left: 28px !important; }
+@media (max-width: 480px) {   /* a phone: the title and the profile icons on row 1, the status and Refresh under them across the full width */
+  :root .sum-card > .s-bar { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; align-items: center; row-gap: 0; }
+  .s-meta { display: contents; }
+  :root .sum-card > .s-bar .s-by { grid-row: 1; grid-column: 1; min-width: 0; }
+  :root .sum-card > .s-bar .s-tools { grid-row: 2; grid-column: 1 / -1; justify-self: start; margin-left: 28px !important; }   /* 28 px: under the title's text, past its mark */
   :root .sum-card > .s-bar #s-ago:not(:empty)::before { content: none; }
   :root .sum-card > .s-bar #read-refresh { margin: -10px 0 -10px -6px; }
-  .s-profiles { padding-left: 10px; }
+  .s-profiles { grid-row: 1; grid-column: 2; padding-left: 10px; }
 }
 .blocks .pop-head > div { min-width: 0; line-height: 1.35; }
 .blocks .pop-head > div > b { display: inline; }
@@ -1780,7 +1776,7 @@ html.outside-dark .mc-out .mc-status.warn { color: var(--warn); }
 .hist-est[hidden] { display: none; }
 
 /* sky.js measures the background and supplies readable ink and halo colors for either theme. */
-html.sky-ink .bar .site, html.sky-ink .now-bar .now-h { color: var(--sky-ink) !important;
+html.sky-ink .bar .site { color: var(--sky-ink) !important;
   text-shadow: 0 0 2px var(--sky-halo), 0 0 6px var(--sky-halo), 0 0 12px var(--sky-halo); }
 html.sky-ink .now-bar .sky-cap { color: var(--sky-ink) !important;
   text-shadow: 0 0 2px var(--sky-halo), 0 0 6px var(--sky-halo), 0 0 12px var(--sky-halo) !important; }
@@ -1791,8 +1787,6 @@ html.sky-ink .now-line .dsp-top .theme-quick, html.sky-ink .now-line .dsp-open, 
 :root.sky-ink.wx-full .now-bar::before { background: rgba(var(--sky-halo-rgb), .6) !important; }
 html.sky-ink:not(.sky-dark) .now-bar .cap-i.air.warn svg.i { color: #b45309; }
 html.sky-ink:not(.sky-dark) .now-bar .cap-i.air.bad svg.i { color: #b42318; }
-html.sky-ink:not(.sky-dark) .site svg.mark .mk-fr, html.sky-ink:not(.sky-dark) .site svg.mark .mk-br { stroke: #0f2233; }
-html.sky-ink:not(.sky-dark) .site svg.mark .mk-dot { fill: #1f7d93; }
 
 /* ── Local first-run token form (begin) ── */
 /* One narrow card on the plain page background (sky.js keeps the sky off here): two numbered steps, each with one action. */

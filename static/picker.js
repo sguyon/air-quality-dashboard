@@ -45,8 +45,10 @@
   const roundCoord = x => Number(Number(x).toFixed(COORD_DECIMALS));
 
   // The top area's drawn marks: a text arrow like ↗ shows as an emoji on iOS (Sacha, 2026-11-12)
-  const MARK = '<svg class="dt-mark" viewBox="0 0 32 32" aria-hidden="true"><path class="mk-sky" d="M4.2 15.6V7.4a3.2 3.2 0 0 1 3.2-3.2h17.2a3.2 3.2 0 0 1 3.2 3.2v8.2z"/>' +
-    '<rect class="mk-fr" x="3" y="3" width="26" height="26" rx="4.4"/><path class="mk-br" d="M16 3v26M3 16h26"/><circle class="mk-dot" cx="22.4" cy="22.4" r="3"/></svg>';
+  // The logo (index.html's .now-mark, mock 94 round 8 a), always the live one here: the demo's readings are always fresh
+  const MARK = '<svg class="dt-mark" viewBox="0 0 32 32" aria-hidden="true"><mask id="dt-lg-m"><path d="M13.8 3.2Q16 1.4 18.2 3.2L30.1 12.8Q31 13.5 31 14.7V25Q31 31 25 31H7Q1 31 1 25V14.7Q1 13.5 1.9 12.8Z" fill="#fff"/>' +
+    '<path d="M0 17.5h32M16 17.5v15" stroke="#000" stroke-width="2.6"/></mask><g mask="url(#dt-lg-m)"><rect class="lg-house" width="32" height="32"/><rect class="lg-roof" width="32" height="17.5"/>' +
+    '<path class="lg-glow" d="M8.6 16.2A7.4 7.4 0 0 1 23.4 16.2Z"/><path class="lg-dot" d="M11.6 16.2A4.4 4.4 0 0 1 20.4 16.2Z"/></g></svg>';
   const WAY_ICON = {
     home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-6h6v6"/></svg>',
     pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
@@ -75,7 +77,7 @@
   <div class="dt-brand"><h1 class="dt-name">${MARK}Home Air Quality <span class="dt-tag">Demo</span></h1>
     <p class="dt-pitch">An <a href="${REPO_URL}">open-source</a> app for your AirGradient monitors. <span>It adds the weather forecast, pollen and more, and tells you what to do for profiles like young kids, allergies or running.</span></p></div>
   ${way(' dt-w1', 'ink', 'home', 'See a demo',
-    '<span class="dt-gen">Sample data from a made-up home.</span>',
+    '<span class="dt-gen">Sample data from a made\u2011up home.</span>',   // \u2011: a hyphen that never ends a line
     `<span class="dt-lab" id="dt-lab">Sample</span><nav class="dt-seg" aria-labelledby="dt-lab">${links}</nav>`)}
   ${way('', 'sky', 'pin', 'See a live monitor near you', 'Real readings from a public AirGradient monitor.',
     `<span class="dt-pickwrap" id="db-pickwrap"><button type="button" class="dt-pick${name ? ' is-chosen' : ''}" id="db-pick"${name ? ` aria-label="Monitor: ${name}. Change monitor"` : ''} aria-haspopup="dialog" aria-expanded="false" aria-controls="db-pop"><i class="live" aria-hidden="true"></i><span class="dt-pick-t">${name || 'Select a monitor'}</span>${ICON.chev}</button></span>`)}
