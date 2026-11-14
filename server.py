@@ -684,7 +684,26 @@ from sources import api_get, local_now
 from air_read import road_traffic, rush_windows
 
 
+def write_pid_file():
+    """Leave this copy's pid in app.pid while it runs, so `setup.py --start-at-login on` can stop it before the system
+    starts its own (scripts/autostart.py); removed at exit, SIGTERM included."""
+    import atexit, signal
+    path = Path(__file__).parent / "app.pid"
+    pid = str(os.getpid())
+    path.write_text(pid)
+
+    def remove():
+        try:
+            if path.read_text().strip() == pid:
+                path.unlink()
+        except OSError:
+            pass
+    atexit.register(remove)
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))   # atexit runs on SIGTERM only through a normal exit
+
+
 if __name__ == "__main__":
+    write_pid_file()
     port = int(os.environ.get("PORT", 5555))
     host = os.environ.get("HOST", "127.0.0.1")   # HOST=0.0.0.0 to open it from a phone on the same network
     print(f"Home Air Quality → http://localhost:{port}")

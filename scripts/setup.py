@@ -47,13 +47,15 @@ NORTHEAST = {"CT": "Connecticut", "ME": "Maine", "MA": "Massachusetts", "NH": "N
 NOT_FOUND = "Couldn't find it. Try a nearby landmark with its city, or pass --lat and --lon from a map app."
 KEY_NAMES = ("AIRGRADIENT_TOKEN", "GOOGLE_POLLEN_API_KEY")  # the only keys transferred to Railway.
 STATUS_TIMEOUT = 15  # seconds for --status's one readings request: AirGradient took 7 s to connect on 2026-11-13, and 5 s read that as a refused token.
-UV = "uv run --python 3.12 --with-requirements requirements.txt"  # how SETUP.md runs every command.
-SETUP_CMD = f"{UV} scripts/setup.py"
-SERVER_CMD = f"{UV} server.py"
+RUN = "scripts/run.sh"  # how SETUP.md runs every command: uv, else installing uv, else Python 3.11+ (the uv ladder).
+SETUP_CMD = f"{RUN} scripts/setup.py"
+SERVER_CMD = f"{RUN} server.py"
+START_CMD = f"nohup {SERVER_CMD} > app.log 2>&1 &"  # in the background, so it outlives the agent's session; its log in app.log
 HOME_CMD = f'{SETUP_CMD} --address "<neighborhood or address>" --profiles <toddler,sinus,runner or none>'
 STATUS_CMD = f"{SETUP_CMD} --status"
 WAIT_TOKEN_CMD = f"{SETUP_CMD} --wait-token"
 WAIT_TOKEN_SECONDS = 90  # one wait: under the shortest default command limit we know (Claude Code stops a command after 120 s).
+STARTUP_WAIT = 30  # seconds for the page to answer after the system starts it at login (uv may install packages first).
 WAIT_POLL_SECONDS = 2  # how often --wait-token looks for the saved token: the user sees the agent move on within 2 s.
 
 
@@ -629,7 +631,7 @@ def status(env, root):
     prepared = token_set or any(defines(line, "AIRGRADIENT_TOKEN") for line in text.splitlines())
     step("1. Token entry (.env)", prepared, "" if prepared else "no AIRGRADIENT_TOKEN line yet", SETUP_CMD)
     step("2. AirGradient connected", token_set, "" if token_set else "no token yet",
-         f"{SERVER_CMD} (then open the ?setup= link it prints; the user enters the token on that page)")
+         f"{START_CMD} (then open the ?setup= link it writes to app.log; the user enters the token on that page)")
 
     cfg, problem = None, None
     # where load_config reads the home from, in its order: the variables win over the file
@@ -649,7 +651,7 @@ def status(env, root):
         words = f"{problem}. Fix the {source} variable: it wins over config.toml"
     else:
         words = "no config.toml yet"
-    fix = HOME_CMD if source == "config.toml" else f"{UV} scripts/check_config.py"
+    fix = HOME_CMD if source == "config.toml" else f"{RUN} scripts/check_config.py"
     step(f"3. Home and monitors ({source})", cfg is not None, words, fix)
 
     if not (token_set and cfg is not None):
@@ -662,7 +664,7 @@ def status(env, root):
             step("4. Readings come in", False, f"couldn't check: AirGradient didn't answer within {STATUS_TIMEOUT} s; try again in a minute", STATUS_CMD)
         except TokenRefused:
             step("4. Readings come in", False, "AirGradient refused the token",
-                 f"{SERVER_CMD} (then open the ?setup= link it prints and enter the token again)")
+                 f"{START_CMD} (then open the ?setup= link it writes to app.log and enter the token again)")
         except SetupError:
             step("4. Readings come in", False, "couldn't check: AirGradient's answer couldn't be read; try again in a minute", STATUS_CMD)
         else:
@@ -695,12 +697,35 @@ def status(env, root):
         return 0
     # Done is SETUP.md's "Done when": the running page's --live check ends with Live OK, which needs the page started.
     port = port_from(env)
-    start = f"cd {root} && {'PORT=' + str(port) + ' ' if port != DEFAULT_PORT else ''}{SERVER_CMD}"
+    start = f"cd {root} && {'PORT=' + str(port) + ' ' if port != DEFAULT_PORT else ''}{START_CMD}"
     print("Steps 1–4 done. Last, check the running page: it should end with Live OK.")
     print(f"Page: http://localhost:{port}")
     print(f"Next: {start}, then {SETUP_CMD} --live http://localhost:{port} "
           "(Railway or Docker: --live <the page's address>)")
     return 0
+
+
+def page_answers(url, env, root):
+    """After the system starts the app: wait for /health, then the --live check."""
+    end = time.monotonic() + STARTUP_WAIT
+    while time.monotonic() < end:
+        try:
+            if requests.get(f"{url}/health", timeout=WAIT_POLL_SECONDS).ok:
+                return live(url, env, root)
+        except requests.RequestException:
+            pass
+        time.sleep(WAIT_POLL_SECONDS)
+    return 1
+
+
+def start_at_login(state, env, root):
+    import autostart
+    run = lambda cmd: subprocess.run(cmd, capture_output=True).returncode
+    home = Path(env.get("HOME") or Path.home())
+    if state == "off":
+        return autostart.turn_off(root, home, run, shutil.which, sys.platform)
+    url = f"http://localhost:{port_from(env)}"
+    return autostart.turn_on(root, home, env, run, shutil.which, sys.platform, lambda: page_answers(url, env, root))
 
 
 def parser():
@@ -717,6 +742,10 @@ def parser():
     ap.add_argument("--timezone", help="a correction using an IANA timezone name")
     ap.add_argument("--live", nargs="?", const="", metavar="URL", help="check the running page with GET requests")
     ap.add_argument("--status", action="store_true", help="list what's done and the next command; changes nothing")
+    ap.add_argument("--start-at-login", choices=("on", "off"),
+                    help="start the app by itself at login (a Mac or Linux with systemd), or stop doing so")
+    ap.add_argument("--home-server", action="store_true",
+                    help="prepare a folder for a home server with Docker (Compose, settings, token) and say the two steps")
     ap.add_argument("--wait-token", action="store_true",
                     help=f"wait up to {WAIT_TOKEN_SECONDS} s for the token page to save the token, then say what the account has")
     return ap
@@ -736,6 +765,11 @@ def main(argv, env, root=ROOT):
             return status(env, root)
         if args.wait_token:
             return wait_token(env, root)
+        if args.home_server:
+            import homeserver
+            return homeserver.prepare(root)
+        if args.start_at_login:
+            return start_at_login(args.start_at_login, env, root)
         if args.live is not None:
             return live(args.live or f"http://localhost:{port_from(env)}", env, root)
         if not args.address and args.lat is None and args.lon is None:

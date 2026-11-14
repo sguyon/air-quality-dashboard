@@ -24,7 +24,7 @@ You need one or two AirGradient monitors (indoor, outdoor or both) on AirGradien
 Clone https://github.com/sguyon/home-air-quality and set up Home Air Quality for my home by following its SETUP.md.
 ```
 
-It connects AirGradient, asks your location and profiles, writes your config and runs the page on your computer, then can put it online ([`DEPLOYMENT.md`](DEPLOYMENT.md)).
+It connects AirGradient, asks your location and profiles, writes your config and runs the page on your computer. It can then keep it running, or help you put it on a home server with Docker or online with Railway ([`DEPLOYMENT.md`](DEPLOYMENT.md)).
 
 **With Docker,** on a home server or NAS: follow [Docker setup](DEPLOYMENT.md#docker) to create `config.toml` and enter the token in `.env`, then start Compose and open http://localhost:8000.
 

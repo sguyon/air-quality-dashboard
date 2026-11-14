@@ -66,7 +66,7 @@ The setup (`SETUP.md`, `scripts/setup.py`, the token page) is a stranger's first
 uv run --with-requirements requirements.txt server.py
 ```
 
-Then http://localhost:5555 (`PORT` changes the port). Without uv: a virtualenv with `pip install -r requirements.txt`, then `python server.py`. Python 3.11 or newer. `DEMO=1` runs the demo whatever the config.
+Then http://localhost:5555 (`PORT` changes the port). `scripts/run.sh server.py` does the same and finds or installs uv first (else Python 3.11+ in `.venv`), as setup does. Without uv: a virtualenv with `pip install -r requirements.txt`, then `python server.py`. Python 3.11 or newer. `DEMO=1` runs the demo whatever the config.
 
 ## Test
 

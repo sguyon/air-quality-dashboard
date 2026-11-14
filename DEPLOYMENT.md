@@ -6,7 +6,7 @@ For access away from home, use Railway. For a home server or NAS, use Docker Com
 
 Railway builds from this repo's `Dockerfile`. There is no login on the page: anyone with its address can see the readings and the home's rounded location (about 1 km). Keep the address private; telling search engines not to index it is not access control.
 
-Prepare `config.toml` with [SETUP.md](SETUP.md). The helper below needs uv and Python 3.12 (`uv run --python 3.12` fetches Python itself); check `uv --version`. Install the [Railway CLI](https://docs.railway.com/guides/cli); the user signs in with `railway login` (`railway whoami` shows who).
+Prepare `config.toml` with [SETUP.md](SETUP.md). The helper below runs through `scripts/run.sh`, which finds or installs what it needs. Install the [Railway CLI](https://docs.railway.com/guides/cli); the user signs in with `railway login` (`railway whoami` shows who).
 
 `railway init` links the current folder to the new project, and every later `railway` command here uses that link. Run from a folder that has no link yet: `railway status` should say there is no linked project. A folder already linked to another project (a copy of this repo you deploy elsewhere) would send the code to the wrong one; use a fresh clone. With several workspaces, `init` asks which one, or pass `--workspace <name>`. Create the project and service, with the user's OK:
 
@@ -20,10 +20,10 @@ railway add --service home-air
 Send settings using the helper, after the user's OK:
 
 ```bash
-uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py railway --service home-air
+scripts/run.sh scripts/setup.py railway --service home-air
 ```
 
-It sends `CONFIG_TOML` from `config.toml` and each set key from `.env` through stdin, and prints only the names sent. Neither private file is uploaded with the code. It sets them without starting a deploy (`--skip-deploys`), so no empty or failing deploy starts before the code is up; the next step deploys with all of them. To set one variable yourself the same way, add `--skip-deploys` to `railway variable set`. A user going straight to Railway without a local run pastes `AIRGRADIENT_TOKEN` into the service's Variables form instead; agents never handle the pasted token.
+It sends `CONFIG_TOML` from `config.toml` and each set key from `.env` through stdin, and prints only the names sent. Neither private file is uploaded with the code. It sets them without starting a deploy (`--skip-deploys`), so no empty or failing deploy starts before the code is up; the next step deploys with all of them. To set one variable yourself the same way, add `--skip-deploys` to `railway variable set`.
 
 Deploy, with approval:
 
@@ -39,7 +39,7 @@ Create an address, with approval. A bare `railway domain` creates a public one, 
 railway domain --service home-air
 ```
 
-The image listens on the `PORT` Railway sets, so there is no port to choose. Open the URL it prints (`railway domain list --service home-air` shows it again). Run `scripts/setup.py --live https://<your-domain>` with the same uv prefix to verify that destination; it should end with "Live OK". If it doesn't answer, check `railway logs --service home-air`. To add it to a phone's home screen, see [SETUP.md](SETUP.md#on-your-phone).
+The image listens on the `PORT` Railway sets, so there is no port to choose. Open the URL it prints (`railway domain list --service home-air` shows it again). Run `scripts/run.sh scripts/setup.py --live https://<your-domain>` to verify that destination; it should end with "Live OK". If it doesn't answer, check `railway logs --service home-air`. To add it to a phone's home screen, see [SETUP.md](SETUP.md#on-your-phone).
 
 To remove it all, with the user's OK (it can't be undone): take the linked project's ID, the `id` in `railway status --json`, and run `railway delete --project <id>`. An agent can't answer its prompt, so it adds `--yes`, and `--2fa-code <code>` from the user when the account has two-factor sign-in. Then check that it is gone from `railway list`. The address stops working with it.
 
@@ -47,9 +47,11 @@ After config or key changes, with the user's OK, rerun the transfer helper, then
 
 ## Docker
 
-Install Docker with Compose 2.24 or newer. Build from this repo's Dockerfile. Keep `.env` and `config.toml` beside `docker-compose.yml`.
+**On a home server** (a mini PC, a Raspberry Pi or a NAS): set up on your computer first ([SETUP.md](SETUP.md)), then run `scripts/run.sh scripts/setup.py --home-server`. It prepares a `home-server` folder (a Compose file using the published image, `config.toml` and a private copy of `.env`) and says the two steps: copy the folder to the server, then run `docker compose up -d` in it. The page opens at `http://<the server>:8000` for every device at home; it has no password, so anyone on that network can see it. A NAS can take the same Compose file through its own screens.
 
-If uv is available, follow [SETUP.md](SETUP.md) to prepare those files. Without uv, run setup inside the image, mounting this repo so files are written here. This uses a temporary container and does not start a live service. If config does not exist yet, create an empty mount source first with `touch config.toml`:
+**On this machine, from the repo** (the steps below): install Docker with Compose 2.24 or newer. Build from this repo's Dockerfile. Keep `.env` and `config.toml` beside `docker-compose.yml`.
+
+If uv or Python 3.11+ is available, follow [SETUP.md](SETUP.md) to prepare those files. Without either, run setup inside the image, mounting this repo so files are written here. This uses a temporary container and does not start a live service. If config does not exist yet, create an empty mount source first with `touch config.toml`:
 
 ```bash
 docker compose build

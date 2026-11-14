@@ -1,6 +1,6 @@
 # Setup
 
-**Done when** `uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py --live <the page's address>` ends with `Live OK`: the page answers with the home's settings, and each monitor has a recent reading.
+**Done when** `scripts/run.sh scripts/setup.py --live <the page's address>` ends with `Live OK`: the page answers with the home's settings, and each monitor has a recent reading.
 
 For a coding agent setting this up for someone's home. Do the steps yourself when a command can. Ask one question per message, in plain words, then wait for the answer. If you have a question tool (Claude Code's AskUserQuestion, for example), ask every question with it, one at a time, the default as the first option; don't write a question as plain chat text. Don't ask the next one until the user has answered and you've said what you did with it. Skip answers the user already gave. Don't change the app's code during setup: if the token is refused twice, stop and say what the page said. Never ask for a key in chat, read or print `.env`, or commit private settings. Ask before changing a live service or account.
 
@@ -15,17 +15,19 @@ git clone https://github.com/sguyon/home-air-quality
 cd home-air-quality
 ```
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if missing; use Python 3.12: `uv python install 3.12`. All commands below run from this folder. To see what's done and the next command at any point, run `uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py --status`; it changes nothing. For Docker or a home server, follow [DEPLOYMENT.md](DEPLOYMENT.md#docker) first.
+Run every command below from this folder through `scripts/run.sh`: it uses uv, installs uv if it's missing, or falls back to Python 3.11 or newer, and says which; if none works, it stops and says what to install. To see what's done and the next command at any point, run `scripts/run.sh scripts/setup.py --status`; it changes nothing.
+
+In a cloud sandbox (Claude Code on the web, Codex cloud) asked to set up a home: say the app can't stay there and to run setup on their own computer, then stop. Development in a sandbox is unaffected: see AGENTS.md, "Run".
 
 ## Connect AirGradient
 
 Prepare the private token file; this keeps existing lines and sets owner-only permissions:
 
 ```bash
-uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py
+scripts/run.sh scripts/setup.py
 ```
 
-On the user's own computer, start the app now with the command under **Start and verify**. Open the exact `?setup=…` link it prints with `open '<link>'` on Mac or `xdg-open '<link>'` on Linux. The link grants access to the token box and redirects to `/`. Never enter or inspect the token through browser tools.
+On the user's own computer, start the app now with the command under **Start and verify**. Open the exact `?setup=…` link it writes to `app.log` with `open '<link>'` on Mac or `xdg-open '<link>'` on Linux. The link grants access to the token box and redirects to `/`. Never enter or inspect the token through browser tools.
 
 Then send one message, with the exact link, and in the same turn run `scripts/setup.py --wait-token` (the command above with `--wait-token`):
 
@@ -35,15 +37,13 @@ Then send one message, with the exact link, and in the same turn run `scripts/se
 >
 > I'll notice when the token is saved: no need to reply. If nothing happens, type done. If you don't have a monitor set up yet, tell me.
 
-The page checks the token with AirGradient, lists the account's monitors, saves it privately and loads it without a restart. `--wait-token` waits up to 90 seconds for that and prints the account's monitors without showing the token. If it says "Not saved yet", run it again, unless the user has written meanwhile; when they type done, run it once more. Tell the user in one line what you found ("Connected: 2 monitors, Living room (indoor) and Back porch (outdoor).") before the next question. A fresh copy stays in the demo until the home is configured below; stop that process before restarting with the home.
+The page checks the token with AirGradient, lists the account's monitors, saves it privately and loads it without a restart. `--wait-token` waits up to 90 seconds for that and prints the account's monitors without showing the token. If it says "Not saved yet", run it again, unless the user has written meanwhile; when they type done, run it once more. Tell the user in one line what you found ("Connected: 2 monitors, Living room (indoor) and Back porch (outdoor).") before the next question. A fresh copy stays in the demo until the home is configured below; stop it (`kill $(cat app.pid)`) before restarting with the home.
 
 Can't find the token: tell them to press "Show me where" under step 1 on the page. It opens a marked picture of AirGradient's settings page: 1 General Settings in the left menu, 2 the Connectivity tab, 3 API Access, where they turn it on and press the copy button. Walk them through those marks in words. Don't open pictures in another app: a picture of a web page in its own window looks clickable.
 
 No monitor yet (the user says so, or the page says the account has none): stop the setup. Tell them to set up the monitor with AirGradient's instructions and come back, and that meanwhile [the demo](https://homeair.guyon.dev) shows the live readings of any public AirGradient monitor ("Near me").
 
-Fallback, Docker or a home server: open `.env` in the user's text editor (`open -e .env` on Mac, `xdg-open .env` on Linux). Wait while they fill the empty `AIRGRADIENT_TOKEN=` line and save. Restart the app afterwards. Check only set/missing with `scripts/check_config.py`; before config exists, setup itself checks the token with AirGradient without showing it.
-
-Going straight to Railway without a local run: the user pastes the token into the service's Variables form instead.
+Fallback, when the token page can't open: open `.env` in the user's text editor (`open -e .env` on Mac, `xdg-open .env` on Linux). Wait while they fill the empty `AIRGRADIENT_TOKEN=` line and save. Restart the app afterwards. Check only set/missing with `scripts/check_config.py`; before config exists, setup itself checks the token with AirGradient without showing it.
 
 ## Describe your home
 
@@ -55,7 +55,7 @@ Ask these two questions, one per message, each with its default; the user never 
 Then run one command, using their answers:
 
 ```bash
-uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py \
+scripts/run.sh scripts/setup.py \
   --address "Times Square, New York" --profiles sinus,runner
 ```
 
@@ -65,8 +65,10 @@ No approval is needed before writing. An existing config is copied to `config.to
 
 ## Start and verify
 
+Start it in the background, so it keeps running after this session (it writes to `app.log`):
+
 ```bash
-uv run --python 3.12 --with-requirements requirements.txt server.py
+nohup scripts/run.sh server.py > app.log 2>&1 &
 ```
 
 Open http://localhost:5555 on this computer. Without a token, open the printed setup link for the token box (the plain address shows the demo on a fresh copy, or says where the link is once a home is set up). Restart to get a new link. Set `PORT=5600` before the command if the port is taken, and use that port below too.
@@ -74,14 +76,30 @@ Open http://localhost:5555 on this computer. Without a token, open the printed s
 With the token and home configured, check the running page:
 
 ```bash
-uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py --live http://localhost:5555
+scripts/run.sh scripts/setup.py --live http://localhost:5555
 ```
 
 It uses read-only GET requests and ends with `Live OK`. When the app restarts with the home, the page where the user saved the token turns into the home by itself: don't open another tab. The page should show the monitors' readings, actions, chosen profiles and local conditions. Without an outdoor monitor, the outdoor card names a public monitor or says “Estimate for your area”. If a reading is missing, check the monitor is online and set as indoor or outdoor in AirGradient. Docker and Railway users verify their final URL without starting a local server.
 
 ## Use it again
 
-Start with the address alone on its own line, in bold, as a link (`**http://localhost:5555**`, with the real port), and say it's open in the tab where they saved the token. Then what to expect, and one start command with the full repo path: `cd /path/to/home-air-quality && uv run --python 3.12 --with-requirements requirements.txt server.py`, with the port if it isn't 5555. Mention the log file only if something failed. Ctrl+C stops it in a terminal.
+End with this message, with the real port, and nothing after it:
+
+> Home Air Quality is ready at this address:
+>
+> http://localhost:5555
+>
+> It stops when this computer restarts. I can make it start by itself when you log in.
+>
+> I can also help you set it up on a home server with Docker, or online with Railway.
+
+The address goes alone on its line, plain; don't say a tab is open. If they ask:
+
+- To start it by itself: `scripts/run.sh scripts/setup.py --start-at-login on` (a Mac, or Linux with systemd; elsewhere it says why not). `off` undoes it.
+- For a home server: `scripts/run.sh scripts/setup.py --home-server`, then pass on its two steps; the server needs Docker. Once they've started it, check `scripts/run.sh scripts/setup.py --live http://<the server>:8000` if you can reach it.
+- Online: [DEPLOYMENT.md](DEPLOYMENT.md#railway).
+
+For later sessions, not for the message: the app writes to `app.log` in this folder, and starts again with `cd /path/to/home-air-quality && nohup scripts/run.sh server.py > app.log 2>&1 &` (with `PORT=` first if it isn't 5555).
 
 Change names, profiles, drying equipment (`[home] appliances`) or limits in `config.toml`; [config.example.toml](config.example.toml) explains the settings. Restart after editing config or `.env` by hand. Keep a private copy of config; it isn't in git. Optional [pollen, road tracing, new profiles and Vercel demo](docs/optional.md); [Railway and Docker deployment](DEPLOYMENT.md).
 

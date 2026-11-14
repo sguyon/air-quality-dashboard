@@ -510,17 +510,69 @@ def test_setup_md_asks_one_question_at_a_time_with_or_without_a_question_tool():
     assert "no question tool" not in intro
 
 
-def test_setup_md_ends_on_the_home_in_the_tab_already_open_and_a_prominent_address():
-    # rehearse manual-20261113-1848-S1: "it could make it clear to open the app in browser ... the log line here is not super
-    # important and the link to the app should be more prominent"; both agents opened a second tab although the token page
-    # had already turned into the home
-    doc = (Path(__file__).resolve().parent.parent / "SETUP.md").read_text()
-    verify = doc.split("## Start and verify", 1)[1].split("\n## ", 1)[0]
-    again = doc.split("## Use it again", 1)[1].split("\n## ", 1)[0]
+LAST_MESSAGE = ["Home Air Quality is ready at this address:", "http://localhost:5555",
+                "It stops when this computer restarts. I can make it start by itself when you log in.",
+                "I can also help you set it up on a home server with Docker, or online with Railway."]
+
+
+def doc(name):
+    return (Path(__file__).resolve().parent.parent / name).read_text()
+
+
+def section(text, title):
+    return text.split(f"## {title}", 1)[1].split("\n## ", 1)[0]
+
+
+def test_setup_md_ends_on_the_home_in_the_tab_already_open():
+    # rehearse manual-20261113-1848-S1: both agents opened a second tab although the token page had already turned into
+    # the home
+    verify = section(doc("SETUP.md"), "Start and verify")
     assert "the page where the user saved the token turns into the home by itself: don't open another tab" in verify
-    assert "Start with the address alone on its own line, in bold" in again
-    assert "it's open in the tab where they saved the token" in again
-    assert "Mention the log file only if something failed" in again and "log location" not in again
+
+
+def test_setup_md_last_message_is_the_decided_text():
+    # where-it-runs spec, Decided 2 (Sacha's edits, 14 Nov): the address plain on its own line, no tab claim, no log, no
+    # start command
+    again = section(doc("SETUP.md"), "Use it again")
+    quoted = [line[2:] for line in again.splitlines() if line.startswith("> ")]
+    assert [q for q in quoted if q] == LAST_MESSAGE
+    message = "\n".join(quoted)
+    assert "**" not in message and "tab" not in message and "app.log" not in message and "run.sh" not in message
+
+
+def test_setup_md_says_what_each_offer_runs():
+    again = section(doc("SETUP.md"), "Use it again")
+    assert "scripts/run.sh scripts/setup.py --start-at-login on" in again
+    assert "scripts/run.sh scripts/setup.py --home-server" in again
+    assert "DEPLOYMENT.md" in again
+
+
+def test_setup_md_has_no_question_about_where_it_runs():
+    # mock 97: B, then "statement is better": the last message says what's possible; no question first
+    assert "Where should the page run" not in doc("SETUP.md")
+    rules = doc("AGENTS.md")
+    assert "- No new questions. Find the answer" in rules and "beyond where the page runs" not in rules
+
+
+def test_setup_md_commands_use_the_launcher():
+    for name in ("SETUP.md", "DEPLOYMENT.md"):
+        assert "uv run --python 3.12" not in doc(name), name
+    assert "scripts/run.sh scripts/setup.py" in doc("SETUP.md")
+
+
+def test_cloud_sandbox_stops_setup_but_not_development():
+    ready = section(doc("SETUP.md"), "Get ready")
+    assert "Claude Code on the web" in ready and "Codex cloud" in ready and "stop" in ready
+    assert "AGENTS.md" in ready
+
+
+def test_no_straight_to_railway_path():
+    for name in ("SETUP.md", "DEPLOYMENT.md"):
+        assert "without a local run" not in doc(name), name
+
+
+def test_start_survives_the_session():
+    assert "nohup scripts/run.sh server.py > app.log 2>&1 &" in section(doc("SETUP.md"), "Start and verify")
 
 
 def test_deployment_md_says_which_hosts_are_tested():
@@ -569,3 +621,15 @@ def test_setup_md_lets_the_user_keep_a_default_without_typing_it():
     assert "With a question tool, offer the answers as options with the default first" in home
     assert "Any other reply, like ok, keeps none." in home
     assert "Any other reply, like ok, keeps it." in home
+
+
+
+def test_setup_md_says_where_the_link_is_and_how_to_stop_it():
+    # review, Important 4: with the app in the background, its setup link is in app.log, and it stops with app.pid
+    text = doc("SETUP.md")
+    assert "`?setup=…` link it writes to `app.log`" in text
+    assert "kill $(cat app.pid)" in text
+
+
+def test_status_suggests_starting_in_the_background():
+    assert setup.START_CMD == "nohup scripts/run.sh server.py > app.log 2>&1 &"
