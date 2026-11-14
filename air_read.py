@@ -297,7 +297,7 @@ def rush_windows(hourly, now):
 
 
 def profiles_on(profiles):
-    """Only the profiles the page's view turns on: the home's config, or a public monitor's (runner only, demo/public.py)."""
+    """Only the profiles the page's view turns on: the home's config, or a public monitor's (demo/public.py)."""
     on = runtime.page_view().get("profiles") or {}
     return [n for n in profiles if on.get(n["id"], True)]
 

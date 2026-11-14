@@ -260,6 +260,18 @@ test('an indoor monitor the view does not have is disabled: tone off, Not set up
   assert.match(home2, /class="vhw" data-tip="Indoor · AirGradient ONE: Offline"><i class="bad">/);
 });
 
+test("a public monitor's Home menu shows the demo's three profiles, the toddler greyed with its reason, as an outdoor-only home's", () => {
+  assert.equal(home.profileOff('toddler', false), 'Needs an indoor monitor');
+  assert.equal(home.profileOff('sinus', false), null);
+  assert.equal(home.profileOff('runner', false), null);
+  assert.equal(home.profileOff('toddler', true), null);   // a home with an indoor monitor: nothing greyed
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  const cfg = app.slice(app.indexOf('function applyConfig'), app.indexOf('applyConfig();'));
+  // the greying runs on every page, a public monitor's included (it used to skip PUB, when a monitor showed the runner only)
+  assert.match(cfg, /\n  document\.querySelectorAll\('\.view\.profiles \[data-profile\]'\)\.forEach\(el => \{ const why = profileOff\(el\.dataset\.profile, place\.indoor !== null\);/);
+  assert.doesNotMatch(cfg, /if \(!PUB\) document\.querySelectorAll\('\.view\.profiles/);
+});
+
 test('the menu counts only the monitors the view has', () => {
   assert.deepEqual(home.monitorsLive([{ tone: 'off' }, { tone: 'good' }]), { text: '1 monitor live', tone: 'good' });
   assert.deepEqual(home.monitorsLive([{ tone: 'good' }, { tone: 'good' }]), { text: '2 monitors live', tone: 'good' });

@@ -394,7 +394,7 @@ def install(server, moment_for_request):
     With ?monitor=<id> (server.request_monitor()) and that id an outdoor monitor of AirGradient's public map, the
     request is about that monitor instead: the real fetchers at its place, through the real cache under keys that
     carry its id (MONITOR_TTL), its history from AirGradient's public map when the map has it (monitor_history), no
-    pollen, no road, the runner's profile only (its view's), and its reading counts only while it's online and recent
+    pollen, no road, the demo's three profiles (its view's), and its reading counts only while it's online and recent
     (server.outdoor_row). An id that can't be shown (unknown, or the map didn't answer) gets the default sample's
     made-up answers, which no one caches, and the page says why (window.APP.public.error).
 
@@ -412,7 +412,7 @@ def install(server, moment_for_request):
     _REAL.update({name: getattr(sources, name) for name in (
         "cached", "_fetch_world", "_fetch_nearby", "get_open_meteo_data", "get_air_forecast", "smoke_status",
         "local_now", "source_on", "outdoor_source")},
-        road_traffic=air_read.road_traffic, page_view=server.page_view, indoor_monitor=air_read.indoor_monitor,
+        road_traffic=air_read.road_traffic, page_view=server.page_view,
         force=sources._force, world_cache=sources.WORLD_CACHE)
     real = _REAL
     request_monitor = server.request_monitor
@@ -516,8 +516,10 @@ def install(server, moment_for_request):
         return source_past(key(), frm, to) if location_id == SOURCE_MONITOR_ID == outdoor_from() else []
 
     def indoor_monitor():
+        """A sample's moment says (a hidden case can have none); a public monitor is outdoor only, so its summary reads
+        nothing indoors and its toddler profile waits for an indoor monitor, as an outdoor-only home's does."""
         m = sample()
-        return m.indoor if m else real["indoor_monitor"]()
+        return m.indoor if m else False
 
     def now(*a, **k):
         w = which()

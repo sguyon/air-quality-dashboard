@@ -139,7 +139,7 @@ def test_find_is_outdoor_only():
 
 def test_view_of_a_monitor(demo):
     roof = public.view_of(publicmap.find(WORLD, ROOF), demo.APP_VIEW)
-    assert roof["profiles"] == {"toddler": False, "sinus": False, "runner": True}
+    assert roof["profiles"] == {"toddler": True, "sinus": True, "runner": True}   # the demo's three, as in the samples
     assert roof["sources"] == {"pollen": False, "road": False, "smoke": True, "nearby": True}   # booleans, like the config's
     assert roof["links"]["forecast"].startswith("https://forecast.weather.gov/")
     assert roof["road"] is None
@@ -187,7 +187,7 @@ def test_monitor_page_and_api(c, net):
     app = app_of(page)
     assert app["public"]["id"] == ROOF and "error" not in app["public"]
     assert "now" not in app
-    assert app["profiles"] == {"toddler": False, "sinus": False, "runner": True}
+    assert app["profiles"] == {"toddler": True, "sinus": True, "runner": True}
     assert page.headers["Cache-Control"] == "public, max-age=60, s-maxage=300"
 
     cur = c.get(f"/api/current?monitor={ROOF}")
@@ -437,12 +437,21 @@ def read_of(c, mid=ROOF):
     return c.post(f"/api/analyze?monitor={mid}", json=body).get_json()
 
 
-def test_runner_only(c, net, pinned):
+def by_id(profiles):
+    return {n["id"]: n for n in profiles}
+
+
+def test_the_demos_three_profiles(c, net, pinned):
+    """A public monitor's page shows the samples' three profiles, read as an outdoor-only home's: the toddler waits
+    for an indoor monitor, the sinus profile has only pollen (none for a public monitor), the runner reads the monitor."""
     net["world"], net["model"] = world_with(timestamp=ago(0.1)), model_at("America/New_York", lambda k: 5.0)
     read = read_of(c)
-    assert [n["id"] for n in read["summary"]["profiles"]] == ["runner"]
-    assert [n["id"] for n in read["profiles"]] == ["runner"]
-    assert read["summary"]["profiles"][0]["facts"]["pm_now"] == 4.8   # a fresh reading is the reading now (4.2 raw, 37 % RH)
+    assert [n["id"] for n in read["summary"]["profiles"]] == ["toddler", "sinus", "runner"]
+    assert [n["id"] for n in read["profiles"]] == ["toddler", "sinus", "runner"]
+    s = by_id(read["summary"]["profiles"])
+    assert s["toddler"]["state"] == "Needs an indoor monitor" and s["toddler"]["ok"] is None
+    assert s["sinus"]["state"] == "No reading" and "pollen only" in s["sinus"]["why"]
+    assert s["runner"]["facts"]["pm_now"] == 4.8   # a fresh reading is the reading now (4.2 raw, 37 % RH)
 
 
 def test_monitor_chart_past_is_the_model(c, net, pinned):
@@ -475,7 +484,8 @@ def test_monitor_has_no_road(c, net, demo, pinned):
     pm = next(i for i in read["summary"]["items"] if i["id"] == "pm")
     assert "cause" not in pm["facts"] and pm["ctx"] == "Peak 12 AM · now 5"   # no ", BQE rush" cause (now: 4.8 corrected)
     # at 10 PM a home with a road says "Run tonight or before 7 AM"; without one, the run verdict has no rush to name
-    assert read["profiles"][0]["action"] == "Fine to run" and read["profiles"][0]["why"] == "The air outside is clean."
+    run = by_id(read["profiles"])["runner"]
+    assert run["action"] == "Fine to run" and run["why"] == "The air outside is clean."
 
 
 def test_monitor_pm_timing_names_this_monitor(c, net, pinned):
@@ -495,8 +505,8 @@ def test_stale_public_reading_ignored(c, net, pinned, changes):
     read = read_of(c)
     pm = next(i for i in read["summary"]["items"] if i["id"] == "pm")
     assert pm["forecast"] is True and "pm_now" not in pm["facts"]
-    assert read["summary"]["profiles"][0]["facts"]["pm_now"] is None
-    assert read["profiles"][0]["action"] == "No outdoor reading"
+    assert by_id(read["summary"]["profiles"])["runner"]["facts"]["pm_now"] is None
+    assert by_id(read["profiles"])["runner"]["action"] == "No outdoor reading"
 
 
 # ── Real history from AirGradient's public map (Task 5b) ──
@@ -682,7 +692,7 @@ def test_summary_is_on_the_corrected_basis(c, net, pinned):
     net["area"] = [map_entry(MAP_ROOF, "Oak & Elm st", 10)]
     net["history"] = gp_history(lambda k: 4.5)
     read = read_of(c)
-    assert read["summary"]["profiles"][0]["facts"]["pm_now"] == 8.8   # 0.524·12 − 0.0862·37 + 5.75
+    assert by_id(read["summary"]["profiles"])["runner"]["facts"]["pm_now"] == 8.8   # 0.524·12 − 0.0862·37 + 5.75
     pm = read["summary"]["timeline"]["pm"]
     assert "source" not in pm and {v for _, v in pm["past"]} == {4.5}
     k = (4.5 + .5) / (10.0 + .5)   # calibrate_forecast's median ratio against the corrected past

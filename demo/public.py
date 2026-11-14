@@ -24,7 +24,9 @@ DEMO_REGION_KM = 300
 UNKNOWN = "Monitor {id} isn't on AirGradient's public map"   # the id isn't an outdoor monitor of the world list
 WORLD_DOWN = "AirGradient's public map didn't answer"   # the world list failed or timed out
 
-PROFILES = {"toddler": False, "sinus": False, "runner": True}   # a public monitor is outdoor only: the runner's profile
+# the demo home's three profiles, as in the samples: a public monitor is outdoor only, so the toddler waits for an indoor
+# monitor (greyed, with its reason) and the sinus profile reads pollen alone, like an outdoor-only home's
+PROFILES = {"toddler": True, "sinus": True, "runner": True}
 
 # s: how long a request waits on a monitor's weather, PM2.5 model or NOAA smoke before answering without it (a late
 # fetch still lands in the cache for the next request); Open-Meteo answers in about a second
@@ -51,8 +53,8 @@ def here_of(monitor):
 
 
 def view_of(monitor, base_view):
-    """window.APP for a public monitor: the demo's view, at the monitor's place, outdoor only, no road, no pollen. The
-    demo home's pollen seasons only within DEMO_REGION_KM of it."""
+    """window.APP for a public monitor: the demo's view, at the monitor's place, outdoor only, no road, no pollen, the
+    demo's three profiles. The demo home's pollen seasons only within DEMO_REGION_KM of it."""
     name, here, na = publicmap.name_of(monitor), here_of(monitor), publicmap.in_north_america(monitor)
     home = base_view.get("place", {})
     near_home = home.get("lat") is not None and publicmap.km_between(home["lat"], home["lon"], here.lat, here.lon) <= DEMO_REGION_KM

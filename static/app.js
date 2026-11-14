@@ -99,8 +99,8 @@ function applyConfig() {
     const q = document.querySelector('[data-road-q]'); if (q) q.hidden = true;
   }
   document.querySelectorAll('[data-profile]').forEach(el => { el.hidden = !profiles[el.dataset.profile]; });
-  // An outdoor-only home: a picked profile its monitors can't serve (Toddler reads CO₂ indoors) stays, greyed, with its reason
-  if (!PUB) document.querySelectorAll('.view.profiles [data-profile]').forEach(el => { const why = profileOff(el.dataset.profile, place.indoor !== null);
+  // An outdoor-only home or a public monitor: a picked profile its monitors can't serve (Toddler reads CO₂ indoors) stays, greyed, with its reason
+  document.querySelectorAll('.view.profiles [data-profile]').forEach(el => { const why = profileOff(el.dataset.profile, place.indoor !== null);
     if (why) { el.classList.add('off'); el.dataset.tip = why; } });
   // An indoor-only home: the outdoor row says where its outdoor PM2.5 comes from (the words follow /api/current's source)
   const outRow = NO_OUTDOOR && $('st-openair') && $('st-openair').closest('.pr');
