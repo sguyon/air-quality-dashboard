@@ -2,7 +2,7 @@
 
 **Done when** `scripts/run.sh scripts/setup.py --live <the page's address>` ends with `Live OK`: the page answers with the home's settings, and each monitor has a recent reading.
 
-For a coding agent setting this up for someone's home. Do the steps yourself when a command can. Ask one question per message, in plain words, then wait for the answer. If you have a question tool (Claude Code's AskUserQuestion, for example), ask every question with it, one at a time, the default as the first option; don't write a question as plain chat text. Don't ask the next one until the user has answered and you've said what you did with it. Skip answers the user already gave. Don't change the app's code during setup: if the token is refused twice, stop and say what the page said. Never ask for a key in chat, read or print `.env`, or commit private settings. Ask before changing a live service or account.
+For a coding agent setting this up for someone's home. Do the steps yourself when a command can. Ask one question per message, in plain words, then wait for the answer. If you have a question tool (Claude Code's AskUserQuestion, for example), ask every question with it, one at a time, the default as the first option; don't write a question as plain chat text, except the address question and, where the tool can't pick several, the profiles (see **Describe your home**). Don't ask the next one until the user has answered and you've said what you did with it. Skip answers the user already gave. Don't change the app's code during setup: if the token is refused twice, stop and say what the page said. Never ask for a key in chat, read or print `.env`, or commit private settings. Ask before changing a live service or account.
 
 ## Get ready
 
@@ -47,10 +47,22 @@ Fallback, when the token page can't open: open `.env` in the user's text editor 
 
 ## Describe your home
 
-Ask these two questions, one per message, each with its default; the user never types a default to keep it. With a question tool, offer the answers as options with the default first, so one key keeps it.
+Ask these two questions, one per message, each with its default; the user never types a default to keep it. With a question tool, offer the answers as options with the default first, so one key keeps it, except as noted below.
 
-1. “What neighborhood or address should the page use for weather and nearby air? A nearby landmark with its city works too. Default: a nearby landmark in the neighborhood you have already named. Any other reply, like ok, keeps it.” Keep only the location rounded to about 1 km; don't invent a location if none is known. Before the next question, say in one line what you understood and what's kept: “Got it: near Times Square, New York. It's used for your weather, nearby public monitors and timezone; only a location rounded to about 1 km is saved, in config.toml on this computer.”
-2. “Which profiles match your home: a toddler, someone with sinus trouble or allergies, someone who runs outside, or none? Pick any. Default: none. Any other reply, like ok, keeps none.”
+1. Ask the address as plain chat text, with no options to pick, even with a question tool: “What neighborhood or address should the page use for weather and nearby air? A nearby landmark with its city works too. Default: a nearby landmark in the neighborhood you have already named. Any other reply, like ok, keeps it.” Keep only the location rounded to about 1 km; don't invent a location if none is known. Before the next question, say in one line what you understood and what's kept: “Got it: near Times Square, New York. It's used for your weather, nearby public monitors and timezone; only a location rounded to about 1 km is saved, in config.toml on this computer.”
+2. The profiles. With a question tool that picks several (Claude Code's does), ask “The page suggests actions, like closing a window or running a purifier. To personalize them for your home, which of these apply?” with the three as options and None first (the default). Without a question tool that picks several (Codex's picks one), ask in plain chat text, laid out like this:
+
+   > The page suggests actions, like closing a window or running a purifier.
+   > To personalize them for your home, which of these apply?
+   >
+   > 1. A young child
+   > 2. Sinus trouble or seasonal allergies
+   > 3. Running or sport outside
+   >
+   > Type the numbers, like 1 3, or none.
+   > Any other reply, like ok, keeps none.
+
+   In the command below, 1 is `toddler`, 2 is `sinus` and 3 is `runner`.
 
 Then run one command, using their answers:
 
@@ -68,10 +80,10 @@ No approval is needed before writing. An existing config is copied to `config.to
 Start it in the background, so it keeps running after this session (it writes to `app.log`):
 
 ```bash
-nohup scripts/run.sh server.py > app.log 2>&1 &
+nohup scripts/run.sh server.py > app.log 2>&1 < /dev/null &
 ```
 
-Open http://localhost:5555 on this computer. Without a token, open the printed setup link for the token box (the plain address shows the demo on a fresh copy, or says where the link is once a home is set up). Restart to get a new link. Set `PORT=5600` before the command if the port is taken, and use that port below too.
+The app's address is on the first line of `app.log` (`Home Air Quality → http://localhost:<port>`): use that address below and in the last message. Open it on this computer. Without a token, open the printed setup link for the token box (the plain address shows the demo on a fresh copy, or says where the link is once a home is set up). Restart to get a new link. Set `PORT=5600` before the command if the port is taken, and use that port below too.
 
 With the token and home configured, check the running page:
 
@@ -79,7 +91,7 @@ With the token and home configured, check the running page:
 scripts/run.sh scripts/setup.py --live http://localhost:5555
 ```
 
-It uses read-only GET requests and ends with `Live OK`. When the app restarts with the home, the page where the user saved the token turns into the home by itself: don't open another tab. The page should show the monitors' readings, actions, chosen profiles and local conditions. Without an outdoor monitor, the outdoor card names a public monitor or says “Estimate for your area”. If a reading is missing, check the monitor is online and set as indoor or outdoor in AirGradient. Docker and Railway users verify their final URL without starting a local server.
+It uses read-only GET requests and ends with `Live OK`. If the token was saved on its page in this session, the page where the user saved the token turns into the home by itself: don't open another tab. Otherwise open the address once (`open` on Mac, `xdg-open` on Linux). The page should show the monitors' readings, actions, chosen profiles and local conditions. Without an outdoor monitor, the outdoor card names a public monitor or says “Estimate for your area”. If a reading is missing, check the monitor is online and set as indoor or outdoor in AirGradient. Docker and Railway users verify their final URL without starting a local server.
 
 ## Use it again
 
@@ -96,10 +108,10 @@ End with this message, with the real port, and nothing after it:
 The address goes alone on its line, plain; don't say a tab is open. If they ask:
 
 - To start it by itself: `scripts/run.sh scripts/setup.py --start-at-login on` (a Mac, or Linux with systemd; elsewhere it says why not). `off` undoes it.
-- For a home server: `scripts/run.sh scripts/setup.py --home-server`, then pass on its two steps; the server needs Docker. Once they've started it, check `scripts/run.sh scripts/setup.py --live http://<the server>:8000` if you can reach it.
+- For a home server: `scripts/run.sh scripts/setup.py --home-server`, then pass on its two steps; the server needs Docker. Don't offer to copy it over SSH: give the steps, and do more only if they ask. Once they've started it, check `scripts/run.sh scripts/setup.py --live http://<the server>:8000` if you can reach it.
 - Online: [DEPLOYMENT.md](DEPLOYMENT.md#railway).
 
-For later sessions, not for the message: the app writes to `app.log` in this folder, and starts again with `cd /path/to/home-air-quality && nohup scripts/run.sh server.py > app.log 2>&1 &` (with `PORT=` first if it isn't 5555).
+For later sessions, not for the message: the app writes to `app.log` in this folder, and starts again with `cd /path/to/home-air-quality && nohup scripts/run.sh server.py > app.log 2>&1 < /dev/null &` (with `PORT=` first if it isn't 5555).
 
 Change names, profiles, drying equipment (`[home] appliances`) or limits in `config.toml`; [config.example.toml](config.example.toml) explains the settings. Restart after editing config or `.env` by hand. Keep a private copy of config; it isn't in git. Optional [pollen, road tracing, new profiles and Vercel demo](docs/optional.md); [Railway and Docker deployment](DEPLOYMENT.md).
 

@@ -572,7 +572,7 @@ def test_no_straight_to_railway_path():
 
 
 def test_start_survives_the_session():
-    assert "nohup scripts/run.sh server.py > app.log 2>&1 &" in section(doc("SETUP.md"), "Start and verify")
+    assert "nohup scripts/run.sh server.py > app.log 2>&1 < /dev/null &" in section(doc("SETUP.md"), "Start and verify")
 
 
 def test_deployment_md_says_which_hosts_are_tested():
@@ -632,4 +632,4 @@ def test_setup_md_says_where_the_link_is_and_how_to_stop_it():
 
 
 def test_status_suggests_starting_in_the_background():
-    assert setup.START_CMD == "nohup scripts/run.sh server.py > app.log 2>&1 &"
+    assert setup.START_CMD == "nohup scripts/run.sh server.py > app.log 2>&1 < /dev/null &"

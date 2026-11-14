@@ -8,7 +8,7 @@ If `internal/AGENTS.local.md` exists, read it: it holds the maintainer's private
 
 - Setting it up for someone's home: follow [`SETUP.md`](SETUP.md).
 - Putting it online: follow [`DEPLOYMENT.md`](DEPLOYMENT.md).
-- Do the steps yourself when a command can (the `railway` CLI, `gcloud`, `gh`), and say so before listing any manual click-path: the user may act on a list right away. Each command that changes a live service or account needs the user's OK first, and manual steps are the fallback. Never ask the user to do by hand what a command can do.
+- Do the steps yourself when a command can (the `railway` CLI, `gcloud`, `gh`), and say so before listing any manual click-path: the user may act on a list right away. Changing a live service or account needs the user's OK, asked once for all the steps of the task, saying what will be created, sent and made public (not one OK per command: approvals nobody reads protect nothing), and manual steps are the fallback. Never ask the user to do by hand what a command can do.
 
 ## After changing config.toml
 
