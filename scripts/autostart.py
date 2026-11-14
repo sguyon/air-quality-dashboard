@@ -85,7 +85,7 @@ def _alive(pid):
 
 def _is_ours(pid):
     """The pid is this app (a stale app.pid can name another program after a crash or a restart)."""
-    out = subprocess.run(["ps", "-p", str(pid), "-o", "command="], capture_output=True, text=True).stdout
+    out = subprocess.run(["ps", "-ww", "-p", str(pid), "-o", "command="], capture_output=True, text=True).stdout   # -ww: Linux's ps cuts a long command at 80 columns when piped, losing "server.py" at its end
     return "server.py" in out
 
 
