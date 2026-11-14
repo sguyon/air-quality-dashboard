@@ -1,0 +1,203 @@
+{
+  "_": "Settings for scripts/preview.sh: the link-preview images' words, the demo moment and what the phone shows. Change a word, run scripts/preview.sh.",
+  "moment": "rush",
+  "name": "Home Air Quality",
+  "large": {
+    "line1": "Open-source app for AirGradient monitors",
+    "line2": "",
+    "cards": [
+      {
+        "label": "Toddler",
+        "icon": "toddler",
+        "action": "Air out the room",
+        "why": "CO₂ 1,250 ppm",
+        "trend": "up"
+      },
+      {
+        "label": "Runner",
+        "icon": "runner",
+        "action": "Run after 11 AM",
+        "why": "Outside air clears",
+        "trend": "down"
+      },
+      {
+        "label": "Sinus & allergy",
+        "icon": "sinus",
+        "action": "Close the window",
+        "why": "Pollen 4 of 5",
+        "trend": "up"
+      },
+      {
+        "label": "Bedroom",
+        "icon": "drop",
+        "action": "Dry the room",
+        "why": "Humidity 63%",
+        "trend": "up"
+      }
+    ],
+    "sources": [
+      {
+        "icon": "bulb",
+        "label": "Insights"
+      },
+      {
+        "icon": "cloudsun",
+        "label": "Weather"
+      },
+      {
+        "icon": "flower",
+        "label": "Pollen"
+      },
+      {
+        "icon": "fog",
+        "label": "Smoke"
+      },
+      {
+        "icon": "car",
+        "label": "Traffic"
+      }
+    ],
+    "phoneZoom": 0.86,
+    "at": [
+      {
+        "x": 22,
+        "y": 214
+      },
+      {
+        "x": 40,
+        "y": 408
+      },
+      {
+        "right": 22,
+        "y": 204
+      },
+      {
+        "right": 40,
+        "y": 398
+      }
+    ],
+    "phoneY": 182
+  },
+  "popout": {
+    "_": "The other large image (--variant popout): a bigger phone with parts of the page lifted out of it (the lifted part leaves its place in the phone blank, so nothing is shown twice) and one card. 'at' says where each lifted part sits and at what scale.",
+    "lift": [
+      "row"
+    ],
+    "cards": [
+      {
+        "label": "Sinus & allergy",
+        "icon": "sinus",
+        "action": "Close the window",
+        "why": "Pollen 4 of 5",
+        "trend": "up"
+      }
+    ],
+    "phoneAt": [
+      650,
+      34
+    ],
+    "at": {
+      "row": {
+        "s": 1.42,
+        "pad": [
+          4,
+          16,
+          0,
+          16
+        ],
+        "x": 150,
+        "y": 412
+      }
+    },
+    "cardAt": [
+      {
+        "right": 10,
+        "y": 480
+      }
+    ]
+  },
+  "square": {
+    "tagline": "Open-source app for AirGradient monitors",
+    "profiles": [
+      {
+        "label": "Toddler",
+        "icon": "toddler"
+      },
+      {
+        "label": "Sinus & allergy",
+        "icon": "sinus"
+      },
+      {
+        "label": "Runner",
+        "icon": "runner"
+      }
+    ],
+    "action": "Close the window",
+    "when": "until 11 AM",
+    "peak": "33 µg/m³",
+    "now": "now",
+    "limit": "limit",
+    "phoneZoom": 1.36,
+    "phoneAt": [
+      309,
+      236
+    ],
+    "metric": {
+      "label": "PM2.5 outside",
+      "value": "33",
+      "unit": "µg/m³",
+      "trend": "up"
+    },
+    "cards": [
+      {
+        "i": 0,
+        "x": 58,
+        "y": 656
+      },
+      {
+        "i": 2,
+        "right": 10,
+        "y": 870
+      }
+    ],
+    "cardScale": 1.45
+  },
+  "phone": {
+    "_": "The demo page on a 390 px phone: what to hide before the shot, and the parts cut out of it (CSS selectors).",
+    "hide": [
+      ".sx-items .sx-row:not(:first-child)",
+      ".sx-also",
+      ".bar .custom-top .who",
+      ":root .sum-card > .s-bar .s-tools"
+    ],
+    "css": [
+      ".sx-items .sx-row:first-child { border-bottom: 0; }",
+      ".bar .vsum { padding-right: 0 !important; border-right: 0 !important; }",
+      ".sx-nh-i.warn i { color: var(--muted) !important; }",
+      ".dsp-top, .dsp-top > *, .bar .custom-top, .bar .custom-top > * { background: none !important; box-shadow: none !important; border-color: transparent !important; }",
+      ".sx-tl svg text:nth-of-type(2) { display: none; }",
+      ".sx-tl svg text:nth-of-type(1), .sx-tl svg text:nth-of-type(n+5), .sx-tl svg g { display: none; }",
+      "*:has(> .sx-nh-i):last-child .sx-nh-i b { display: none !important; }"
+    ],
+    "parts": {
+      "sky": ".dsp-top",
+      "monitors": ".bar .custom-top",
+      "weather": "#sky-cap",
+      "summary": "section.sum-card",
+      "header": ".sum-card > .s-bar",
+      "row": ".sx-items .sx-row",
+      "chart": ".sx-tl",
+      "indoor": "#monitors > :first-child"
+    },
+    "scale": {
+      "pills": 1.2,
+      "weather": 1.15
+    },
+    "cardless": "The popout's phone is shot a second time with the summary's rows hidden, so its chart moves up and nothing the lifted card shows is shown twice.",
+    "trimSummary": 38
+  },
+  "out": {
+    "large": "og-demo.png",
+    "square": "og-demo-square.png"
+  }
+}

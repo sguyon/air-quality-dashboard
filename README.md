@@ -58,7 +58,7 @@ It's minimal on purpose, and by necessity: I built it around what my own two mon
 
 ## Data and privacy
 
-- **Nothing is stored on the server.** No database, no accounts, no analytics: history comes from AirGradient's cloud each time, and the server's logs list which sources it called, never readings or keys.
+- **Nothing is stored on the server.** No database, no accounts, no analytics: history comes from AirGradient's cloud each time, and the server's logs list which sources it called, never readings or keys. The one exception is the public demo site, which counts page views and loading speed with Vercel Web Analytics and Speed Insights (no cookies, nothing personal); a copy you run has none.
 - **What leaves your server:** your AirGradient token goes only to AirGradient. Your home's position, rounded to about 1 km by the app, goes to Open-Meteo (weather and forecast) and to Google if you add a pollen key.
 
 ## How it works

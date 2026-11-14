@@ -6,12 +6,15 @@
 //     --first-screen     capture the window only (default: the whole page)
 //     --theme light|dark the dashboard's theme in ?shot mode (sets ?shot=dark and the system preference)
 //     --transparent      no default white behind the page (for scripts/hero.html)
+//     --css <file>       extra CSS added to the page once it is drawn (scripts/preview.sh hides rows with it)
+//     --marks            also write <out>.layout.json: each [data-mk] element's box (percent of the window) and text (tools/mockround)
+//     --rects "<sel>;…"  also write <out>.json: each selector's box in CSS pixels, to crop parts of the shot
 //
 // Ready means: the dashboard's summary is drawn, nothing is updating or loading, the monitor cards are in,
 // fonts are loaded and, for the whole page, the map has drawn (or said it can't). A page can define
 // window.__shotReady() to replace that check (scripts/hero.html does).
 import { spawn } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 const args = process.argv.slice(2);
 const [chromePath, rawUrl, out, profile] = args;
@@ -80,6 +83,8 @@ try {
   let ok = false;
   for (let i = 0; i < 120 && !ok; i++) { await sleep(500); ok = await evaluate(ready); }
   if (!ok) await fail(`The page did not finish drawing in 60 s: ${url}`);
+  const extraCss = opt('--css', '');
+  if (extraCss) await evaluate(`(() => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(await readFile(extraCss, 'utf8'))}; document.head.append(s); return true; })()`);
   await sleep(2500);   // let the intro animation finish
 
   let h = H;
@@ -91,6 +96,16 @@ try {
   const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !firstScreen, clip: { x: 0, y: 0, width: W, height: h, scale: 1 } });
   if (!shot.result) await fail(`Chrome could not capture: ${JSON.stringify(shot.error)}`);
   await writeFile(out, Buffer.from(shot.result.data, 'base64'));
+  const rects = opt('--rects', '');
+  if (rects) {
+    const boxes = await evaluate(`Object.fromEntries(${JSON.stringify(rects.split(';'))}.map(s => { const r = document.querySelector(s)?.getBoundingClientRect();
+      return [s, r ? { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height } : null]; }))`);
+    await writeFile(out.replace(/\.png$/, '') + '.json', JSON.stringify(boxes, null, 1));
+  }
+  if (flag('--marks')) {   // every [data-mk] element's box as percent of the window, and its text: what tools/mockround compares between rounds
+    const lay = await evaluate(`Object.fromEntries([...document.querySelectorAll('[data-mk]')].map(e => { const r = e.getBoundingClientRect(); return [e.dataset.mk, { b: [r.x, r.y, r.width, r.height].map((v, i) => +(v / (i % 2 ? innerHeight : innerWidth) * 100).toFixed(2)), t: (e.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 120) }]; }))`);
+    await writeFile(out.replace(/\.png$/, '') + '.layout.json', JSON.stringify(lay, null, 1));
+  }
   console.log(`${W}x${h}@${dpr}`);
   ws.close(); await quit(0);
 } catch (e) { await fail(String(e)); }

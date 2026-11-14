@@ -1,0 +1,249 @@
+<!doctype html>
+<!-- The demo's large link-preview image, 1200 × 630. scripts/preview.sh opens it with ?variant=cards|popout&data=<data.js>:
+     data.js holds scripts/preview.json (the words) and the phone shot with the place of each of its parts.
+     variant=cards: the name and tagline over four cards and the phone. variant=popout: a bigger phone with parts of the page
+     lifted out of it. Device frame: Devices.css (MIT), vendored in scripts/vendor. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Link preview</title>
+<link rel="stylesheet" href="vendor/devices.min.css">
+<style>
+  :root { --ink: #0f2233; --teal: #1c7488; --line: #dfe6ea; --muted: #6b7f8d; --soft: #3f5566; }
+  html, body { margin: 0; background: #fff; }
+  * { box-sizing: border-box; }
+  .og { position: relative; width: 1200px; height: 630px; overflow: hidden; font-family: Inter, system-ui, sans-serif; color: var(--ink);
+    -webkit-font-smoothing: antialiased; background: linear-gradient(160deg, #f9fbfc 0%, #e6f0f4 60%, #d9e9ef 100%); }
+  .name-row { display: flex; align-items: center; gap: 14px; }
+  .tile { width: 56px; height: 56px; border-radius: 22%; box-shadow: 0 6px 14px rgba(15, 34, 51, .2); }
+  .name { margin: 0; font-size: 44px; font-weight: 800; letter-spacing: -.025em; line-height: 1; }
+  .l1 { margin: 0; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+  .l2 { margin: 0; font-weight: 450; color: var(--soft); line-height: 1.25; letter-spacing: -.01em; }
+
+  /* the phone: Devices.css's iPhone 14 Pro, its screen rebuilt from the page's parts */
+  .phone-at { position: absolute; filter: drop-shadow(0 26px 30px rgba(10, 20, 30, .22)); }
+  .phone .device-screen { position: relative; overflow: hidden; }
+  .part { position: absolute; background-repeat: no-repeat; }
+
+  /* variant=cards */
+  .cards .head { position: absolute; top: 24px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .cards .l1 { margin-top: 14px; font-size: 37px; }
+  .cards .l2 { margin-top: 6px; font-size: 29px; }
+  .card { position: absolute; width: 364px; padding: 18px 22px 18px; border-radius: 20px; background: #fff; border: 1.5px solid var(--line);
+    box-shadow: 0 10px 26px rgba(15, 34, 51, .08); }
+  .card .top { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 17px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+  .ic { display: flex; color: var(--teal); }
+  .ic svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .card .top .ic svg { width: 24px; height: 24px; }
+  .act { margin-top: 8px; font-size: 35px; font-weight: 750; letter-spacing: -.02em; line-height: 1.1; white-space: nowrap; }
+  .why { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 24px; color: #4d6070; line-height: 1.2; white-space: nowrap; }
+  /* the trend after a reason: the only warm colour outside the phone */
+  .trend { display: flex; color: #b7791f; }
+  .trend svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* variant=popout */
+  .card.small { width: 318px; padding: 16px 20px; }
+  .card.small .act { font-size: 32px; }
+  .popout .head { position: absolute; top: 52px; left: 64px; width: 540px; }
+  .popout .l1 { margin-top: 30px; font-size: 44px; }
+  .popout .l2 { margin-top: 16px; font-size: 30px; }
+  .lift { position: absolute; padding: 6px; border-radius: 20px; background: #fff; box-shadow: 0 2px 4px rgba(15, 34, 51, .05), 0 18px 40px rgba(15, 34, 51, .16); overflow: hidden; }
+  .lift .part { position: static; }
+
+  .og.square { height: 1200px; background: linear-gradient(160deg, #f9fbfc 0%, #e3eef3 60%, #d5e7ee 100%); }
+  /* the data sources: small quiet line icons after the second tagline line */
+  .og:not(.popout) .srcrow { justify-content: center; margin-top: 10px; }
+  .og:not(.popout) .card:not(.small) { width: 330px; padding: 15px 20px; }
+  .og:not(.popout) .card:not(.small) .act { font-size: 30px; }
+  .srcrow { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; color: var(--teal); }
+  .srcrow span { display: inline-flex; align-items: center; gap: 7px; font-size: 21px; font-weight: 600; color: #3f5367; }
+  .srcrow svg { width: 26px; height: 26px; fill: none; stroke: var(--teal); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  /* variant=square: the name on top, a big phone, and the simplified summary popping out of it */
+  .square .sq-head { position: absolute; top: 48px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 30px; }
+  .square .sq-head .tile { width: 132px; height: 132px; box-shadow: 0 12px 28px rgba(15, 34, 51, .24); }
+  .square .sq-head .name { font-size: 80px; letter-spacing: -.035em; }
+  .square .sq-tag { margin: 12px 0 0; font-size: 36px; font-weight: 500; color: var(--soft); letter-spacing: -.01em; line-height: 1.2; }
+  .pop { position: absolute; padding: 0 44px; border-radius: 44px; background: #fff; border: 2px solid var(--line); overflow: hidden;
+    box-shadow: 0 4px 8px rgba(15, 34, 51, .05), 0 34px 70px rgba(15, 34, 51, .22); }
+  .pop .profiles { display: flex; gap: 34px; align-items: center; height: 92px; margin: 0 -44px; padding: 0 44px; border-bottom: 2px solid var(--line); background: #eef6f9; }
+  .pop .pf { display: flex; align-items: center; gap: 10px; font-size: 30px; font-weight: 600; color: var(--soft); white-space: nowrap; }
+  .pop .pf svg { width: 40px; height: 40px; fill: none; stroke: var(--teal); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .pop .sq-act { margin: 30px 0 0; font-size: 84px; font-weight: 800; letter-spacing: -.04em; line-height: 1; white-space: nowrap; }
+  .pop .sq-when { margin: 10px 0 0; font-size: 48px; font-weight: 500; color: #52606b; letter-spacing: -.02em; line-height: 1.1; }
+  .sq-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-top: 10px; }
+  .sq-row .sq-when { margin: 0; }
+  .sq-metric { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; }
+  .sq-ml { font-size: 26px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .sq-mv { display: flex; align-items: center; gap: 8px; font-size: 62px; font-weight: 800; letter-spacing: -.03em; color: #b45309; }
+  .sq-mv small { font-size: 28px; font-weight: 600; color: #8a6a3a; letter-spacing: 0; margin-left: -2px; }
+  .sq-mv .trend svg { width: 40px; height: 40px; }
+  .pop .chart { margin: 26px 0 0; padding-bottom: 28px; }
+  .pop .chart svg { display: block; overflow: visible; width: 100%; height: auto; }
+  .pop .chart text { font-family: Inter, system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div class="og" id="og"></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const variant = q.get('variant') || 'cards';
+  const ICON = {   // the app's profile icons (static/summary.js PROFILE_ICON) and two more for rooms
+    toddler: '<path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M15 12h.01"/><path d="M19.38 6.813A9 9 0 0 1 20.8 10.2a2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/><path d="M9 12h.01"/>',
+    sinus: '<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
+    runner: '<circle cx="13" cy="4" r="1"/><path d="M4 17l5 1l.75-1.5"/><path d="M15 21v-4l-4-3l1-6"/><path d="M7 12V9l5-1l3 3l3 1"/>',
+    drop: '<path d="M12 2.7s-6.5 7-6.5 11.6a6.5 6.5 0 0 0 13 0C18.5 9.7 12 2.7 12 2.7Z"/><path d="M9 14.5a3 3 0 0 0 3 3"/>',
+    home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+    cloudsun: '<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
+    flower: '<circle cx="12" cy="12" r="3"/><path d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5"/><path d="M12 7.5V9"/><path d="M7.5 12H9"/><path d="M16.5 12H15"/><path d="M12 16.5V15"/>',
+    fog: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 17H7"/><path d="M17 21H9"/>',
+    car: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',
+    bulb: '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+    pin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+    up: '<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>',     // rising / over the limit
+    down: '<path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/>',  // falling
+  };
+  const svg = n => `<svg viewBox="0 0 24 24">${ICON[n] || ''}</svg>`;
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  // a part of the phone shot, cut by its box (CSS px of the 390 px page) with pad px of the page around it
+  // (one number, or [top, right, bottom, left]), drawn at scale s
+  const part = (name, s = 1, pad = 0, shot = SHOT) => {
+    const [pt, pr, pb, pl] = Array.isArray(pad) ? pad : [pad, pad, pad, pad];
+    const b = shot.parts[name], x = Math.max(0, b.x - pl), y = b.y - pt, w = Math.min(shot.width, b.x + b.width + pr) - x, h = b.height + pt + pb;
+    const d = document.createElement('div'); d.className = 'part';
+    Object.assign(d.style, { width: w * s + 'px', height: h * s + 'px', backgroundImage: `url("${shot.src}")`, backgroundSize: `${shot.width * s}px auto`,
+      backgroundPosition: `${-x * s}px ${-y * s}px` });
+    return d;
+  };
+  const place = (el, left, top) => { el.style.left = left + 'px'; el.style.top = top + 'px'; return el; };
+
+  // the phone's screen: the weather & theme pill left of the Dynamic Island, the monitors right of it,
+  // the weather line under it, then the summary, as on the page
+  function phone(zoom, o = {}) {
+    const at = document.createElement('div'); at.className = 'phone-at'; at.dataset.mk = 'phone';
+    at.innerHTML = `<div class="device device-iphone-14-pro device-black phone" style="zoom:${zoom}"><div class="device-frame"><div class="device-screen"></div></div>
+      <div class="device-stripe"></div><div class="device-header"></div><div class="device-sensors"></div><div class="device-btns"></div><div class="device-power"></div></div>`;
+    const SH = o.shot || SHOT, scr = at.querySelector('.device-screen'); scr.style.background = SH.bg;
+    const P = SH.parts, island = { left: 135, right: 255, mid: 27.5 }, gap = 10, ph = PREVIEW.phone.scale || {};
+    // the two pills beside the island, as big as the room allows (settings: phone.scale.pills), the weather line under it (phone.scale.weather)
+    const kSky = Math.min(ph.pills || 1, (island.left - gap - 8) / P.sky.width), kMon = Math.min(ph.pills || 1, (390 - island.right - gap - 8) / P.monitors.width);
+    const sky = part('sky', kSky, 0, SH), mon = part('monitors', kMon, 0, SH);
+    scr.append(place(sky, island.left - gap - P.sky.width * kSky, island.mid - P.sky.height * kSky / 2));
+    scr.append(place(mon, island.right + gap, island.mid - P.monitors.height * kMon / 2));
+    const top = 62, kW = Math.min(ph.weather || 1, (390 - 16) / P.weather.width);
+    scr.append(place(part('weather', kW, 0, SH), Math.max(0, P.weather.x) + 8, top));
+    const sumTop = top + P.weather.height * kW + 10;
+    const trim = PREVIEW.phone.trimSummary || 0;   // the chart's hidden axis labels leave a blank band at the card's foot: cut it and round the new foot
+    const sm = part('summary', 1, 1, SH);
+    if (trim) { sm.style.height = (parseFloat(sm.style.height) - trim) + 'px'; sm.style.borderRadius = '0 0 15px 15px'; sm.style.boxShadow = 'inset 0 -1px 0 #dfe5ea, inset 1px 0 0 #dfe5ea, inset -1px 0 0 #dfe5ea'; }
+    scr.append(place(sm, P.summary.x - 1, sumTop));
+    if (P.indoor && o.indoor !== false) scr.append(place(part('indoor', 1, 1, SH), P.indoor.x - 1, sumTop + P.summary.height - trim + 12));   // the indoor monitor's card under the summary
+    // a part lifted out of the phone leaves its place blank (so nothing is shown twice)
+    for (const n of o.blank || []) {
+      const b = P[n], d = document.createElement('div'); d.style.cssText = `position:absolute;background:#fff;left:${b.x}px;width:${b.width}px;top:${sumTop + b.y - (P.summary.y - 1)}px;height:${b.height}px`;
+      scr.append(d);
+    }
+    return at;
+  }
+
+  function head(parent) {
+    const h = document.createElement('div'); h.className = 'head';
+    const L = PREVIEW.large;
+    h.innerHTML = `<div class="name-row" data-mk="name"><img class="tile" src="../static/icons/icon.svg" alt=""><h1 class="name">${esc(PREVIEW.name)}</h1></div>
+      <p class="l1" data-mk="tagline">${esc(L.line1)}</p>${L.line2 ? `<p class="l2" data-mk="line2">${esc(L.line2)}</p>` : ''}<div class="srcrow" data-mk="chips">${(L.sources || []).map(x => `<span>${svg(x.icon)}${esc(x.label)}</span>`).join('')}</div>`;
+    parent.append(h);
+  }
+
+  function card(c, left, top, right) {
+    const d = document.createElement('div'); d.className = 'card'; d.dataset.mk = 'card-' + String(c.label).toLowerCase().replace(/[^a-z]+/g, '-');
+    d.innerHTML = `<div class="top"><span class="ic">${svg(c.icon)}</span>${esc(c.label)}</div><div class="act">${esc(c.action)}</div><div class="why">${esc(c.why)}${c.trend ? `<span class="trend">${svg(c.trend)}</span>` : ''}</div>`;
+    d.style.top = top + 'px'; if (right != null) d.style.right = right + 'px'; else d.style.left = left + 'px';
+    return d;
+  }
+
+  // the morning rush's outdoor PM2.5 (µg/m³) by hour, drawn like the app's day chart; made up, like the demo
+  const PM = [[4, 10], [5, 11], [6, 13], [7, 19], [7.75, 22], [8.5, 30], [9, 33], [9.6, 30], [10.3, 21], [11, 15], [12, 12], [13, 10.5],
+    [14, 10], [15, 10.5], [16, 11.5], [17, 12.5], [18, 12], [19, 11], [20, 10]];
+  const NOW = 7.75, LIMIT = 15, PEAK = 9, TOP = 38;   // now (7:45 AM), the limit, the peak's hour, the chart's full scale in µg/m³
+  const W = 960, H = 370, AX = 320;                  // chart size in px; AX: where the hour axis sits
+
+  function chart(S) {
+    const t0 = PM[0][0], t1 = PM[PM.length - 1][0];
+    const x = t => (t - t0) / (t1 - t0) * W, y = v => AX - v / TOP * AX;
+    const pts = PM.map(([t, v]) => [x(t), y(v)]);
+    // a smooth line through the points (Catmull-Rom as cubic Béziers)
+    let d = `M${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      d += ` C${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6} ${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6} ${p2[0]} ${p2[1]}`;
+    }
+    const area = `${d} L${W} ${AX} L0 ${AX} Z`, xn = x(NOW), yl = y(LIMIT), xp = x(PEAK), yp = y(33);
+    const ynow = y(PM.find(p => p[0] === NOW)[1]);
+    const hours = [[6, '6 AM'], [9, '9 AM'], [12, '12 PM'], [15, '3 PM'], [18, '6 PM']];
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <defs>
+        <linearGradient id="past" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7f93a6" stop-opacity=".55"/><stop offset="1" stop-color="#7f93a6" stop-opacity=".22"/></linearGradient>
+        <linearGradient id="warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f59e0b" stop-opacity=".62"/><stop offset="1" stop-color="#f59e0b" stop-opacity=".28"/></linearGradient>
+        <pattern id="h" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="14" stroke="#7f93a6" stroke-opacity=".6" stroke-width="3"/></pattern>
+        <pattern id="hw" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="14" stroke="#c2700f" stroke-opacity=".7" stroke-width="3.6"/></pattern>
+        <clipPath id="past-c"><rect x="0" y="0" width="${xn}" height="${AX}"/></clipPath>
+        <clipPath id="fc-c"><rect x="${xn}" y="0" width="${W - xn}" height="${AX}"/></clipPath>
+        <clipPath id="over-c"><rect x="0" y="0" width="${W}" height="${yl}"/></clipPath>
+        <clipPath id="under-c"><rect x="0" y="${yl}" width="${W}" height="${AX - yl}"/></clipPath>
+      </defs>
+      <rect x="0" y="0" width="${xn}" height="${AX}" fill="#f1f4f6"/>
+      <g clip-path="url(#under-c)"><path d="${area}" fill="url(#past)" clip-path="url(#past-c)"/></g>
+      <path d="${area}" fill="url(#h)" clip-path="url(#fc-c)"/>
+      <g clip-path="url(#over-c)"><path d="${area}" fill="url(#warm)"/><path d="${area}" fill="url(#hw)" clip-path="url(#fc-c)"/>
+        <path d="${d}" fill="none" stroke="#f59e0b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></g>
+      <line x1="0" x2="${W}" y1="${yl}" y2="${yl}" stroke="#6b7f8d" stroke-width="3" stroke-dasharray="10 9" opacity=".7"/>
+      <text x="${W}" y="${yl - 14}" text-anchor="end" font-size="32" fill="#6b7f8d">${esc(S.limit)}</text>
+      <line x1="${xn}" x2="${xn}" y1="0" y2="${AX}" stroke="#0f2233" stroke-width="4"/>
+      <circle cx="${xn}" cy="${ynow}" r="11" fill="#f59e0b" stroke="#fff" stroke-width="4"/>
+      <text x="${xn - 14}" y="30" text-anchor="end" font-size="30" font-weight="600" letter-spacing=".06em" fill="#3f5566">${esc(S.now.toUpperCase())}</text>
+      <text x="${xp + 44}" y="${yp + 6}" font-size="44" font-weight="700" fill="#b45309" stroke="#fff" stroke-width="8" paint-order="stroke">${esc(S.peak)}</text>
+      <line x1="0" x2="${W}" y1="${AX}" y2="${AX}" stroke="#dfe6ea" stroke-width="3"/>
+      ${hours.map(([t, s]) => `<text x="${x(t)}" y="${AX + 44}" text-anchor="middle" font-size="30" fill="#8a9aa6">${s}</text>`).join('')}
+    </svg>`;
+  }
+
+
+  let drawn = false;
+  function draw() {
+  const og = document.getElementById('og'); og.classList.add(variant);
+  if (variant === 'cards') {
+    head(og);
+    const zoom = PREVIEW.large.phoneZoom || .88, w = 428 * zoom;
+    og.append(place(phone(zoom, { indoor: PREVIEW.large.indoor !== false }), (1200 - w) / 2, PREVIEW.large.phoneY || 188));
+    // the cards sit where preview.json's "at" says (x from the left, or "right" from the right edge; y from the top): a loose scatter, not a grid
+    PREVIEW.large.cards.forEach((c, i) => { const p = (PREVIEW.large.at || [])[i] || {}; og.append(card(c, p.x != null ? p.x : 26, p.y || 238, p.right)); });
+  } else if (variant === 'popout') {
+    head(og);
+    const P = SHOT.parts, px = PREVIEW.popout.phoneAt[0], py = PREVIEW.popout.phoneAt[1], lifted = PREVIEW.popout.lift;
+    og.append(place(phone(1, { shot: SHOT2 }), px, py));
+    const lift = (name, s, pad, left, top) => { const d = document.createElement('div'); d.className = 'lift'; d.dataset.mk = 'lifted-' + name; d.append(part(name, s, pad)); return place(d, left, top); };
+    const at = PREVIEW.popout.at;
+    for (const n of lifted) if (at[n]) og.append(lift(n, at[n].s, at[n].pad, at[n].x, at[n].y));
+    PREVIEW.popout.cards.forEach((c, i) => { const p = (PREVIEW.popout.cardAt || [])[i] || {}; const d = card(c, p.x != null ? p.x : 460, p.y || 440, p.right); d.classList.add('small'); og.append(d); });
+  } else {   // square
+    const S = PREVIEW.square;
+    og.innerHTML = `<div class="sq-head" data-mk="name"><img class="tile" src="../static/icons/icon.svg" alt=""><div><h1 class="name">${esc(PREVIEW.name)}</h1><p class="sq-tag" data-mk="tagline">${esc(S.tagline)}</p></div></div>`;
+    og.append(place(phone(S.phoneZoom || 1.18), S.phoneAt[0], S.phoneAt[1]));
+    (S.cards || []).forEach(c => { const d = card(PREVIEW.large.cards[c.i], c.x != null ? c.x : 0, c.y, c.right); d.classList.add('small'); d.style.transform = 'scale(' + (S.cardScale || 1.5) + ')'; d.style.transformOrigin = c.right != null ? 'top right' : 'top left'; d.style.boxShadow = '0 22px 50px rgba(15,35,55,.28)'; og.append(d); });   // cards over the phone's empty lower part
+    if (!S.popAt) { drawn = true; return; }   // no popup: the phone alone
+    const pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = `<div class="profiles">${S.profiles.map(p => `<span class="pf"><svg viewBox="0 0 24 24">${ICON[p.icon] || ''}</svg>${esc(p.label)}</span>`).join('')}</div>
+      <p class="sq-act">${esc(S.action)}</p><div class="sq-row"><p class="sq-when">${esc(S.when)}</p><div class="sq-metric"><span class="sq-ml">${esc(S.metric.label)}</span><span class="sq-mv">${esc(S.metric.value)}<small>${esc(S.metric.unit)}</small><span class="trend">${svg(S.metric.trend)}</span></span></div></div><div class="chart">${chart(S)}</div>`;
+    Object.assign(pop.style, { left: S.popAt[0] + 'px', top: S.popAt[1] + 'px', width: S.popAt[2] + 'px' });
+    og.append(pop);
+  }
+  drawn = true;
+  }
+  // data.js defines PREVIEW (scripts/preview.json) and SHOT (the phone shot and its parts); draw once it's in
+  const data = document.createElement('script'); data.src = q.get('data'); data.onload = draw; document.head.append(data);
+  const shotImg = new Image();   // the parts are backgrounds: wait for their image too
+  window.__shotReady = () => drawn && document.fonts.status === 'loaded' && (shotImg.src || (shotImg.src = SHOT.src), shotImg.complete && shotImg.naturalWidth > 0)
+    && [...document.images].every(i => i.complete && i.naturalWidth > 0);
+</script>
+</body>
+</html>

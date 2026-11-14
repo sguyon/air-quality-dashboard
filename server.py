@@ -264,11 +264,38 @@ LINK_EXPIRED_ERROR = ("This page is from before the app restarted, so it can't c
                       "or restart the app to get one.")
 
 
+# The public demo's head only (never a copy a household runs): Vercel Web Analytics and Speed Insights (cookieless, nothing
+# personal; the app itself has no analytics) and the link preview shown when someone shares the demo's address. Vercel serves
+# the two scripts itself once the project has them on.
+DEMO_SITE = "https://homeair.guyon.dev"
+DEMO_TITLE = "Home Air Quality"
+DEMO_DESCRIPTION = ("See your air quality data next to the weather, pollen, smoke and traffic, "
+                    "with insights for your home and outside.")
+DEMO_HEAD_TAGS = (
+    '<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>'
+    '<script defer src="/_vercel/insights/script.js"></script>'
+    '<script>window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };</script>'
+    '<script defer src="/_vercel/speed-insights/script.js"></script>'
+    f'<meta name="description" content="{DEMO_DESCRIPTION}">'
+    f'<meta property="og:type" content="website"><meta property="og:site_name" content="{DEMO_TITLE}">'
+    f'<meta property="og:title" content="Open-source app for your AirGradient monitors">'
+    f'<meta property="og:description" content="{DEMO_DESCRIPTION}"><meta property="og:url" content="{DEMO_SITE}/">'
+    f'<meta property="og:image" content="{DEMO_SITE}/static/og-demo.png">'
+    '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:type" content="image/png">'
+    f'<meta property="og:image:alt" content="Home Air Quality on a phone, with an action for each person at home">'
+    '<meta name="twitter:card" content="summary_large_image">')
+
+
+def demo_head_tags():
+    return DEMO_HEAD_TAGS if os.environ.get("VERCEL") == "1" and os.environ.get("DEMO") == "1" else ""
+
+
 def render_page(error=None, status=200, card=False):
     """The missing-token card works without JavaScript; no credential is ever embedded in the page.
     card: show the token card even without a valid setup cookie (an expired link explains itself instead of showing the demo)."""
     html_path = Path(__file__).parent / "index.html"
     html = inline_touch_icon(tag_env(version_assets(html_path.read_text())))
+    html = html.replace("</head>", demo_head_tags() + "</head>", 1)
     browser = None
     # A fresh copy (the demo, no home yet) shows only the card: the token box with its link, then "saved" until setup restarts it.
     saved = setup_mode() and MODE == "demo" and token_state.saved
