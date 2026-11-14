@@ -35,6 +35,9 @@ runner = true
 # What you have to dry a damp room: "dehumidifier", "ac_dry" (an AC with a dry mode), both, or [] for neither.
 # Default: none. Add only what you have. With both, the humidity action says to run the dehumidifier.
 appliances = []
+# The temperature unit the page starts in: "F" or "C". Setup sets "F" for a home in the US. A viewer can still switch in the
+# Weather menu, and that choice is kept on their device.
+temp_unit = "C"
 
 [limits]
 # Indoor CO2 (ppm) above which the page says to ventilate.

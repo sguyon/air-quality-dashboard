@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,6 +52,9 @@ SETUP_CMD = f"{UV} scripts/setup.py"
 SERVER_CMD = f"{UV} server.py"
 HOME_CMD = f'{SETUP_CMD} --address "<neighborhood or address>" --profiles <toddler,sinus,runner or none>'
 STATUS_CMD = f"{SETUP_CMD} --status"
+WAIT_TOKEN_CMD = f"{SETUP_CMD} --wait-token"
+WAIT_TOKEN_SECONDS = 90  # one wait: under the shortest default command limit we know (Claude Code stops a command after 120 s).
+WAIT_POLL_SECONDS = 2  # how often --wait-token looks for the saved token: the user sees the agent move on within 2 s.
 
 
 class SetupError(Exception):
@@ -294,6 +298,20 @@ def account_rows(token, timeout=LOOKUP_TIMEOUT):
         raise SetupError("Couldn't read the monitors from AirGradient. Check the token in .env and API access, then try again.") from None
 
 
+def wait_token(env, root):
+    """Until the token page saves the token (or the wait runs out): then what the account has, so the user needn't say it."""
+    end = time.monotonic() + WAIT_TOKEN_SECONDS
+    while True:
+        token = env_key("AIRGRADIENT_TOKEN", env) or env_key("AIRGRADIENT_TOKEN", saved_keys(root))
+        if token:
+            print(connected_line(account_rows(token)))
+            return 0
+        if time.monotonic() >= end:
+            print(f"Not saved yet. Run {WAIT_TOKEN_CMD} again to keep waiting, or ask the user to type done when the page says Connected.")
+            return 0
+        time.sleep(WAIT_POLL_SECONDS)
+
+
 def connected_line(rows):
     """One line for the user: the account's monitors by name and kind."""
     if not rows:
@@ -344,6 +362,11 @@ def outdoor_source(place):
         return "model"
 
 
+def temp_unit(place):
+    """°F for a home in the US, °C elsewhere (decision 8): the unit the page starts in; a viewer can still switch."""
+    return "F" if place.country == "US" else "C"
+
+
 def build_config(place, monitors, profiles, outdoor):
     values = {"name": place.name, "lat": place.lat, "lon": place.lon, "timezone": place.timezone}
     for kind, row in monitors.items():
@@ -356,6 +379,7 @@ def build_config(place, monitors, profiles, outdoor):
     lines = ["[place]", *(f"{key} = {json.dumps(value, ensure_ascii=False)}" for key, value in values.items()),
              "", "[profiles]", *(f"{key} = {str(key in profiles).lower()}" for key in PROFILES),
              ]
+    lines += ["", "[home]", f"temp_unit = {json.dumps(temp_unit(place))}"]
     if outdoor is not None or place.country != "US":
         lines += ["", "[sources]"]
         if outdoor is not None:
@@ -397,6 +421,7 @@ def setup(args, env, root):
         path.write_text(text, encoding="utf-8")
     print(f"Home: {place.name}, {place.lat}, {place.lon}; timezone {place.timezone}")
     print(f"Profiles: {', '.join(profiles) or 'none'}")
+    print(f"Temperatures in °{cfg.temp_unit}" + (" (a US home)" if cfg.temp_unit == "F" else "") + ": change [home] temp_unit in config.toml to switch")
     if outdoor is not None:
         print(f"Outdoor air: {('estimate for your area (' + outdoor + ')') if isinstance(outdoor, str) else 'public monitor ' + str(outdoor)}")
     print(f"Settings: {path}")
@@ -692,6 +717,8 @@ def parser():
     ap.add_argument("--timezone", help="a correction using an IANA timezone name")
     ap.add_argument("--live", nargs="?", const="", metavar="URL", help="check the running page with GET requests")
     ap.add_argument("--status", action="store_true", help="list what's done and the next command; changes nothing")
+    ap.add_argument("--wait-token", action="store_true",
+                    help=f"wait up to {WAIT_TOKEN_SECONDS} s for the token page to save the token, then say what the account has")
     return ap
 
 
@@ -707,6 +734,8 @@ def main(argv, env, root=ROOT):
             return railway(args.service, root)
         if args.status:
             return status(env, root)
+        if args.wait_token:
+            return wait_token(env, root)
         if args.live is not None:
             return live(args.live or f"http://localhost:{port_from(env)}", env, root)
         if not args.address and args.lat is None and args.lon is None:

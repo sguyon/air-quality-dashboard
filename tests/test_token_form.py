@@ -344,6 +344,38 @@ def test_fresh_copy_with_an_empty_account_says_to_add_a_monitor(local, monkeypat
     assert submit(local).status_code == 303
     text = local.get("/", base_url=BASE).get_data(as_text=True)
     assert "Connected to AirGradient" in text and "No monitors with readings yet" in text and 'class="plist token-found"' not in text
+    # one paragraph, the state first, at body size (design check, 13 Nov: the reason was a caption, quieter than its follow-up)
+    assert ('<p class="token-next"><b>No monitors with readings yet.</b> A new monitor shows up here once it has sent its first reading: '
+            'check it in the AirGradient app. You can close this tab and tell your agent.</p>') in text
+    assert 'class="token-found-title">No monitors' not in text
+    assert "data-wait-home" not in text   # setup can't go on without a monitor, so the page doesn't wait for the home
+
+
+def test_the_setup_page_is_never_cached_even_in_a_fresh_copys_demo_mode(local, monkeypatch):
+    """A fresh copy runs in demo mode, whose pages a CDN may keep; the setup page must not be kept, or opening the home
+    after setup shows the cached Connected card again (found in a browser check, 13 Nov)."""
+    from dataclasses import replace
+    monkeypatch.setattr(server, "CFG", replace(server.CFG, demo=True))
+    monkeypatch.setattr(server, "MODE", "demo")
+    monkeypatch.delenv("DEMO", raising=False)
+    monkeypatch.setattr(server.token_state, "saved", {"monitors": [{"name": "Bedroom", "kind": "indoor"}]})
+    response = local.get("/", base_url=BASE)
+    assert "data-wait-home" in response.get_data(as_text=True)
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_setup_state_says_whether_the_app_still_waits_for_setup_and_is_never_cached(local, monkeypatch):
+    """The Connected page asks this every few seconds; once setup restarts the app with the home, it says so."""
+    from dataclasses import replace
+    monkeypatch.setattr(server, "CFG", replace(server.CFG, demo=True))
+    monkeypatch.setattr(server, "MODE", "demo")
+    monkeypatch.delenv("DEMO", raising=False)
+    response = local.get("/api/setup", base_url=BASE)
+    assert response.get_json() == {"setup": True}
+    assert response.headers["Cache-Control"] == "no-store"   # the demo's CDN rules never keep it
+    monkeypatch.setattr(server, "MODE", "live")
+    monkeypatch.setattr(server, "CFG", replace(server.CFG, demo=False))
+    assert local.get("/api/setup", base_url=BASE).get_json() == {"setup": False}
 
 
 def test_fresh_copy_card_lists_the_account_monitors(local, monkeypatch):
@@ -557,8 +589,20 @@ def test_connected_card_names_each_monitor_indoor_or_outdoor_and_sends_the_user_
     assert submit(local).status_code == 303
     text = unescape(local.get("/", base_url=BASE).get_data(as_text=True))
     assert "<b>Living room</b><em>Indoor monitor</em>" in text and "<b>Back porch</b><em>Outdoor monitor</em>" in text
-    assert "go back to your agent" in text and "You can close this tab" in text
     assert "<button" not in text.split("token-found", 1)[1].split("token-next", 1)[0]   # the monitors are a list, not controls
+    # the agent waits for the token (setup.py --wait-token), so the user needn't type anything; "done" if it hasn't moved on.
+    # Plain text on the page, the point first, no box (Sacha, 2026-11-13: "simplify this, be straight to the point ... not sure if a
+    # container like this is useful")
+    after = text.split("token-found", 1)[1]
+    # the page switches to the home by itself once setup restarts the app (rehearsals 13 Nov: the tab still showed this card
+    # until a reload), so it no longer says to close the tab
+    # the point first: what happens, that nothing is needed, then the fallback; "done" only as the word to type (design check)
+    # what to do first (Sacha, 13 Nov: "shouldnt we say to close the page? or do you mean that this page should stay open
+    # and refreshes? i'm confused")
+    assert ('<p class="token-next" data-wait-home><b>Keep this page open:</b> your home shows up here when your agent is done. '
+            'If nothing happens, type “done” in your agent’s chat.</p>') in after
+    assert "close this tab" not in after
+    assert "go back to your agent" not in text and "says Connected" not in text and "<svg" not in after.split("token-next", 1)[1].split("</p>", 1)[0]
 
 
 def test_a_malformed_token_is_told_apart_from_a_refused_one(local, monkeypatch):

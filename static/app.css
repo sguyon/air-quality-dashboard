@@ -1853,11 +1853,8 @@ html.sky-ink:not(.sky-dark) .now-bar .cap-i.air.bad svg.i { color: #b42318; }
 .token-found .pr { grid-template-rows: auto; cursor: default; }
 .token-found .pr-ic svg { width: 36px; height: 36px; }
 .token-more { grid-template-columns: minmax(0, 1fr) !important; }
-.no-token-card .token-next { display: flex; gap: 14px; align-items: flex-start; margin: 22px 0 0; padding: 16px 18px; border-radius: 12px;
-  background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--ink); }
-.token-next > svg.i { flex: none; width: 24px; height: 24px; margin-top: 1px; color: var(--accent-ink); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.token-next b { display: block; font-size: 17px; line-height: 1.35; }
-.token-next p { margin: 4px 0 0; color: var(--soft); }
+.no-token-card .token-next { margin: 22px 0 0; color: var(--soft); }   /* plain text, the point first (Sacha, 2026-11-13: "simplify this") */
+.token-next b { color: var(--ink); font-weight: 600; }
 @media (max-width: 640px) {
   .no-token-card { margin-top: 24px; padding: 24px 18px; }
   #no-token h2 { font-size: 21px; }

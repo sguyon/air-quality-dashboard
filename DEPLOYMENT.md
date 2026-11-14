@@ -1,6 +1,6 @@
 # Deployment
 
-For access away from home, use Railway. For a home server or NAS, use Docker Compose. Keep `config.toml` and `.env` private. Agents run commands themselves and ask before each change to a live service or account.
+For access away from home, use Railway. For a home server or NAS, use Docker Compose. Only Railway and Docker are tested: another host that runs a container (Fly.io, Render, a VPS) can build from the `Dockerfile` with the same settings, but it is untested and these steps don't cover it. Keep `config.toml` and `.env` private. Agents run commands themselves and ask before each change to a live service or account.
 
 ## Railway
 

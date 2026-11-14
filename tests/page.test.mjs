@@ -869,3 +869,43 @@ test('the header logo is 40 px on a computer and 32 on a phone, as tall as the m
   assert.match(css, /@media \(max-width: 640px\) \{\s*\.bar \.site svg\.mark, \.site svg\.mark \{ width: 32px !important; height: 32px !important; \}/);
   assert.match(css, /:root \{ --dt-row: 40px; --dt-mark: 32px; \}/);
 });
+
+test('the page starts in the home\'s unit (APP.temp_unit, °F for a US home); a viewer\'s own pick, °C or °F, wins and is kept', () => {
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  // decision 8 (Sacha, 2026-11-12): the home's unit first, the viewer's saved choice over it
+  assert.match(app, /let tempPref = \(typeof APP !== 'undefined' && APP\.temp_unit === 'F'\) \? 'F' : 'C';/);
+  assert.match(app, /try \{ const saved = localStorage\.getItem\(TEMP_KEY\); if \(saved === 'C' \|\| saved === 'F'\) tempPref = saved; \} catch \{\}/);
+  // picking °C in a °F home must stick, so both units are saved (before, °C removed the key: the default was always °C)
+  assert.match(app, /try \{ localStorage\.setItem\(TEMP_KEY, u\); \} catch \{\}/);
+  assert.doesNotMatch(app, /localStorage\.removeItem\(TEMP_KEY\)/);
+});
+
+test('switching °C/°F redraws the summary card too, so its chart follows the weather line', () => {
+  const app = readFileSync(new URL('static/app.js', root), 'utf8');
+  const at = app.indexOf('function setTempUnit'), set = app.slice(at, app.indexOf('\n}\n', at));
+  assert.match(set, /if \(state\.read && state\.read\.summary\) SummaryCard\.renderSummary\(\$\('summary'\), state\.read\.summary, appNow\(\), SUMMARY_OPTS\(\)\);/);
+});
+
+// The Connected card waits for the home (rehearsals, 13 Nov 2026: after setup restarted the app, the tab still showed the
+// token card until a reload). waitForHome asks /api/setup and opens the home once the app no longer waits for setup.
+test('the Connected card opens the home by itself once setup has restarted the app', async () => {
+  const src = readFileSync(new URL('static/app.js', root), 'utf8');
+  const start = src.indexOf('function waitForHome(');
+  assert.ok(start > 0, 'waitForHome exists');
+  const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
+  const answers = [new Error('restarting'), { setup: true }, { setup: false }];
+  const asked = [], timers = [];
+  const env = {
+    fetch: async (url, opts) => { asked.push([url, opts && opts.cache]); const a = answers.shift(); if (a instanceof Error) throw a; return { ok: true, json: async () => a }; },
+    location: { replaced: null, replace(u) { this.replaced = u; } },
+    setTimeout: (f) => timers.push(f),
+    document: { hidden: false },
+    SETUP_POLL_MS: 3000,
+  };
+  const run = new Function(...Object.keys(env), body + '\nreturn waitForHome;')(...Object.values(env));
+  run();
+  for (let i = 0; i < 3 && !env.location.replaced; i++) { await timers.shift()(); }
+  assert.equal(env.location.replaced, '/');
+  assert.deepEqual(asked.map(a => a[0]), ['/api/setup', '/api/setup', '/api/setup']);   // a failed ask (the app restarting) is asked again
+  assert.ok(asked.every(a => a[1] === 'no-store'));
+});

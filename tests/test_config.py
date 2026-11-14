@@ -334,3 +334,27 @@ def test_two_blank_names_are_no_monitors(tmp_path):
     text = EXAMPLE.replace('indoor = "living room"', 'indoor = ""').replace('outdoor = "porch"', 'outdoor = " "')
     with pytest.raises(ConfigError, match=r"\[place\] needs indoor, outdoor or both"):
         load_config({}, root_with(tmp_path, text))
+
+
+def test_temp_unit_defaults_to_celsius_and_reads_the_home_section():
+    # decision 8 (Sacha, 2026-11-12): a [home] unit, set by setup from the country; the page starts in it
+    no_home = EXAMPLE.split("[home]")[0] + "[limits]" + EXAMPLE.split("[limits]", 1)[1]
+    assert load_config({"CONFIG_TOML": no_home}, REPO).temp_unit == "C"
+    assert load_config({"CONFIG_TOML": EXAMPLE}).temp_unit == "C"   # the example says it, set to C
+    f = EXAMPLE.replace('temp_unit = "C"', 'temp_unit = "F"')
+    assert load_config({"CONFIG_TOML": f}).temp_unit == "F"
+    with pytest.raises(ConfigError) as e:
+        load_config({"CONFIG_TOML": EXAMPLE.replace('temp_unit = "C"', 'temp_unit = "K"')})
+    assert "home.temp_unit" in str(e.value) and '"F" or "C"' in str(e.value)
+
+
+def test_public_view_gives_the_page_its_starting_unit():
+    f = load_config({"CONFIG_TOML": EXAMPLE.replace('temp_unit = "C"', 'temp_unit = "F"')})
+    assert public_view(f)["temp_unit"] == "F"
+    assert public_view(load_config({"CONFIG_TOML": EXAMPLE}))["temp_unit"] == "C"
+
+
+def test_the_demo_home_in_brooklyn_starts_in_fahrenheit():
+    # Sacha, 2026-11-13: "Build °F for US homes now, the demo in °F too"
+    cfg = load_config({"DEMO": "1"}, REPO)
+    assert cfg.demo and cfg.temp_unit == "F" and public_view(cfg)["temp_unit"] == "F"

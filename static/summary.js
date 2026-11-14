@@ -78,6 +78,8 @@
   const pmPastSvg = (source, d, area, at, col) => source !== 'model' ? `<path d="${area}" fill="url(#sx-fp)"/>`
     : `<path d="${area}" fill="${col.fill}" fill-opacity=".14"/><path d="${d}" fill="none" stroke="${col.muted}" stroke-width="1.5" stroke-dasharray="2 3" stroke-linecap="round"/>` +
       `<text x="${at.x}" y="${at.y}" font-size="10.5" font-weight="600" fill="${col.muted}" stroke="${col.card}" stroke-width="3" paint-order="stroke">${MODEL_LABEL}</text>`;
+  // a temperature in the page's unit (app.js fmtTemp: the home's, or the viewer's pick); °C, as readings arrive, without the page
+  const tempText = c => (typeof fmtTemp === 'function' ? fmtTemp(c, { tight: true }) : Math.round(c) + '°C');
   // each redraw replaces the chart's listeners (including the one on document) instead of adding more
   const rewire = o => { if (o.__ac) o.__ac.abort(); o.__ac = new AbortController(); return o.__ac.signal; };
 
@@ -85,7 +87,7 @@
   const kickHtml = (label, profiles, showLabel = true) =>
     `<div class="sx-kick">${showLabel ? `<span>${esc(label)}</span>` : '<span></span>'}${profilesHeadHtml(profiles)}</div>`;
 
-  const api = { appNow, readingsNow, pmPastSvg, kickHtml, hoursOf, lerp, shareOfLimit, fmtClock, staleWhen, tipSide, hourLabel, profilesHeadHtml, itemProfileHtml, fitLabel, rhLabelY, peakAhead, rewire };
+  const api = { tempText, appNow, readingsNow, pmPastSvg, kickHtml, hoursOf, lerp, shareOfLimit, fmtClock, staleWhen, tipSide, hourLabel, profilesHeadHtml, itemProfileHtml, fitLabel, rhLabelY, peakAhead, rewire };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   // ── drawing ──
@@ -199,7 +201,7 @@
     for (const hh of c.hours) {
       const anc = Math.abs(hh.t - c.t0) < .01 ? 'start' : Math.abs(hh.t - c.t1) < .01 ? 'end' : 'middle', fut = hh.t > c.now;
       g += `<text x="${x(hh.t)}" y="${axisY + 13}" font-size="10.5" fill="${css('--faint')}" text-anchor="${anc}">${hourLabel(hh.t)}</text>`;
-      if (hh.temp != null) g += `<text x="${x(hh.t)}" y="${axisY + 26}" font-size="11" font-weight="600" fill="${fut ? css('--soft') : css('--faint')}" text-anchor="${anc}">${hh.temp}°C</text>`;
+      if (hh.temp != null) g += `<text x="${x(hh.t)}" y="${axisY + 26}" font-size="11" font-weight="600" fill="${fut ? css('--soft') : css('--faint')}" text-anchor="${anc}">${tempText(hh.temp)}</text>`;
       if (hh.pop) {
         const tw = `${hh.pop}%`.length * 5.6 + 10, x0 = anc === 'start' ? x(hh.t) : anc === 'end' ? x(hh.t) - tw : x(hh.t) - tw / 2;
         g += `<path transform="translate(${x0} ${axisY + 31})" d="M3.5 0C3.5 0 0 4.2 0 6.3a3.5 3.5 0 0 0 7 0C7 4.2 3.5 0 3.5 0Z" fill="#6c7f93"/>`;
@@ -235,7 +237,7 @@
       if (co2 != null) rows.push({ sw: '<i class="sx-sw-co2"></i>', lb: 'CO₂ inside', v: Math.round(co2).toLocaleString('en-US'), u: 'ppm', over: co2 > c.lim.co2 });
       if (rh != null) rows.push({ sw: '<i class="sx-sw-rh"></i>', lb: 'Humidity inside', v: Math.round(rh) + '%', u: '', over: rh > c.lim.rh });
       if (pm != null) rows.push({ sw: `<i class="sx-sw-pm${fc ? ' fc' : ''}${pm > c.lim.pm ? ' over' : ''}"></i>`, lb: 'PM2.5 outside', v: Math.round(pm), u: 'µg/m³', over: pm > c.lim.pm });
-      if (temp != null) rows.push({ sw: ICON.temp, lb: 'Temperature', v: Math.round(temp) + '°C', u: '' });
+      if (temp != null) rows.push({ sw: ICON.temp, lb: 'Temperature', v: tempText(temp), u: '' });
       if (rain) rows.push({ sw: ICON.rain, lb: 'Rain', v: rain.pop + '%', u: rain.mm + ' mm', rain: true });
       const evText = ev ? (ev.kind === 'UV' ? 'Strong sun, ' + ev.s : ev.kind + ' at ' + ev.s) : '';
       if (coarse) {

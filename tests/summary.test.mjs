@@ -139,3 +139,12 @@ test('demo readings stay fresh while the tab stays open', () => {
     delete globalThis.APP;
   }
 });
+
+test('the summary chart writes temperatures in the page\'s unit (°C alone, the page\'s fmtTemp when it is there)', () => {
+  const { tempText } = require('../static/summary.js');
+  assert.equal(tempText(14.4), '14°C');   // without the page (a test, or before app.js): °C, as the readings arrive
+  globalThis.fmtTemp = (c, o) => `${Math.round(c * 9 / 5 + 32)}°F${o && o.tight ? '' : ''}`;
+  try { assert.equal(tempText(14), '57°F'); } finally { delete globalThis.fmtTemp; }
+  const src = require('node:fs').readFileSync(new URL('../static/summary.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /°C<\/text>|\+ '°C', u:/);   // no °C written by hand (Sacha's demo showed 59°F above a chart in °C)
+});

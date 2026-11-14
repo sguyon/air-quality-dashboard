@@ -122,7 +122,8 @@ def test_small_config_defaults_and_single_resolution(root, monkeypatch, capsys):
     assert cfg.appliances == () and cfg.profiles == {"toddler": False, "sinus": True, "runner": True}
     assert cfg.limits == DEFAULT_LIMITS and cfg.road is None
     raw = tomllib.loads((root / "config.toml").read_text())
-    assert set(raw) == {"place", "profiles", "sources"}
+    assert set(raw) == {"place", "profiles", "sources", "home"}
+    assert cfg.temp_unit == "F" and "Temperatures in °F" in out   # a US home starts in °F (decision 8), and setup says so
     assert "estimate" in out and "Config OK" in out and out.rstrip().endswith("Live OK")
     assert "Ogden Theatre" not in out and TOKEN not in out
 
@@ -189,8 +190,9 @@ def test_existing_config_is_copied_before_replacement(root, capsys):
     assert code == 0 and len(list(root.glob("config.toml.bak-*"))) == 1
 
 
-@pytest.mark.parametrize("results,country,smoke,zip_code,name", [(MARAIS, "FR", False, None, "Le Marais"), (BACK_BAY, "US", True, "02116", "Back Bay")])
-def test_geographic_corrections(root, monkeypatch, capsys, results, country, smoke, zip_code, name):
+@pytest.mark.parametrize("results,country,smoke,zip_code,name,unit", [(MARAIS, "FR", False, None, "Le Marais", "C"),
+                                                                     (BACK_BAY, "US", True, "02116", "Back Bay", "F")])
+def test_geographic_corrections(root, monkeypatch, capsys, results, country, smoke, zip_code, name, unit):
     def geo(url, params):
         return results if url == setup.NOMINATIM_SEARCH else {"timezone": "Europe/Paris" if country == "FR" else "America/New_York"}
     monkeypatch.setattr(setup, "http_get_json", geo)
@@ -199,6 +201,7 @@ def test_geographic_corrections(root, monkeypatch, capsys, results, country, smo
     cfg = home(root)
     assert cfg.sources["smoke"] is smoke and cfg.place.pollen_zip == zip_code and cfg.place.name == name
     assert cfg.pollen_seasons == ()
+    assert cfg.temp_unit == unit and f"Temperatures in °{unit}" in out
 
 
 def test_one_nominatim_request_with_user_agent_and_no_second_geocoder(root, monkeypatch, capsys):
@@ -492,3 +495,77 @@ def test_status_names_where_the_config_was_read_from(root, capsys):
     out = status(root, capsys, env={"CONFIG_TOML": text})
     step3 = next(l for l in out.splitlines() if "3. Home" in l)
     assert "CONFIG_TOML" in step3 and "config.toml" not in step3
+
+
+def test_setup_md_asks_one_question_at_a_time_with_or_without_a_question_tool():
+    # rehearse manual-20261110-1812-S1: questions queued while the user typed; the old wording ("no question tool with several
+    # questions") read as "never use a question tool", against "Agents with a question tool use it" (0006d85)
+    intro = (Path(__file__).resolve().parent.parent / "SETUP.md").read_text().splitlines()[4]
+    assert "Ask one question per message, in plain words, then wait for the answer." in intro
+    # rehearse manual-20261113-1848-S1 (Claude Code): "claude code didnt use the ask question tool anymore": "use it for one
+    # question at a time" read as optional, so every question goes through it, never as plain chat text
+    assert "If you have a question tool (Claude Code's AskUserQuestion, for example), ask every question with it" in intro
+    assert "don't write a question as plain chat text" in intro
+    assert "Don't ask the next one until the user has answered and you've said what you did with it" in intro
+    assert "no question tool" not in intro
+
+
+def test_setup_md_ends_on_the_home_in_the_tab_already_open_and_a_prominent_address():
+    # rehearse manual-20261113-1848-S1: "it could make it clear to open the app in browser ... the log line here is not super
+    # important and the link to the app should be more prominent"; both agents opened a second tab although the token page
+    # had already turned into the home
+    doc = (Path(__file__).resolve().parent.parent / "SETUP.md").read_text()
+    verify = doc.split("## Start and verify", 1)[1].split("\n## ", 1)[0]
+    again = doc.split("## Use it again", 1)[1].split("\n## ", 1)[0]
+    assert "the page where the user saved the token turns into the home by itself: don't open another tab" in verify
+    assert "Start with the address alone on its own line, in bold" in again
+    assert "it's open in the tab where they saved the token" in again
+    assert "Mention the log file only if something failed" in again and "log location" not in again
+
+
+def test_deployment_md_says_which_hosts_are_tested():
+    # Sacha, 2026-11-13: "we dont have anything that says we don't support other methods like other hosting providers besides railway"
+    intro = (Path(__file__).resolve().parent.parent / "DEPLOYMENT.md").read_text().split("\n## ")[0]
+    assert "Only Railway and Docker are tested" in intro
+    assert "`Dockerfile`" in intro and "untested" in intro
+
+
+def test_wait_token_reports_the_account_as_soon_as_the_page_saves_the_token(root, capsys, monkeypatch):
+    # Sacha, 2026-11-13: "is there a way to know that the user has entered a token key to avoid having them to type Connected?"
+    (root / ".env").write_text("AIRGRADIENT_TOKEN=\n")
+    sleeps = []
+    def page_saves_it(seconds):   # the token page saves the token while the command waits
+        sleeps.append(seconds)
+        if len(sleeps) == 2:
+            (root / ".env").write_text(f"AIRGRADIENT_TOKEN={TOKEN}\n")
+    monkeypatch.setattr(setup.time, "sleep", page_saves_it)
+    code, out = run(root, capsys, "--wait-token", env={})
+    assert code == 0 and sleeps == [setup.WAIT_POLL_SECONDS] * 2
+    assert out.startswith("Connected to AirGradient: 1 monitor:") and TOKEN not in out
+
+
+def test_wait_token_gives_up_after_its_limit_and_says_what_to_do_next(root, capsys, monkeypatch):
+    (root / ".env").write_text("AIRGRADIENT_TOKEN=\n")
+    now = [0.0]
+    monkeypatch.setattr(setup.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(setup.time, "sleep", lambda s: now.__setitem__(0, now[0] + s))
+    monkeypatch.setattr(setup, "account_rows", lambda token, **k: pytest.fail("no token: nothing to look up"))
+    code, out = run(root, capsys, "--wait-token", env={})
+    assert code == 0 and now[0] >= setup.WAIT_TOKEN_SECONDS
+    assert out.startswith("Not saved yet.") and "--wait-token" in out and "done" in out
+    assert setup.WAIT_TOKEN_SECONDS < 120   # one wait fits Claude Code's default 2-minute command limit
+
+
+def test_setup_md_waits_for_the_token_and_falls_back_to_done():
+    text = (Path(__file__).resolve().parent.parent / "SETUP.md").read_text()
+    assert "scripts/setup.py --wait-token" in text and "no need to reply" in text and "type done" in text
+    assert "Tell me when the page says Connected" not in text
+
+
+def test_setup_md_lets_the_user_keep_a_default_without_typing_it():
+    # Sacha, 2026-11-13: "is there a way to not have to type "none" in the profile question to select the default answer?"
+    text = (Path(__file__).resolve().parent.parent / "SETUP.md").read_text()
+    home = text.split("## Describe your home", 1)[1].split("\n## ", 1)[0]
+    assert "With a question tool, offer the answers as options with the default first" in home
+    assert "Any other reply, like ok, keeps none." in home
+    assert "Any other reply, like ok, keeps it." in home

@@ -28,6 +28,8 @@ SOURCES = ("smoke", "pollen", "nearby")   # outside sources [sources] can turn o
 # what [home] appliances may list: the damp-room action runs the first one the home has.
 APPLIANCES = ("dehumidifier", "ac_dry")
 DEFAULT_APPLIANCES = ()  # no equipment assumed: a home opts in to the appliances it has.
+TEMP_UNITS = ("C", "F")  # [home] temp_unit: the unit the page starts in (setup sets F for a US home); a viewer can still switch.
+DEFAULT_TEMP_UNIT = "C"
 # the named ways to get outdoor PM2.5 without an outdoor monitor of your own ([sources] outdoor_from); the other way is a public monitor's id
 OUTDOOR_FROM_KINDS = ("area", "model")
 
@@ -142,6 +144,7 @@ class Config:
     sources: dict[str, bool]
     appliances: tuple[str, ...] = DEFAULT_APPLIANCES
     outdoor_from: int | str | None = None   # without an outdoor monitor: a public monitor's locationId, "area" or "model"
+    temp_unit: str = DEFAULT_TEMP_UNIT
 
 
 def _clean(text: str) -> str:
@@ -249,6 +252,13 @@ def _appliances(home: dict, source: str) -> tuple[str, ...]:
     return tuple(x for x in APPLIANCES if x in v)
 
 
+def _temp_unit(home: dict, source: str) -> str:
+    v = home.get("temp_unit", DEFAULT_TEMP_UNIT)
+    if not (isinstance(v, str) and v.strip().upper() in TEMP_UNITS):
+        raise ConfigError(f'{source}: home.temp_unit must be "F" or "C"')
+    return v.strip().upper()
+
+
 def _outdoor_from(sources_t: dict, place: Place, source: str) -> int | str | None:
     """sources.outdoor_from: needed without an outdoor monitor, ignored with one."""
     if place.outdoor is not None:
@@ -338,7 +348,8 @@ def _parse(text: str, source: str, root: Path, demo: bool) -> Config:
     seasons = raw.get("pollen_seasons", [])
     if not isinstance(seasons, list):
         raise ConfigError(f"{source}: pollen_seasons must be a list of [[pollen_seasons]] blocks")
-    return Config(source, demo, place, road, profiles, limits, tuple(seasons), sources, _appliances(home_t, source), outdoor_from)
+    return Config(source, demo, place, road, profiles, limits, tuple(seasons), sources, _appliances(home_t, source), outdoor_from,
+                  _temp_unit(home_t, source))
 
 
 def load_config(env: Mapping[str, str] = os.environ, root: Path = ROOT) -> Config | None:
@@ -417,6 +428,7 @@ def public_view(cfg: Config, root: Path = ROOT) -> dict:
         "limits": dict(cfg.limits),
         "pollen_seasons": list(cfg.pollen_seasons),
         "sources": dict(cfg.sources),
+        "temp_unit": cfg.temp_unit,   # the unit the page starts in; a viewer's own pick wins
     }
     if cfg.outdoor_from is not None:
         of = cfg.outdoor_from

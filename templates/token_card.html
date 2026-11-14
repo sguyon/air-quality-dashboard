@@ -12,16 +12,10 @@
   <li class="pr"><span class="pr-ic">{% if m.kind == 'outdoor' %}{% include "icon_openair.svg" %}{% else %}{% include "icon_one.svg" %}{% endif %}</span><span class="pr-t"><b>{{ m.name }}</b><em>{{ 'Outdoor monitor' if m.kind == 'outdoor' else 'Indoor monitor' if m.kind == 'indoor' else 'Monitor' }}</em></span></li>{% endfor %}
   {% if found|length > shown %}<li class="pr token-more"><span class="pr-t"><em>and {{ found|length - shown }} more</em></span></li>{% endif %}
 </ul>
+<p class="token-next" data-wait-home><b>Keep this page open:</b> your home shows up here when your agent is done. If nothing happens, type “done” in your agent’s chat.</p>
 {% else %}
-<p class="token-found-title">No monitors with readings yet. A new monitor shows up here once it has sent its first reading: check it shows readings in the AirGradient app.</p>
+<p class="token-next"><b>No monitors with readings yet.</b> A new monitor shows up here once it has sent its first reading: check it in the AirGradient app. You can close this tab and tell your agent.</p>
 {% endif %}
-<div class="token-next">
-  <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>
-  <div>
-    <b>You're done here: go back to your agent</b>
-    <p>{% if found %}Tell it the page says Connected. It sets up your home and restarts the app, then your readings show at this address.{% else %}Tell it you have no monitor with readings yet.{% endif %} You can close this tab.</p>
-  </div>
-</div>
 {% else %}
 <h2>Connect your AirGradient account</h2>
 <p>Paste a token from your AirGradient account so this app can read your monitors.</p>

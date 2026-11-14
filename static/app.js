@@ -128,11 +128,12 @@ const has = v => v !== null && v !== undefined && !Number.isNaN(v);
 const num = (v, d = 1) => has(v) ? Number(v).toFixed(d) : '—';
 // particle values: one decimal below 10 (3.9), whole numbers from 10 up (12, 148), so three digits fit the ring
 const pmNum = v => { if (!has(v)) return '—'; const r = Math.round(v * 10) / 10; return Math.abs(r) >= 10 ? String(Math.round(v)) : r.toFixed(1); };
-// Temperature unit, per viewer: °C unless they pick °F in the Home menu. Every reading arrives in °C.
+// Temperature unit: the home's ([home] temp_unit, °F for a US home) unless the viewer picked one in the Weather menu, which is
+// kept on their device. Every reading arrives in °C.
 // sky.js uses these too (it loads after this file).
 const TEMP_KEY = 'aq-temp-unit';
-let tempPref = 'C';
-try { if (localStorage.getItem(TEMP_KEY) === 'F') tempPref = 'F'; } catch {}
+let tempPref = (typeof APP !== 'undefined' && APP.temp_unit === 'F') ? 'F' : 'C';
+try { const saved = localStorage.getItem(TEMP_KEY); if (saved === 'C' || saved === 'F') tempPref = saved; } catch {}
 const tempUnit = () => tempPref;
 const toF = c => c * 9 / 5 + 32;
 // fmtTemp(15.5) → "16 °C" (or "60 °F"); digits: decimals; unit: 'C' or 'F' to force one; tight: "16°C"; bare: the number only
@@ -988,6 +989,25 @@ async function loadRead(force) {
 
 let inFlight = null, lastRefresh = 0;
 
+// How often the Connected card asks whether setup has restarted the app with the home, in ms: soon enough to feel
+// immediate, rare enough to cost nothing while the agent works.
+const SETUP_POLL_MS = 3000;
+
+// The Connected card waits for the home: setup restarts the app with it, then this page opens it by itself. A failed ask
+// (the app is restarting) is simply asked again.
+function waitForHome() {
+  const ask = async () => {
+    try {
+      if (!document.hidden) {
+        const res = await fetch('/api/setup', { cache: 'no-store' });
+        if (res.ok && (await res.json()).setup === false) { location.replace('/'); return; }
+      }
+    } catch (e) { /* the app is restarting: ask again */ }
+    setTimeout(ask, SETUP_POLL_MS);
+  };
+  setTimeout(ask, SETUP_POLL_MS);
+}
+
 // A config but no AirGradient token yet: the header and one plain card. Everything that needs the monitors stays hidden.
 function showNoToken() {
   bootRead = null;
@@ -999,6 +1019,7 @@ function showNoToken() {
   document.body.classList.add('no-token');
   $('no-token').hidden = false;
   setBusy(false);
+  if (document.querySelector('[data-wait-home]')) waitForHome();
 }
 
 // manual: the person pressed refresh, so show the busy state from the first request and write a new read.
@@ -1128,12 +1149,13 @@ function syncTempSeg() {
 }
 function setTempUnit(u) {
   if (u !== 'C' && u !== 'F') return;
-  try { u === 'C' ? localStorage.removeItem(TEMP_KEY) : localStorage.setItem(TEMP_KEY, u); } catch {}
+  try { localStorage.setItem(TEMP_KEY, u); } catch {}   // both units: picking °C in a °F home must stick
   const changed = u !== tempPref;
   tempPref = u; syncTempSeg();
   if (!changed) return;
   if (state.indoor || state.outdoor) $('monitors').innerHTML = monitorsHTML();
   if (state.ctx) renderContext(state.ctx);   // the weather card and the neighborhood table
+  if (state.read && state.read.summary) SummaryCard.renderSummary($('summary'), state.read.summary, appNow(), SUMMARY_OPTS());   // its chart's hours
   else if (state.neighbors.length) renderNeighborhood();
   if (typeof SKY !== 'undefined' && SKY) SKY.units();   // the weather line in the header
 }

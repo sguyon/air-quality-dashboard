@@ -18,6 +18,7 @@ runner = true
 
 [home]
 appliances = ["dehumidifier", "ac_dry"]
+temp_unit = "F"   # a Brooklyn home: the page starts in °F, as setup sets for any US home
 
 [sources]
 smoke = true

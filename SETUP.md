@@ -2,7 +2,7 @@
 
 **Done when** `uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py --live <the page's address>` ends with `Live OK`: the page answers with the home's settings, and each monitor has a recent reading.
 
-For a coding agent setting this up for someone's home. Do the steps yourself when a command can. Ask one question per message, in plain words, then wait for the answer: no question tool with several questions, and don't queue the next question while you work. Skip answers the user already gave. Don't change the app's code during setup: if the token is refused twice, stop and say what the page said. Never ask for a key in chat, read or print `.env`, or commit private settings. Ask before changing a live service or account.
+For a coding agent setting this up for someone's home. Do the steps yourself when a command can. Ask one question per message, in plain words, then wait for the answer. If you have a question tool (Claude Code's AskUserQuestion, for example), ask every question with it, one at a time, the default as the first option; don't write a question as plain chat text. Don't ask the next one until the user has answered and you've said what you did with it. Skip answers the user already gave. Don't change the app's code during setup: if the token is refused twice, stop and say what the page said. Never ask for a key in chat, read or print `.env`, or commit private settings. Ask before changing a live service or account.
 
 ## Get ready
 
@@ -27,15 +27,15 @@ uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py
 
 On the user's own computer, start the app now with the command under **Start and verify**. Open the exact `?setup=…` link it prints with `open '<link>'` on Mac or `xdg-open '<link>'` on Linux. The link grants access to the token box and redirects to `/`. Never enter or inspect the token through browser tools.
 
-Then send one message, with the exact link:
+Then send one message, with the exact link, and in the same turn run `scripts/setup.py --wait-token` (the command above with `--wait-token`):
 
 > I opened the AirGradient connection page in your browser. If it didn't open, open this link: <the setup link>
 >
 > On that page you enter your AirGradient token. You need an AirGradient monitor that already shows readings in the AirGradient app. Follow the page's two steps: copy your token from the AirGradient dashboard (General settings → Connectivity → API access), then press Connect. If AirGradient asks you to sign in, press the page's step 1 button again afterwards.
 >
-> Tell me when the page says Connected, or if you don't have a monitor set up yet.
+> I'll notice when the token is saved: no need to reply. If nothing happens, type done. If you don't have a monitor set up yet, tell me.
 
-The page checks the token with AirGradient, lists the account's monitors, saves it privately and loads it without a restart. When the user says it's connected, run `scripts/setup.py` again (the command above): it prints the account's monitors without showing the token. Tell the user in one line what you found ("Connected: 2 monitors, Living room (indoor) and Back porch (outdoor).") before the next question. A fresh copy stays in the demo until the home is configured below; stop that process before restarting with the home.
+The page checks the token with AirGradient, lists the account's monitors, saves it privately and loads it without a restart. `--wait-token` waits up to 90 seconds for that and prints the account's monitors without showing the token. If it says "Not saved yet", run it again, unless the user has written meanwhile; when they type done, run it once more. Tell the user in one line what you found ("Connected: 2 monitors, Living room (indoor) and Back porch (outdoor).") before the next question. A fresh copy stays in the demo until the home is configured below; stop that process before restarting with the home.
 
 Can't find the token: tell them to press "Show me where" under step 1 on the page. It opens a marked picture of AirGradient's settings page: 1 General Settings in the left menu, 2 the Connectivity tab, 3 API Access, where they turn it on and press the copy button. Walk them through those marks in words. Don't open pictures in another app: a picture of a web page in its own window looks clickable.
 
@@ -47,10 +47,10 @@ Going straight to Railway without a local run: the user pastes the token into th
 
 ## Describe your home
 
-Ask these two questions, one per message, each with its default:
+Ask these two questions, one per message, each with its default; the user never types a default to keep it. With a question tool, offer the answers as options with the default first, so one key keeps it.
 
-1. “What neighborhood or address should the page use for weather and nearby air? A nearby landmark with its city works too. Default: a nearby landmark in the neighborhood you have already named.” Keep only the location rounded to about 1 km; don't invent a location if none is known. Before the next question, say in one line what you understood and what's kept: “Got it: near Times Square, New York. It's used for your weather, nearby public monitors and timezone; only a location rounded to about 1 km is saved, in config.toml on this computer.”
-2. “Which profiles match your home: a toddler, someone with sinus trouble or allergies, someone who runs outside, or none? Pick any. Default: none.”
+1. “What neighborhood or address should the page use for weather and nearby air? A nearby landmark with its city works too. Default: a nearby landmark in the neighborhood you have already named. Any other reply, like ok, keeps it.” Keep only the location rounded to about 1 km; don't invent a location if none is known. Before the next question, say in one line what you understood and what's kept: “Got it: near Times Square, New York. It's used for your weather, nearby public monitors and timezone; only a location rounded to about 1 km is saved, in config.toml on this computer.”
+2. “Which profiles match your home: a toddler, someone with sinus trouble or allergies, someone who runs outside, or none? Pick any. Default: none. Any other reply, like ok, keeps none.”
 
 Then run one command, using their answers:
 
@@ -77,11 +77,11 @@ With the token and home configured, check the running page:
 uv run --python 3.12 --with-requirements requirements.txt scripts/setup.py --live http://localhost:5555
 ```
 
-It uses read-only GET requests and ends with `Live OK`. The page should show the monitors' readings, actions, chosen profiles and local conditions. Without an outdoor monitor, the outdoor card names a public monitor or says “Estimate for your area”. If a reading is missing, check the monitor is online and set as indoor or outdoor in AirGradient. Docker and Railway users verify their final URL without starting a local server.
+It uses read-only GET requests and ends with `Live OK`. When the app restarts with the home, the page where the user saved the token turns into the home by itself: don't open another tab. The page should show the monitors' readings, actions, chosen profiles and local conditions. Without an outdoor monitor, the outdoor card names a public monitor or says “Estimate for your area”. If a reading is missing, check the monitor is online and set as indoor or outdoor in AirGradient. Docker and Railway users verify their final URL without starting a local server.
 
 ## Use it again
 
-Give the user the address, what to expect, and one start command with the full repo path: `cd /path/to/home-air-quality && uv run --python 3.12 --with-requirements requirements.txt server.py`. Include the actual port and log location if started in the background. Ctrl+C stops it in a terminal.
+Start with the address alone on its own line, in bold, as a link (`**http://localhost:5555**`, with the real port), and say it's open in the tab where they saved the token. Then what to expect, and one start command with the full repo path: `cd /path/to/home-air-quality && uv run --python 3.12 --with-requirements requirements.txt server.py`, with the port if it isn't 5555. Mention the log file only if something failed. Ctrl+C stops it in a terminal.
 
 Change names, profiles, drying equipment (`[home] appliances`) or limits in `config.toml`; [config.example.toml](config.example.toml) explains the settings. Restart after editing config or `.env` by hand. Keep a private copy of config; it isn't in git. Optional [pollen, road tracing, new profiles and Vercel demo](docs/optional.md); [Railway and Docker deployment](DEPLOYMENT.md).
 
