@@ -18,7 +18,7 @@ An app for your AirGradient monitors that tells you what to do about your air: w
 
 You need one or two AirGradient monitors (indoor, outdoor or both) on AirGradient's cloud, and your API token. Works best in the US.
 
-**With a coding agent** (Claude Code, Codex, Cursor). Open your agent in an empty folder and paste:
+**With a coding agent** (Claude Code or Codex). Open your agent in an empty folder and paste:
 
 ```
 Clone https://github.com/sguyon/home-air-quality and set up Home Air Quality for my home by following its SETUP.md.
