@@ -15,7 +15,7 @@ git clone https://github.com/sguyon/home-air-quality
 cd home-air-quality
 ```
 
-Run every command below from this folder through `scripts/run.sh`: it uses uv, installs uv if it's missing, or falls back to Python 3.11 or newer, and says which; if none works, it stops and says what to install. To see what's done and the next command at any point, run `scripts/run.sh scripts/setup.py --status`; it changes nothing.
+Run every command below from this folder through `scripts/run.sh`: it uses uv, installs uv if it's missing, or falls back to Python 3.11 or newer, and says which; if none works, it stops and says what to install. To see what's done and the next command at any point, run `scripts/run.sh scripts/setup.py --status`; it changes nothing. Some commands wait on purpose (`--wait-token` up to 90 seconds, `--start` up to 30, `--live` up to 10 for an app just started): run them with a timeout of at least 100 seconds, so one call returns the result; don't poll.
 
 In a cloud sandbox (Claude Code on the web, Codex cloud) asked to set up a home: say the app can't stay there and to run setup on their own computer, then stop. Development in a sandbox is unaffected: see AGENTS.md, "Run".
 
@@ -27,7 +27,7 @@ Prepare the private token file; this keeps existing lines and sets owner-only pe
 scripts/run.sh scripts/setup.py
 ```
 
-On the user's own computer, start the app now with the command under **Start and verify**. Open the exact `?setup=…` link it writes to `app.log` with `open '<link>'` on Mac or `xdg-open '<link>'` on Linux. The link grants access to the token box and redirects to `/`. Never enter or inspect the token through browser tools.
+On the user's own computer, start the app now with the command under **Start and verify**. Open the exact `?setup=…` link it prints with `open '<link>'` on Mac or `xdg-open '<link>'` on Linux. The link grants access to the token box and redirects to `/`. Never enter or inspect the token through browser tools.
 
 Then send one message, with the exact link, and in the same turn run `scripts/setup.py --wait-token` (the command above with `--wait-token`):
 
@@ -37,7 +37,7 @@ Then send one message, with the exact link, and in the same turn run `scripts/se
 >
 > I'll notice when the token is saved: no need to reply. If nothing happens, type done. If you don't have a monitor set up yet, tell me.
 
-The page checks the token with AirGradient, lists the account's monitors, saves it privately and loads it without a restart. `--wait-token` waits up to 90 seconds for that and prints the account's monitors without showing the token. If it says "Not saved yet", run it again, unless the user has written meanwhile; when they type done, run it once more. Tell the user in one line what you found ("Connected: 2 monitors, Living room (indoor) and Back porch (outdoor).") before the next question. A fresh copy stays in the demo until the home is configured below; stop it (`kill $(cat app.pid)`) before restarting with the home.
+The page checks the token with AirGradient, lists the account's monitors, saves it privately and loads it without a restart. `--wait-token` waits up to 90 seconds for that and prints the account's monitors without showing the token. If it says "Not saved yet", run it again, unless the user has written meanwhile; when they type done, run it once more. Tell the user in one line what you found ("Connected: 2 monitors, Living room (indoor) and Back porch (outdoor).") before the next question. A fresh copy stays in the demo until the home is configured below; run the start command again to restart it with the home.
 
 Can't find the token: tell them to press "Show me where" under step 1 on the page. It opens a marked picture of AirGradient's settings page: 1 General Settings in the left menu, 2 the Connectivity tab, 3 API Access, where they turn it on and press the copy button. Walk them through those marks in words. Don't open pictures in another app: a picture of a web page in its own window looks clickable.
 
@@ -49,7 +49,7 @@ Fallback, when the token page can't open: open `.env` in the user's text editor 
 
 Ask these two questions, one per message, each with its default; the user never types a default to keep it. With a question tool, offer the answers as options with the default first, so one key keeps it, except as noted below.
 
-1. Ask the address as plain chat text, with no options to pick, even with a question tool: “What neighborhood or address should the page use for weather and nearby air? A nearby landmark with its city works too. Default: a nearby landmark in the neighborhood you have already named. Any other reply, like ok, keeps it.” Keep only the location rounded to about 1 km; don't invent a location if none is known. Before the next question, say in one line what you understood and what's kept: “Got it: near Times Square, New York. It's used for your weather, nearby public monitors and timezone; only a location rounded to about 1 km is saved, in config.toml on this computer.”
+1. Ask the address as plain chat text, with no options to pick, even with a question tool: “What neighborhood or address should the page use for weather and nearby air? A nearby landmark with its city works too.” If the user has already named a place, add “Default: <that place>. Any other reply, like ok, keeps it.”; otherwise there is no default, and don't mention one. Keep only the location rounded to about 1 km; don't invent a location if none is known. Before the next question, say in one line what you understood and what's kept: “Got it: near Times Square, New York. It's used for your weather, nearby public monitors and timezone; only a location rounded to about 1 km is saved, in config.toml on this computer.”
 2. The profiles. With a question tool that picks several (Claude Code's does), ask “The page suggests actions, like closing a window or running a purifier. To personalize them for your home, which of these apply?” with the three as options and None first (the default). Without a question tool that picks several (Codex's picks one), ask in plain chat text, laid out like this:
 
    > The page suggests actions, like closing a window or running a purifier.
@@ -77,21 +77,21 @@ No approval is needed before writing. An existing config is copied to `config.to
 
 ## Start and verify
 
-Start it in the background, so it keeps running after this session (it writes to `app.log`):
+Start it in the background, so it keeps running after this session. The command waits until the app answers, stops a copy it started before, and prints the address (and the setup link, when there's no token yet); the app's log is `app.log`:
 
 ```bash
-nohup scripts/run.sh server.py > app.log 2>&1 < /dev/null &
+scripts/run.sh scripts/setup.py --start
 ```
 
-The app's address is on the first line of `app.log` (`Home Air Quality → http://localhost:<port>`): use that address below and in the last message. Open it on this computer. Without a token, open the printed setup link for the token box (the plain address shows the demo on a fresh copy, or says where the link is once a home is set up). Restart to get a new link. Set `PORT=5600` before the command if the port is taken, and use that port below too.
+Use the address it prints below and in the last message: it moves to a free port (5600 up) when 5555 is taken. Open it on this computer. Without a token, open the printed setup link for the token box (the plain address shows the demo on a fresh copy, or says where the link is once a home is set up). Start again to get a new link.
 
 With the token and home configured, check the running page:
 
 ```bash
-scripts/run.sh scripts/setup.py --live http://localhost:5555
+scripts/run.sh scripts/setup.py --live
 ```
 
-It uses read-only GET requests and ends with `Live OK`. If the token was saved on its page in this session, the page where the user saved the token turns into the home by itself: don't open another tab. Otherwise open the address once (`open` on Mac, `xdg-open` on Linux). The page should show the monitors' readings, actions, chosen profiles and local conditions. Without an outdoor monitor, the outdoor card names a public monitor or says “Estimate for your area”. If a reading is missing, check the monitor is online and set as indoor or outdoor in AirGradient. Docker and Railway users verify their final URL without starting a local server.
+With no address it checks the copy `--start` started (for any other page, Docker or Railway, pass its address: `--live <address>`). It uses read-only GET requests and ends with `Live OK`. If the token was saved on its page in this session, the page where the user saved the token turns into the home by itself: don't open another tab. Otherwise open the address once (`open` on Mac, `xdg-open` on Linux). The page should show the monitors' readings, actions, chosen profiles and local conditions. Without an outdoor monitor, the outdoor card names a public monitor or says “Estimate for your area”. If a reading is missing, check the monitor is online and set as indoor or outdoor in AirGradient. Docker and Railway users verify their final URL without starting a local server.
 
 ## Use it again
 
@@ -111,7 +111,7 @@ The address goes alone on its line, plain; don't say a tab is open. If they ask:
 - For a home server: `scripts/run.sh scripts/setup.py --home-server`, then pass on its two steps; the server needs Docker. Don't offer to copy it over SSH: give the steps, and do more only if they ask. Once they've started it, check `scripts/run.sh scripts/setup.py --live http://<the server>:8000` if you can reach it.
 - Online: [DEPLOYMENT.md](DEPLOYMENT.md#railway).
 
-For later sessions, not for the message: the app writes to `app.log` in this folder, and starts again with `cd /path/to/home-air-quality && nohup scripts/run.sh server.py > app.log 2>&1 < /dev/null &` (with `PORT=` first if it isn't 5555).
+For later sessions, not for the message: the app writes to `app.log` in this folder, and starts again with `cd /path/to/home-air-quality && scripts/run.sh scripts/setup.py --start` (with `PORT=` first if it isn't 5555).
 
 Change names, profiles, drying equipment (`[home] appliances`) or limits in `config.toml`; [config.example.toml](config.example.toml) explains the settings. Restart after editing config or `.env` by hand. Keep a private copy of config; it isn't in git. Optional [pollen, road tracing, new profiles and Vercel demo](docs/optional.md); [Railway and Docker deployment](DEPLOYMENT.md).
 

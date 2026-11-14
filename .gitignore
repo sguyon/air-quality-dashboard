@@ -15,6 +15,7 @@ __pycache__/
 # The running app's log and pid, and the folder prepared for a home server (it holds a copy of .env)
 /app.log
 /app.pid
+/app.port
 /home-server/
 
 # Private notes: a separate private repo cloned here

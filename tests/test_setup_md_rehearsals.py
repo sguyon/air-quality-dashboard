@@ -42,4 +42,4 @@ def test_the_home_server_steps_without_offering_ssh():
 def test_the_check_uses_the_address_the_app_printed():
     # Claude Code checked localhost:5555, which another server held, while the app ran elsewhere
     verify = section("Start and verify")
-    assert "The app's address is on the first line of `app.log`" in verify
+    assert "Use the address it prints below and in the last message" in verify
