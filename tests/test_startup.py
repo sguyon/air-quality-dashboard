@@ -94,6 +94,7 @@ def test_dotenv_skips_lines_without_a_key():
     assert server_module.parse_dotenv("=x\nexport =y\n  = z\nA=1\n") == {"A": "1"}
 
 
+@pytest.mark.xdist_group("app-pid")   # runs server.py, which writes the repo's app.pid: same worker as test_autostart's pid test
 def test_main_binds_localhost_unless_host_is_set(monkeypatch, capsys):
     import runpy
     import flask

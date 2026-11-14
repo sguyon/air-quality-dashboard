@@ -71,10 +71,10 @@ Then http://localhost:5555 (`PORT` changes the port). `scripts/run.sh server.py`
 ## Test
 
 ```bash
-pytest -q && node --test tests/*.test.mjs
+pytest -q -n auto --dist loadgroup && node --test tests/*.test.mjs
 ```
 
-Both must pass before a commit.
+Both must pass before a commit. While iterating, run only the tests the change touches (`pytest tests/test_x.py -x -q`). `-n auto` needs `pytest-xdist` (in `requirements-dev.txt`). A bare `pytest` runs `tests/` only (`pytest.ini`).
 
 ## The demo moments are the test fixtures
 
